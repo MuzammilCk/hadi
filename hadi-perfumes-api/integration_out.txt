@@ -1,0 +1,99 @@
+[Nest] 23232  - 27/03/2026, 3:33:20 am   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (1)...
+DataTypeNotSupportedError: Data type "jsonb" in "CommissionRule.eligible_categories" is not supported by "sqlite" database.
+    at D:\projects\hadi\hadi-perfumes-api\src\metadata-builder\EntityMetadataValidator.ts:133:31
+    at Array.forEach (<anonymous>)
+    at EntityMetadataValidator.validate (D:\projects\hadi\hadi-perfumes-api\src\metadata-builder\EntityMetadataValidator.ts:128:18)
+    at D:\projects\hadi\hadi-perfumes-api\src\metadata-builder\EntityMetadataValidator.ts:43:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataValidator.validateMany (D:\projects\hadi\hadi-perfumes-api\src\metadata-builder\EntityMetadataValidator.ts:42:25)
+    at DataSource.buildMetadatas (D:\projects\hadi\hadi-perfumes-api\src\data-source\DataSource.ts:753:33)
+    at DataSource.initialize (D:\projects\hadi\hadi-perfumes-api\src\data-source\DataSource.ts:264:13)
+[Nest] 23232  - 27/03/2026, 3:33:23 am   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (2)...
+DataTypeNotSupportedError: Data type "jsonb" in "CommissionRule.eligible_categories" is not supported by "sqlite" database.
+    at D:\projects\hadi\hadi-perfumes-api\src\metadata-builder\EntityMetadataValidator.ts:133:31
+    at Array.forEach (<anonymous>)
+    at EntityMetadataValidator.validate (D:\projects\hadi\hadi-perfumes-api\src\metadata-builder\EntityMetadataValidator.ts:128:18)
+    at D:\projects\hadi\hadi-perfumes-api\src\metadata-builder\EntityMetadataValidator.ts:43:18
+    at Array.forEach (<anonymous>)
+    at EntityMetadataValidator.validateMany (D:\projects\hadi\hadi-perfumes-api\src\metadata-builder\EntityMetadataValidator.ts:42:25)
+    at DataSource.buildMetadatas (D:\projects\hadi\hadi-perfumes-api\src\data-source\DataSource.ts:753:33)
+    at DataSource.initialize (D:\projects\hadi\hadi-perfumes-api\src\data-source\DataSource.ts:264:13)
+FAIL test/integration/admin-policy.workflow.spec.ts (6.324 s)
+  ÔùÅ AdminPolicyService (Integration) ÔÇ║ should create a draft policy, validate it, and activate it
+
+    thrown: "Exceeded timeout of 5000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      10 |   let dataSource: DataSource;
+      11 |
+    > 12 |   beforeAll(async () => {
+         |   ^
+      13 |     const module: TestingModule = await Test.createTestingModule({
+      14 |       imports: [
+      15 |         TypeOrmModule.forRoot({
+
+      at test/integration/admin-policy.workflow.spec.ts:12:3
+      at Object.<anonymous> (test/integration/admin-policy.workflow.spec.ts:8:1)
+
+
+  ÔùÅ Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'destroy')
+
+      29 |
+      30 |   afterAll(async () => {
+    > 31 |     await dataSource.destroy();
+         |                      ^
+      32 |   });
+      33 |
+      34 |   it('should create a draft policy, validate it, and activate it', async () => {
+
+      at Object.<anonymous> (test/integration/admin-policy.workflow.spec.ts:31:22)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        6.744 s, estimated 8 s
+Ran all test suites matching test/integration.
+Jest did not exit one second after the test run has completed.
+
+'This usually means that there are asynchronous operations that weren't stopped in your tests. Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.
+
+ReferenceError: You are trying to `import` a file after the Jest environment has been torn down. From test/integration/admin-policy.workflow.spec.ts.
+
+      at Function.load (src/platform/PlatformTools.ts:126:28)
+      at SqliteDriver.loadDependencies (src/driver/sqlite/SqliteDriver.ts:195:65)
+      at new SqliteDriver (src/driver/sqlite/SqliteDriver.ts:43:14)
+      at DriverFactory.create (src/driver/DriverFactory.ts:44:24)
+      at new DataSource (src/data-source/DataSource.ts:150:43)
+      at createTypeormDataSource (node_modules/@nestjs/typeorm/dist/typeorm-core.module.js:164:23)
+      at node_modules/@nestjs/typeorm/dist/typeorm-core.module.js:169:36
+      at Observable._subscribe (node_modules/rxjs/src/internal/observable/defer.ts:54:15)
+      at Observable._trySubscribe (node_modules/rxjs/src/internal/Observable.ts:235:19)
+      at node_modules/rxjs/src/internal/Observable.ts:225:18
+      at Object.errorContext (node_modules/rxjs/src/internal/util/errorContext.ts:29:5)
+      at Observable.subscribe (node_modules/rxjs/src/internal/Observable.ts:211:5)
+      at subscribeForRetryWhen (node_modules/rxjs/src/internal/operators/retryWhen.ts:74:25)
+      at node_modules/rxjs/src/internal/operators/retryWhen.ts:85:28
+      at OperatorSubscriber._this._next (node_modules/rxjs/src/internal/operators/OperatorSubscriber.ts:70:13)
+      at OperatorSubscriber.Subscriber.next (node_modules/rxjs/src/internal/Subscriber.ts:71:12)
+      at node_modules/rxjs/src/internal/operators/mergeInternals.ts:85:24
+      at OperatorSubscriber._this._next (node_modules/rxjs/src/internal/operators/OperatorSubscriber.ts:70:13)
+      at OperatorSubscriber.Subscriber.next (node_modules/rxjs/src/internal/Subscriber.ts:71:12)
+      at node_modules/rxjs/src/internal/operators/map.ts:57:20
+      at OperatorSubscriber._this._next (node_modules/rxjs/src/internal/operators/OperatorSubscriber.ts:70:13)
+      at OperatorSubscriber.Subscriber.next (node_modules/rxjs/src/internal/Subscriber.ts:71:12)
+      at node_modules/rxjs/src/internal/operators/take.ts:60:26
+      at OperatorSubscriber._this._next (node_modules/rxjs/src/internal/operators/OperatorSubscriber.ts:70:13)
+      at OperatorSubscriber.Subscriber.next (node_modules/rxjs/src/internal/Subscriber.ts:71:12)
+      at AsyncAction.work (node_modules/rxjs/src/internal/observable/timer.ts:173:20)
+      at AsyncAction._execute (node_modules/rxjs/src/internal/scheduler/AsyncAction.ts:119:12)
+      at AsyncAction.execute (node_modules/rxjs/src/internal/scheduler/AsyncAction.ts:94:24)
+      at AsyncScheduler.flush (node_modules/rxjs/src/internal/scheduler/AsyncScheduler.ts:38:27)
+[Nest] 23232  - 27/03/2026, 3:33:26 am   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (3)...
+[Nest] 23232  - 27/03/2026, 3:33:29 am   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (4)...
+[Nest] 23232  - 27/03/2026, 3:33:32 am   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (5)...
+[Nest] 23232  - 27/03/2026, 3:33:35 am   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (6)...
+[Nest] 23232  - 27/03/2026, 3:33:38 am   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (7)...
+[Nest] 23232  - 27/03/2026, 3:33:41 am   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (8)...
+[Nest] 23232  - 27/03/2026, 3:33:44 am   ERROR [TypeOrmModule] Unable to connect to the database. Retrying (9)...

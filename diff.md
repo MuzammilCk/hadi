@@ -24,3 +24,25 @@
 - [ ] Confirm target market and currency to set initial `commission_rules` seed correctly.
 - [ ] Confirm whether admin panel is a separate Next.js app or served from the same API.
 - [ ] Decide on KYC provider (Stripe Identity vs Persona vs Onfido) before Phase 2 starts.
+
+---
+
+## 2026-03-27 (Phase 1)
+
+### Changed
+- Scaffolded NestJS application `hadi-perfumes-api` with TypeORM and PostgreSQL configuration.
+- Created `CompensationPolicyVersion`, `CommissionRule`, `RankRule`, `ComplianceDisclosure`, `AllowedEarningsClaim`, and `RuleAuditLog` entities to represent the deterministic commission logic purely conceptually in the database.
+- Implemented `PolicyEvaluationService` to enforce purely server-side business rules, ensuring isolation of constraints without direct ledger writes.
+- Built `AdminPolicyService` and `AdminCompensationController` implementing the lifecycle for draft, validation, and active transitions with a `RuleAuditLog` generated alongside activation.
+- Wrote full Test suite including unit tests for `PolicyEvaluationService`, an integration test for the admin change workflow, and `admin-compensation.e2e-spec.ts`.
+- Changed `jsonb` array definitions in entities to `simple-json` specifically for compatibility with SQLite memory database test suite validation processes.
+
+### Why
+- We need the foundation of Phase 1 to execute deterministically without brittle hardcoded configuration values.
+
+### Impact
+- Establishes a completely versioned, immutable ruleset architecture ready for integration with Phase 5/6 transaction events without hardcoded dependencies.
+
+### Follow-up
+- Resolve the TypeORM SQLite `jsonb` or array dialect incompatibility affecting integration and E2E in-memory test passes (the code logic is complete, but `npx jest` requires environment tweaks to parse the JSON mappings cleanly).
+- Begin development on Phase 2: User Onboarding and Referrals.

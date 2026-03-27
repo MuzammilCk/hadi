@@ -1,0 +1,14 @@
+
+> hadi-perfumes-api@0.0.1 test
+> jest
+
+PASS src/app.controller.spec.ts
+  AppController
+    root
+      ÔêÜ should return "Hello World!" (13 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        0.994 s, estimated 1 s
+Ran all test suites.
