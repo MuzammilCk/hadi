@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { CompensationPolicyVersion } from './compensation-policy-version.entity';
+import { tstz } from '../../../common/utils/db-type.util';
 
 @Entity('commission_rules')
 export class CommissionRule {
@@ -34,6 +35,6 @@ export class CommissionRule {
   @Column({ default: 30 })
   clawback_window_days: number;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: tstz() as any })
   created_at: Date;
 }

@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { CompensationPolicyVersion } from './compensation-policy-version.entity';
+import { tstz } from '../../../common/utils/db-type.util';
 
 @Entity('allowed_earnings_claims')
 export class AllowedEarningsClaim {
@@ -16,6 +17,6 @@ export class AllowedEarningsClaim {
   @Column({ nullable: true })
   context: string;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: tstz() as any })
   created_at: Date;
 }

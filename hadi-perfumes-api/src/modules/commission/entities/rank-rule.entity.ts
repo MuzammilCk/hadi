@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { CompensationPolicyVersion } from './compensation-policy-version.entity';
+import { tstz } from '../../../common/utils/db-type.util';
 
 @Entity('rank_rules')
 export class RankRule {
@@ -25,6 +26,6 @@ export class RankRule {
   @Column({ default: 0 })
   active_legs_requirement: number;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: tstz() as any })
   created_at: Date;
 }

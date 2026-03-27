@@ -30,6 +30,16 @@ export class AdminPolicyService {
         Object.assign(rule, r);
         return rule;
       }),
+      compliance_disclosures: dto.compliance_disclosures?.map(d => {
+        const disclosure = new ComplianceDisclosure();
+        Object.assign(disclosure, d);
+        return disclosure;
+      }),
+      allowed_earnings_claims: dto.allowed_earnings_claims?.map(c => {
+        const claim = new AllowedEarningsClaim();
+        Object.assign(claim, c);
+        return claim;
+      }),
     });
 
     // Save and log
@@ -126,8 +136,9 @@ export class AdminPolicyService {
   }
 
   private async getNextVersionNumber(): Promise<number> {
-    const last = await this.policyVersionRepo.findOne({
-      order: { version: 'DESC' }
+    const [last] = await this.policyVersionRepo.find({
+      order: { version: 'DESC' },
+      take: 1
     });
     return last ? last.version + 1 : 1;
   }

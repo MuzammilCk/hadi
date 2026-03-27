@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+const request = require('supertest');
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommissionModule } from '../../src/modules/commission/commission.module';
 

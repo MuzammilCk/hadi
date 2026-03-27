@@ -46,3 +46,26 @@
 ### Follow-up
 - Resolve the TypeORM SQLite `jsonb` or array dialect incompatibility affecting integration and E2E in-memory test passes (the code logic is complete, but `npx jest` requires environment tweaks to parse the JSON mappings cleanly).
 - Begin development on Phase 2: User Onboarding and Referrals.
+
+---
+
+## 2026-03-27 (Phase 1 Fixes)
+
+### Changed
+- Created `db-type.util.ts` to export timezone agnostic conditional type alias `tstz`.
+- Replaced `{ type: 'timestamptz' }` with `tstz() as any` across all 6 commission entity files.
+- Replaced PostgreSQL specific types `inet` and `enum` with text types conditionally when `NODE_ENV === 'test'` in `rule-audit-log` and `compensation-policy-version` entities.
+- Removed arbitrary `unique` constraint from `disclosure_key` and added composite `@Unique(['policy_version', 'disclosure_key'])` on `ComplianceDisclosure` class.
+- Added `@OneToMany` relations for `compliance_disclosures` and `allowed_earnings_claims` on `CompensationPolicyVersion`.
+- Updated `AdminPolicyService.createDraft` to instantiate and persist provided `compliance_disclosures` and `allowed_earnings_claims` array items from the creation DTO.
+- Configured package.json `test:e2e` script to use `cross-env NODE_ENV=test` to instruct utilities mapped onto testing environments automatically.
+
+### Why
+- The E2E tests run against a `sqlite` memory database, which doesn't support the PostgreSQL specific types and exact constraints specified. These changes dynamically downgrade the strict typings to SQLite compatible formats during testing runs while preserving complete PostgreSQL integrity in production environments.
+
+### Impact
+- E2E tests for `AdminCompensationController` now pass.
+- Compliance schemas and rules persist cleanly from DTO representations during Draft initialization.
+
+### Follow-up
+- Validate the remainder of the E2E testing suite execution utilizing the `tstz` type definition strategy.
