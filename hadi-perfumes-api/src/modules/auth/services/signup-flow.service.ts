@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { InjectRepository, InjectEntityManager } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -27,6 +28,10 @@ export class SignupFlowService {
     private em: EntityManager,
     private jwtService: JwtService,
   ) {}
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
 
   async sendOtp(phone: string, ipAddress?: string, deviceHash?: string) {
     if (!/^\+[1-9]\d{1,14}$/.test(phone)) {
@@ -167,7 +172,7 @@ export class SignupFlowService {
       const access_token = this.jwtService.sign({ sub: user.id, role: 'buyer' });
       
       const refreshTokenValue = uuidv4();
-      const tokenHash = await bcrypt.hash(refreshTokenValue, 12);
+      const tokenHash = this.hashToken(refreshTokenValue);
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
 
@@ -185,5 +190,54 @@ export class SignupFlowService {
         refresh_token: refreshTokenValue,
       };
     });
+  }
+
+  async refresh(refreshTokenValue: string) {
+    const tokenHash = this.hashToken(refreshTokenValue);
+
+    const rt = await this.tokenRepo.findOne({
+      where: { token_hash: tokenHash },
+    });
+
+    if (!rt) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    if (rt.revoked_at) {
+      throw new UnauthorizedException('Refresh token has been revoked');
+    }
+    if (rt.expires_at < new Date()) {
+      throw new UnauthorizedException('Refresh token has expired');
+    }
+
+    const access_token = this.jwtService.sign({ sub: rt.user_id, role: 'buyer' });
+    return { access_token };
+  }
+
+  async logout(refreshTokenValue: string) {
+    const tokenHash = this.hashToken(refreshTokenValue);
+
+    const rt = await this.tokenRepo.findOne({
+      where: { token_hash: tokenHash },
+    });
+
+    if (rt && !rt.revoked_at) {
+      rt.revoked_at = new Date();
+      await this.tokenRepo.save(rt);
+    }
+
+    return { success: true };
+  }
+
+  async getOnboardingStatus(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return {
+      user_id: userId,
+      status: user.status,
+      kyc_status: user.kyc_status,
+      onboarding_completed_at: user.onboarding_completed_at ?? null,
+    };
   }
 }

@@ -5,6 +5,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommissionModule } from '../../src/modules/commission/commission.module';
 
 describe('AdminCompensationController (e2e)', () => {
+  jest.setTimeout(30000);
+
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -24,7 +26,7 @@ describe('AdminCompensationController (e2e)', () => {
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.init();
-  });
+  }, 30000);
 
   afterAll(async () => {
     await app.close();

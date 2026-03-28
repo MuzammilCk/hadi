@@ -38,7 +38,7 @@ export class ReferralValidationService {
     const codeQuery = em.createQueryBuilder(ReferralCode, 'rc')
       .where('rc.code = :code', { code: codeStr });
 
-    if (transactionalEntityManager) {
+    if (transactionalEntityManager && process.env.NODE_ENV !== 'test') {
       codeQuery.setLock('pessimistic_read');
     }
 
@@ -78,7 +78,7 @@ export class ReferralValidationService {
       .where('sl.user_id = :sponsorId', { sponsorId })
       .andWhere('sl.corrected_at IS NULL');
     
-    if (transactionalEntityManager) {
+    if (transactionalEntityManager && process.env.NODE_ENV !== 'test') {
       sponsorLinkQuery.setLock('pessimistic_read');
     }
 

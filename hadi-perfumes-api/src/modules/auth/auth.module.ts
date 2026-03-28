@@ -10,6 +10,8 @@ import { OnboardingAuditLog } from './entities/onboarding-audit-log.entity';
 import { OtpService } from './services/otp.service';
 import { SignupFlowService } from './services/signup-flow.service';
 import { AuthController } from './controllers/auth.controller';
+import { MeController } from './controllers/me.controller';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ReferralModule } from '../referral/referral.module';
 
 @Module({
@@ -22,8 +24,8 @@ import { ReferralModule } from '../referral/referral.module';
       OnboardingAuditLog,
     ]),
     ThrottlerModule.forRoot([{
-        ttl: parseInt(process.env.OTP_SEND_TTL_SECONDS || '60', 10) * 1000,
-        limit: parseInt(process.env.OTP_SEND_LIMIT || '5', 10),
+      ttl: parseInt(process.env.OTP_SEND_TTL_SECONDS || '60', 10) * 1000,
+      limit: parseInt(process.env.OTP_SEND_LIMIT || '5', 10),
     }]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'super-secret',
@@ -31,8 +33,8 @@ import { ReferralModule } from '../referral/referral.module';
     }),
     ReferralModule,
   ],
-  controllers: [AuthController],
-  providers: [OtpService, SignupFlowService],
-  exports: [JwtModule],
+  controllers: [AuthController, MeController],
+  providers: [OtpService, SignupFlowService, JwtAuthGuard],
+  exports: [JwtModule, JwtAuthGuard],
 })
 export class AuthModule {}

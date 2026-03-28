@@ -1,7 +1,16 @@
-import { Controller, Post, Get, Body, UnauthorizedException, Req, UseGuards, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UnauthorizedException,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { SignupFlowService } from '../services/signup-flow.service';
 import { JwtService } from '@nestjs/jwt';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -32,7 +41,7 @@ export class AuthController {
     }
 
     const token = authHeader.split(' ')[1];
-    let payload;
+    let payload: any;
     try {
       payload = this.jwtService.verify(token);
       if (payload.scope !== 'signup_only') {
@@ -54,5 +63,21 @@ export class AuthController {
       ip,
       deviceHash,
     );
+  }
+
+  @Post('refresh')
+  async refresh(@Body('refresh_token') refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Missing refresh token');
+    }
+    return this.signupFlowService.refresh(refreshToken);
+  }
+
+  @Post('logout')
+  async logout(@Body('refresh_token') refreshToken: string) {
+    if (!refreshToken) {
+      return { success: true }; // Already logged out
+    }
+    return this.signupFlowService.logout(refreshToken);
   }
 }

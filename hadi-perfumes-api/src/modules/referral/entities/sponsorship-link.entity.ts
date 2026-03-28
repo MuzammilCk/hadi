@@ -19,7 +19,7 @@ export class SponsorshipLink {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ type: 'uuid', unique: true })
+  @Column({ type: 'uuid' })
   user_id: string;
 
   @ManyToOne(() => User)

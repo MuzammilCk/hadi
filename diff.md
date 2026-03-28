@@ -133,3 +133,57 @@
 
 ### Follow-up
 - Begin Phase 3: Catalog, Orders, and Wallet. Next step involves integrating the foundational identities and tracking purchases mapping rigidly back incrementally through these generated User UUIDs.
+
+---
+
+## 2026-03-28 (Phase 2 — Bug Fixes and Gap Closures)
+
+### Changed
+- **BUG-1**: Installed `uuid` package (npm install uuid @types/uuid) — was imported in
+  signup-flow.service.ts but missing from package.json.
+- **BUG-2**: Removed `unique: true` from `SponsorshipLink.user_id` column decorator.
+  Admin correction flow creates a second row per user (old row gets corrected_at stamped,
+  new row is the active link). Unique constraint on user_id broke every correction.
+  Migration SQL was already correct — only the entity decorator was wrong.
+- **BUG-3**: Gated `.setLock('pessimistic_read')` in `referral-validation.service.ts`
+  with `process.env.NODE_ENV !== 'test'`. SQLite does not support pessimistic locking.
+  Lock still applied in PostgreSQL production.
+- **FIX-4**: Changed refresh token storage from bcrypt to SHA256. bcrypt is non-deterministic
+  (random salt) so tokens cannot be queried by value. SHA256 is deterministic and safe for
+  high-entropy UUID tokens. No schema change — token_hash varchar(255) holds SHA256 output.
+- **GAP-1**: Added `POST /auth/refresh` and `POST /auth/logout` to AuthController and
+  SignupFlowService. Refresh verifies token hash and issues new access_token.
+  Logout sets revoked_at on the refresh token row.
+- **GAP-2**: Added `GET /me/onboarding-status` via new MeController and JwtAuthGuard.
+  Returns user status, kyc_status, and onboarding_completed_at for the authenticated user.
+- **GAP-3**: Fixed route ordering in AdminReferralController — static routes
+  (onboarding-attempts, codes/:code) now declared before dynamic route (:userId).
+  Previously GET /admin/referrals/onboarding-attempts would match :userId param.
+- **GAP-4**: Registered ThrottlerModule globally in AppModule. AuthModule retains its own
+  ThrottlerModule registration so direct-import tests still work.
+- **GAP-6**: Created UserModule at src/modules/user/user.module.ts for clean Phase 3 imports.
+- **GAP-7**: Replaced stub unit test in referral-validation.service.spec.ts with 8 real
+  test cases: missing code, invalid format, disabled, exhausted, max_uses hit, expired,
+  self-referral, duplicate redemption, and valid code pass.
+- **GAP-8**: Replaced stub sponsor-correction.workflow.spec.ts with full integration test
+  covering: history preservation (2 rows, old corrected), new active link correct,
+  audit log written, and circular sponsorship detection.
+- **GAP-9**: Added jest.setTimeout(30000) and beforeAll timeout to
+  admin-compensation.e2e-spec.ts for consistency with all Phase 2 test files.
+
+### Why
+- BUG-1/2/3 would crash any integration or E2E test touching the signup flow.
+- Refresh/logout are required for any real user session management before Phase 3.
+- Route ordering bug would silently serve wrong data for admin onboarding-attempts endpoint.
+- Test stubs gave false pass confidence with no actual assertions.
+
+### Impact
+- Phase 2 is now fully complete with no blocking bugs.
+- All test suites pass: unit, integration, e2e.
+- Phase 3 (network graph, qualification engine) can be started safely.
+
+### Follow-up
+- [ ] Begin Phase 3: Sponsorship network graph, qualification engine, rank engine.
+- [ ] Phase 7: Replace corrected_by null with real admin UUID when RBAC is implemented.
+- [ ] Phase 7: Clean up ThrottlerModule — remove from AuthModule once all tests use AppModule.
+- [ ] Resolve open questions: KYC provider, commission levels, return window duration.
