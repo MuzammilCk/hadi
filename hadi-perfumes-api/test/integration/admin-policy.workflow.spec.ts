@@ -37,21 +37,28 @@ describe('AdminPolicyService (Integration)', () => {
     const actorId = '00000000-0000-0000-0000-000000000001';
 
     // 1. Create a Draft
-    const draft = await service.createDraft({
-      name: 'Launch Policy',
-      commission_rules: [{
-        level: 1,
-        percentage: 0.10,
-        payout_delay_days: 14,
-        clawback_window_days: 30
-      }],
-      compliance_disclosures: [{
-        disclosure_key: 'earnings_disclaimer',
-        disclosure_text: 'Earnings are not guaranteed.',
-        is_mandatory: true
-      }],
-      allowed_earnings_claims: []
-    }, actorId);
+    const draft = await service.createDraft(
+      {
+        name: 'Launch Policy',
+        commission_rules: [
+          {
+            level: 1,
+            percentage: 0.1,
+            payout_delay_days: 14,
+            clawback_window_days: 30,
+          },
+        ],
+        compliance_disclosures: [
+          {
+            disclosure_key: 'earnings_disclaimer',
+            disclosure_text: 'Earnings are not guaranteed.',
+            is_mandatory: true,
+          },
+        ],
+        allowed_earnings_claims: [],
+      },
+      actorId,
+    );
 
     expect(draft.id).toBeDefined();
     expect(draft.status).toBe('draft');
@@ -71,18 +78,29 @@ describe('AdminPolicyService (Integration)', () => {
     expect(current?.id).toBe(activePolicy.id);
 
     // 5. Create newer draft and activate it, causing old one to archive
-    const draft2 = await service.createDraft({
-      name: 'V2 Policy',
-      commission_rules: [{ level: 1, percentage: 0.05 }],
-      compliance_disclosures: [{ disclosure_key: 'general', disclosure_text: 'text', is_mandatory: true }]
-    }, actorId);
+    const draft2 = await service.createDraft(
+      {
+        name: 'V2 Policy',
+        commission_rules: [{ level: 1, percentage: 0.05 }],
+        compliance_disclosures: [
+          {
+            disclosure_key: 'general',
+            disclosure_text: 'text',
+            is_mandatory: true,
+          },
+        ],
+      },
+      actorId,
+    );
 
     const activePolicy2 = await service.activateDraft(draft2.id, actorId);
     expect(activePolicy2.status).toBe('active');
     expect(activePolicy2.version).toBe(2);
 
     // Verify V1 is archived
-    const v1 = await dataSource.getRepository(CompensationPolicyVersion).findOne({ where: { id: draft.id }});
+    const v1 = await dataSource
+      .getRepository(CompensationPolicyVersion)
+      .findOne({ where: { id: draft.id } });
     expect(v1?.status).toBe('archived');
     expect(v1?.effective_to).toBeDefined();
   });

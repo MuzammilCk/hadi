@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Body, Param, Req, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Req,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { AdminPolicyService } from '../services/admin-policy.service';
 import { CreateCompensationPolicyDto } from '../dto/create-compensation-policy.dto';
 
@@ -16,7 +25,7 @@ export class AdminCompensationController {
   @UsePipes(new ValidationPipe({ transform: true }))
   async createDraft(@Body() dto: CreateCompensationPolicyDto, @Req() req: any) {
     // In actual implementation, extract actorId from request user (e.g., req.user.id)
-    const mockActorId = '00000000-0000-0000-0000-000000000001'; 
+    const mockActorId = '00000000-0000-0000-0000-000000000001';
     return this.adminPolicyService.createDraft(dto, mockActorId);
   }
 

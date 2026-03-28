@@ -18,11 +18,14 @@ describe('PolicyEvaluationService', () => {
       const rule = new CommissionRule();
       rule.min_order_value = 100;
 
-      const result = service.evaluateEligibility({ 
-        orderValue: 50, 
-        productCategories: ['perfume'], 
-        sellerStatus: 'active' 
-      }, rule);
+      const result = service.evaluateEligibility(
+        {
+          orderValue: 50,
+          productCategories: ['perfume'],
+          sellerStatus: 'active',
+        },
+        rule,
+      );
 
       expect(result).toBe(false);
     });
@@ -31,11 +34,14 @@ describe('PolicyEvaluationService', () => {
       const rule = new CommissionRule();
       rule.eligible_categories = ['premium_perfume'];
 
-      const result = service.evaluateEligibility({ 
-        orderValue: 200, 
-        productCategories: ['standard_perfume'], 
-        sellerStatus: 'active' 
-      }, rule);
+      const result = service.evaluateEligibility(
+        {
+          orderValue: 200,
+          productCategories: ['standard_perfume'],
+          sellerStatus: 'active',
+        },
+        rule,
+      );
 
       expect(result).toBe(false);
     });
@@ -46,11 +52,14 @@ describe('PolicyEvaluationService', () => {
       rule.eligible_categories = ['perfume'];
       rule.eligible_seller_statuses = ['active'];
 
-      const result = service.evaluateEligibility({ 
-        orderValue: 100, 
-        productCategories: ['perfume'], 
-        sellerStatus: 'active' 
-      }, rule);
+      const result = service.evaluateEligibility(
+        {
+          orderValue: 100,
+          productCategories: ['perfume'],
+          sellerStatus: 'active',
+        },
+        rule,
+      );
 
       expect(result).toBe(true);
     });

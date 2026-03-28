@@ -1,4 +1,14 @@
-import { IsString, IsOptional, IsArray, IsDateString, ValidateNested, Min, Max, IsNumber, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsDateString,
+  ValidateNested,
+  Min,
+  Max,
+  IsNumber,
+  IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { CommissionRuleDto } from './commission-rule.dto';
 

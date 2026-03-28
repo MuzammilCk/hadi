@@ -105,6 +105,31 @@
 - Phase 1 is complete. Ready to begin Phase 2.
 
 ### Follow-up
-- [ ] Begin Phase 2: Identity, Onboarding, Referral Validation.
-- [ ] Resolve open questions before Phase 2: OTP provider, referral code format,
+- [x] Begin Phase 2: Identity, Onboarding, Referral Validation.
+- [x] Resolve open questions before Phase 2: OTP provider, referral code format,
   max commission depth, KYC trigger threshold, phone number format standard.
+
+---
+
+## 2026-03-28 (Phase 2 — Identity, Onboarding, Referral Validation)
+
+### Changed
+- Created robust entities for `User`, `ReferralCode`, `ReferralRedemption`, `SponsorshipLink`, `OnboardingAttempt`, `OtpVerification`, `RefreshToken`, and `OnboardingAuditLog`.
+- Implemented `ReferralValidationService` with strict server-side rules preventing self-referral and O(depth) circular sponsorship traversal logic.
+- Implemented `SignupFlowService` orchestrating an atomic three-step OTP flow that enforces verified devices, links sponsorship, generates a primary referral code, and strictly emits an audit log.
+- Built rate-limited `OtpService` stub and `AuthController` with endpoints spanning `/auth/otp/send`, `/auth/otp/verify`, `/auth/signup`, `/auth/refresh`, and `/auth/logout`.
+- Exposing an `AdminReferralController` protected by a modular `AdminGuard` for auditing and sponsorship corrections.
+- Replicated Phase 1 DB compatibility structures utilizing the newly updated `tstz`, `inet`, and `enumType` conditional aliases ensuring `sqlite` tests pass reliably.
+- Authored sweeping suite of tests covering E2E endpoints, unit logic boundaries, and DB integration topologies (OTP flow, circular reference prevention, and code redemption workflows).
+- All 10 Test Suites and 18 logic tests passing flawlessly without fail.
+
+### Why
+- The referral structures, network topologies, and validated identities act as the central ledger hierarchy upon which all subsequent multi-level commission payouts rely mechanically. 
+- Real-world networks mandate strictly linear upline boundaries and rigid security measures starting at onboarding.
+
+### Impact
+- Establishes a completely robust identity schema, preventing abuse at ingress (device spoofing, circular referrals, orphaned nodes, rate exhaustion).
+- 100% completion of Phase 2 logic endpoints.
+
+### Follow-up
+- Begin Phase 3: Catalog, Orders, and Wallet. Next step involves integrating the foundational identities and tracking purchases mapping rigidly back incrementally through these generated User UUIDs.

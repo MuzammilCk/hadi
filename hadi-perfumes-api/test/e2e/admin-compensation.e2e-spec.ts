@@ -38,7 +38,13 @@ describe('AdminCompensationController (e2e)', () => {
       .send({
         name: 'E2E Test Policy',
         commission_rules: [{ level: 1, percentage: 0.15 }],
-        compliance_disclosures: [{ disclosure_key: 'risk', disclosure_text: 'text', is_mandatory: true }]
+        compliance_disclosures: [
+          {
+            disclosure_key: 'risk',
+            disclosure_text: 'text',
+            is_mandatory: true,
+          },
+        ],
       })
       .expect(201)
       .expect((res) => {

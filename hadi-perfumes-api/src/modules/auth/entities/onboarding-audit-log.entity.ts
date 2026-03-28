@@ -4,20 +4,20 @@ import {
   Column,
   CreateDateColumn,
 } from 'typeorm';
-import { tstz } from '../../../common/utils/db-type.util';
+import { tstz, inet } from '../../../common/utils/db-type.util';
 
-@Entity('rule_audit_logs')
-export class RuleAuditLog {
+@Entity('onboarding_audit_logs')
+export class OnboardingAuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'uuid', nullable: true })
-  actor_id: string;
+  actor_id: string | null;
 
-  @Column()
+  @Column({ type: 'varchar' })
   action: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   target_type: string;
 
   @Column({ type: 'uuid' })
@@ -26,10 +26,7 @@ export class RuleAuditLog {
   @Column({ type: 'simple-json', nullable: true })
   metadata: any;
 
-  @Column({
-    type: process.env.NODE_ENV === 'test' ? 'varchar' : 'inet',
-    nullable: true,
-  })
+  @Column({ type: inet() as any, nullable: true })
   ip_address: string;
 
   @CreateDateColumn({ type: tstz() as any })
