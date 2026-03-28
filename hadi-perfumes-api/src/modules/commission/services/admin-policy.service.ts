@@ -136,10 +136,10 @@ export class AdminPolicyService {
   }
 
   private async getNextVersionNumber(): Promise<number> {
-    const [last] = await this.policyVersionRepo.find({
-      order: { version: 'DESC' },
-      take: 1
-    });
-    return last ? last.version + 1 : 1;
+    const result = await this.policyVersionRepo
+      .createQueryBuilder('cpv')
+      .select('MAX(cpv.version)', 'maxVersion')
+      .getRawOne<{ maxVersion: number | null }>();
+    return result?.maxVersion != null ? Number(result.maxVersion) + 1 : 1;
   }
 }

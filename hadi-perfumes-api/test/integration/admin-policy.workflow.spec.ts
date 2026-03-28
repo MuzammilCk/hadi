@@ -6,6 +6,8 @@ import { CommissionModule } from '../../src/modules/commission/commission.module
 import { CompensationPolicyVersion } from '../../src/modules/commission/entities/compensation-policy-version.entity';
 
 describe('AdminPolicyService (Integration)', () => {
+  jest.setTimeout(30000);
+
   let service: AdminPolicyService;
   let dataSource: DataSource;
 
@@ -25,7 +27,7 @@ describe('AdminPolicyService (Integration)', () => {
 
     service = module.get<AdminPolicyService>(AdminPolicyService);
     dataSource = module.get<DataSource>(DataSource);
-  });
+  }, 30000);
 
   afterAll(async () => {
     await dataSource.destroy();

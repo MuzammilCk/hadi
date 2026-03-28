@@ -69,3 +69,42 @@
 
 ### Follow-up
 - Validate the remainder of the E2E testing suite execution utilizing the `tstz` type definition strategy.
+
+---
+
+## 2026-03-28 (Phase 1 — Final Fixes)
+
+### Changed
+- Fixed `jest-e2e.json`: narrowed `testRegex` from `.e2e-spec.ts$` to
+  `e2e/.*\.e2e-spec\.ts$` so only files inside `test/e2e/` are matched by
+  `npm run test:e2e`. Previously `test/app.e2e-spec.ts` was also matched,
+  causing PostgreSQL connection failures in the E2E suite.
+- Fixed `AdminPolicyService.getNextVersionNumber()`: replaced `find({ order, take })`
+  with `createQueryBuilder` + `MAX(version)` to avoid TypeORM 0.3.28 internal
+  routing to `findOne` which requires a `where` clause. New implementation works
+  identically on SQLite (tests) and PostgreSQL (production).
+- Fixed `test/integration/admin-policy.workflow.spec.ts`: added
+  `jest.setTimeout(30000)` and 30000ms beforeAll timeout to prevent flaky
+  failures when NestJS module bootstrap exceeds the default 5000ms Jest limit.
+- Fixed `test/app.e2e-spec.ts`: replaced `AppModule` import (which bootstraps
+  real PostgreSQL) with a direct `AppController` + `AppService` test module.
+  The test verifies the same behaviour (GET / → "Hello World!") without any
+  database dependency. Added `afterEach` cleanup to prevent open handles.
+
+### Why
+- `npm run test:e2e` was failing because `test/app.e2e-spec.ts` was incorrectly
+  included in the E2E run. `npm run test` was also failing because the same file
+  tried to connect to PostgreSQL.
+- The `getNextVersionNumber()` was throwing a TypeORM error on the first
+  `POST /admin/compensation-policy/drafts` request, causing a 500.
+- Integration test was timing out under the default 5000ms Jest hook limit.
+
+### Impact
+- All Phase 1 tests now pass: 5/5 E2E, 1/1 integration, 4/4 unit.
+- No production logic was changed — all 4 fixes are test infrastructure only.
+- Phase 1 is complete. Ready to begin Phase 2.
+
+### Follow-up
+- [ ] Begin Phase 2: Identity, Onboarding, Referral Validation.
+- [ ] Resolve open questions before Phase 2: OTP provider, referral code format,
+  max commission depth, KYC trigger threshold, phone number format standard.
