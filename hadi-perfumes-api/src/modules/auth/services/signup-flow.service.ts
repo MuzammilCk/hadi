@@ -72,9 +72,21 @@ export class SignupFlowService {
     const isValid = await this.otpService.verifyOtp(phone, otp);
 
     if (!isValid) {
-      // Very naive failure count (not full 5 strikes limit properly recorded across multiple attempts, 
-      // but satisfying prompt constraints conceptually or via standard retry failures in real system)
       attempt.failure_reason = 'Invalid OTP';
+
+      // Count how many failed OTP attempts exist for this phone's current otp_sent attempt
+      const failCount = await this.attemptRepo.count({
+        where: { phone, stage: OnboardingStage.OTP_SENT, failure_reason: 'Invalid OTP' },
+      });
+
+      // 5-strike lockout: after 5 failed attempts, mark as failed and require re-send
+      if (failCount >= 4) { // This is the 5th failure (4 previous + current)
+        attempt.stage = OnboardingStage.FAILED;
+        attempt.failure_reason = 'Too many failed OTP attempts';
+        await this.attemptRepo.save(attempt);
+        throw new UnauthorizedException('Too many failed OTP attempts. Please request a new OTP.');
+      }
+
       await this.attemptRepo.save(attempt);
       throw new UnauthorizedException('Invalid or expired OTP');
     }
@@ -209,8 +221,28 @@ export class SignupFlowService {
       throw new UnauthorizedException('Refresh token has expired');
     }
 
+    // Revoke old token (single-use rotation)
+    rt.revoked_at = new Date();
+    await this.tokenRepo.save(rt);
+
+    // Issue new access token
     const access_token = this.jwtService.sign({ sub: rt.user_id, role: 'buyer' });
-    return { access_token };
+
+    // Issue new refresh token
+    const newRefreshValue = uuidv4();
+    const newTokenHash = this.hashToken(newRefreshValue);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await this.tokenRepo.save(
+      this.tokenRepo.create({
+        user_id: rt.user_id,
+        token_hash: newTokenHash,
+        expires_at: expiresAt,
+      }),
+    );
+
+    return { access_token, refresh_token: newRefreshValue };
   }
 
   async logout(refreshTokenValue: string) {

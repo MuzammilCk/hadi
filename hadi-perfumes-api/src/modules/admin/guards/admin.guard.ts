@@ -13,6 +13,10 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Invalid or missing admin token');
     }
 
+    // Set actor context for audit logging (ERROR-4 fix)
+    request.adminActorId =
+      process.env.ADMIN_ACTOR_ID || '00000000-0000-0000-0000-000000000000';
+
     return true;
   }
 }
