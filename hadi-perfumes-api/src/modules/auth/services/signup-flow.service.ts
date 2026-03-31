@@ -7,6 +7,7 @@ import { OtpService } from './otp.service';
 import { OnboardingAttempt, OnboardingStage } from '../entities/onboarding-attempt.entity';
 import { User, UserStatus, KycStatus } from '../../user/entities/user.entity';
 import { SponsorshipLink } from '../../referral/entities/sponsorship-link.entity';
+import { ReferralCode, ReferralCodeStatus } from '../../referral/entities/referral-code.entity';
 import { OnboardingAuditLog } from '../entities/onboarding-audit-log.entity';
 import { ReferralValidationService } from '../../referral/services/referral-validation.service';
 import { JwtService } from '@nestjs/jwt';
@@ -31,6 +32,15 @@ export class SignupFlowService {
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private generateReferralCode(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
   }
 
   async sendOtp(phone: string, ipAddress?: string, deviceHash?: string) {
@@ -120,26 +130,10 @@ export class SignupFlowService {
         throw new ConflictException('User already active');
       }
 
+      // 1. Create User (without sponsor_id initially)
       const passwordHash = await bcrypt.hash(passwordPlain, 12);
       const newUserId = uuidv4();
 
-      // Referral validation and Redemption creation MUST be inside this tx.
-      let referralResult;
-      try {
-        referralResult = await this.referralValidationService.validateAndRedeem(
-          referralCodeStr,
-          newUserId,
-          ipAddress,
-          deviceHash,
-          txEm
-        );
-      } catch (e) {
-        throw new BadRequestException(e.message || 'Referral validation failed');
-      }
-
-      const { sponsorId, uplinePath, referralCode } = referralResult;
-
-      // 1. Create User
       const user = txEm.create(User, {
         id: newUserId,
         phone,
@@ -149,27 +143,70 @@ export class SignupFlowService {
         kyc_status: process.env.NODE_ENV === 'test' ? 'not_required' : KycStatus.NOT_REQUIRED,
         ip_at_signup: ipAddress,
         device_hash: deviceHash,
-        sponsor_id: sponsorId,
         onboarding_completed_at: new Date(),
       });
       await txEm.save(User, user);
 
-      // 2. Create SponsorshipLink
-      const link = txEm.create(SponsorshipLink, {
-        user_id: user.id,
-        sponsor_id: sponsorId,
-        referral_code_id: referralCode.id,
-        upline_path: process.env.NODE_ENV === 'test' ? JSON.stringify(uplinePath) as any : uplinePath,
-      });
-      await txEm.save(SponsorshipLink, link);
+      // 2. Validate and redeem code, if provided
+      let sponsorId = undefined;
+      let uplinePath = undefined;
+      let referralCode = undefined;
 
-      // 3. Write Audit Log
+      if (referralCodeStr) {
+        try {
+          const referralResult = await this.referralValidationService.validateAndRedeem(
+            referralCodeStr,
+            newUserId,
+            ipAddress,
+            deviceHash,
+            txEm,
+          );
+          sponsorId = referralResult.sponsorId;
+          uplinePath = referralResult.uplinePath;
+          referralCode = referralResult.referralCode;
+
+          // Update user with sponsor_id
+          user.sponsor_id = sponsorId;
+          await txEm.save(User, user);
+        } catch (e) {
+          throw new BadRequestException(e.message || 'Referral validation failed');
+        }
+      }
+
+      // 3. Create SponsorshipLink (if there is a sponsor)
+      if (sponsorId && referralCode) {
+        const link = txEm.create(SponsorshipLink, {
+          user_id: user.id,
+          sponsor_id: sponsorId,
+          referral_code_id: referralCode.id,
+          upline_path: process.env.NODE_ENV === 'test' ? JSON.stringify(uplinePath) as any : uplinePath,
+        });
+        await txEm.save(SponsorshipLink, link);
+      }
+
+      // 4. Generate a referral code for the new user
+      let newCodeStr = this.generateReferralCode();
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const exists = await txEm.findOne(ReferralCode, { where: { code: newCodeStr } });
+        if (!exists) break;
+        newCodeStr = this.generateReferralCode();
+      }
+      const newUserCode = txEm.create(ReferralCode, {
+        code: newCodeStr,
+        owner_id: user.id,
+        status: process.env.NODE_ENV === 'test' ? 'active' as any : ReferralCodeStatus.ACTIVE,
+      });
+      await txEm.save(ReferralCode, newUserCode);
+
+      // 5. Write Audit Log
       const auditLog = txEm.create(OnboardingAuditLog, {
         actor_id: user.id,
         action: 'user_signup',
         target_type: 'user',
         target_id: user.id,
-        metadata: process.env.NODE_ENV === 'test' ? JSON.stringify({ sponsor_id: sponsorId, referral_code: referralCodeStr }) as any : { sponsor_id: sponsorId, referral_code: referralCodeStr },
+        metadata: process.env.NODE_ENV === 'test' 
+          ? JSON.stringify({ sponsor_id: sponsorId, referral_code: referralCodeStr }) as any 
+          : { sponsor_id: sponsorId, referral_code: referralCodeStr },
         ip_address: ipAddress,
       });
       await txEm.save(OnboardingAuditLog, auditLog);

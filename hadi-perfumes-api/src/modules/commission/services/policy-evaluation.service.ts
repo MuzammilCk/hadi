@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { CompensationPolicyVersion } from '../entities/compensation-policy-version.entity';
 import { CommissionRule } from '../entities/commission-rule.entity';
 
 export interface EvaluationEventContext {

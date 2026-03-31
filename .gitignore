@@ -98,3 +98,12 @@ typings/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Debug/test output files
+*.err
+*-output.txt
+*_output.txt
+*_output.log
+*_fails.log
+test-output.txt
+out.txt
