@@ -321,3 +321,23 @@
 - [ ] Phase 7: Consolidate ThrottlerModule — remove from AuthModule once tests use AppModule.
 - [ ] Phase 7: Replace ADMIN_ACTOR_ID system UUID with real RBAC admin identity.
 
+---
+
+## 2026-03-31 (Phase 1 + 2 — Comprehensive Codebase Audit Remediation)
+
+### Changed
+- **Security (ERROR-1)**: Removed hardcoded `'super-secret'` fallback in `auth.module.ts`. Production fails to start unless `JWT_SECRET` is defined.
+- **Security (ERROR-2)**: Applied `@UseGuards(AdminGuard)` to `AdminCompensationController` closing a critical vulnerability that allowed anyone to manage policies.
+- **Referral Graph (ERROR-3)**: Implemented missing Referral Code generation in `SignupFlowService`. A unique 8-character code is issued to every new user at signup. Fixed `newUserId` ordering to prevent SQLite Foreign Key errors when saving `ReferralRedemption`.
+- **Code Hygiene (ERROR-4, ERROR-5)**: Cleaned `CompensationPolicyVersion` from `policy-evaluation.service.ts` and deleted 9 ephemeral build and error logs (`*.err`, `*.log`, `*.txt`) from the project root. Updated `.gitignore`.
+- **Test Hardening (ERROR-7, 8, 9)**: Rewrote stub integration and unit tests for OTP lockout, SignupFlow, Circular Sponsorship, and Referral Redemption with concrete behavior verifications in TypeORM.
+
+### Why
+- Needed to guarantee that Phase 1 and 2 had zero false-positives, secure guard boundaries, and resilient transactional behavior before beginning multi-level accounting logic.
+
+### Impact
+- Total verified test suite now perfectly covers Unit/Integration (38/38) and E2E (9/9) scenarios.
+- Referral generation is now guaranteed, removing the risk of orphaned nodes failing to expand their downline.
+
+### Follow-up
+- [ ] Begin Phase 3: Sponsorship network graph, qualification engine, rank engine.
