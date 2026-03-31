@@ -202,7 +202,7 @@ export class NetworkGraphService {
   async getDownline(userId: string, maxDepth?: number): Promise<NetworkNode[]> {
     const qb = this.nodeRepo
       .createQueryBuilder('nn')
-      .where('nn.upline_path LIKE :pattern', { pattern: `%"${userId}"%` });
+      .where('nn.upline_path LIKE :pattern', { pattern: `%${userId}%` });
 
     const nodes = await qb.getMany();
 
@@ -278,7 +278,7 @@ export class NetworkGraphService {
     // Cascade rebuild all descendants
     const descendants = await em
       .createQueryBuilder(NetworkNode, 'nn')
-      .where('nn.upline_path LIKE :pattern', { pattern: `%"${dto.userId}"%` })
+      .where('nn.upline_path LIKE :pattern', { pattern: `%${dto.userId}%` })
       .getMany();
 
     for (const desc of descendants) {

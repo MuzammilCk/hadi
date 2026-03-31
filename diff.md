@@ -351,6 +351,7 @@
 - Implemented `NetworkGraphService` with traversal (upline/downline bounded by limits) and automated cycle/loop detection within graph rebuilding.
 - Implemented core entities: `GraphRebuildJob`, `GraphCorrectionLog`, and `NetworkSnapshot` for graph correction flow auditability.
 - Added explicit type `'varchar'` and `'int'` into all TypeORM `@Column({ nullable: true })` decorators across 8 Phase 3 entities to dynamically support SQLite and prevent `DataTypeNotSupportedError: Data type "Object" ...`.
+- Refactored `upline_path LIKE :pattern` descendants queries globally to format `%userId%` safely without stringified JSON internal quotes ensuring 100% matches across SQLite array dialect limitations.
 - Configured E2E testing setups in `network.e2e-spec.ts` and `admin-network.e2e-spec.ts` matching Module paradigms, utilizing SQLite isolated DataSources successfully. 
 - Designed idempotent `QualificationEngineService` ensuring immutability of `qualification_events` history during re-runs. 
 - Integrated `RankAssignmentService` resolving and granting rank thresholds systematically based on active metrics (Personal Volume, Downline Volume, Active Legs).
