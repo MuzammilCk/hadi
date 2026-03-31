@@ -49,7 +49,7 @@ describe('AdminCompensationController (e2e)', () => {
         ],
       })
       .expect(201)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.id).toBeDefined();
         expect(res.body.status).toBe('draft');
         draftId = res.body.id;
@@ -69,7 +69,7 @@ describe('AdminCompensationController (e2e)', () => {
     return request(app.getHttpServer())
       .post(`/admin/compensation-policy/drafts/${draftId}/validate`)
       .expect(201)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.valid).toBe(true);
       });
   });
@@ -78,7 +78,7 @@ describe('AdminCompensationController (e2e)', () => {
     return request(app.getHttpServer())
       .post(`/admin/compensation-policy/drafts/${draftId}/activate`)
       .expect(201)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.status).toBe('active');
         expect(res.body.version).toBe(1);
       });
@@ -88,7 +88,7 @@ describe('AdminCompensationController (e2e)', () => {
     return request(app.getHttpServer())
       .get('/admin/compensation-policy/current')
       .expect(200)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.id).toBe(draftId);
       });
   });

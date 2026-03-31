@@ -72,21 +72,24 @@ export class SignupFlowService {
     const isValid = await this.otpService.verifyOtp(phone, otp);
 
     if (!isValid) {
-      attempt.failure_reason = 'Invalid OTP';
+      // Parse current in-memory failure count from failure_reason field
+      // Format: 'Invalid OTP:N' where N is the number of failures so far
+      let failCount = 0;
+      if (attempt.failure_reason && attempt.failure_reason.startsWith('Invalid OTP:')) {
+        failCount = parseInt(attempt.failure_reason.split(':')[1], 10) || 0;
+      }
+      failCount++;
 
-      // Count how many failed OTP attempts exist for this phone's current otp_sent attempt
-      const failCount = await this.attemptRepo.count({
-        where: { phone, stage: OnboardingStage.OTP_SENT, failure_reason: 'Invalid OTP' },
-      });
-
-      // 5-strike lockout: after 5 failed attempts, mark as failed and require re-send
-      if (failCount >= 4) { // This is the 5th failure (4 previous + current)
+      // 5-strike lockout: after 5 failures, mark attempt as FAILED and require re-send
+      if (failCount >= 5) {
         attempt.stage = OnboardingStage.FAILED;
         attempt.failure_reason = 'Too many failed OTP attempts';
         await this.attemptRepo.save(attempt);
         throw new UnauthorizedException('Too many failed OTP attempts. Please request a new OTP.');
       }
 
+      // Store updated failure count in failure_reason
+      attempt.failure_reason = `Invalid OTP:${failCount}`;
       await this.attemptRepo.save(attempt);
       throw new UnauthorizedException('Invalid or expired OTP');
     }

@@ -274,3 +274,50 @@
 - [ ] Phase 7: Clean up ThrottlerModule — remove from AuthModule once all tests use AppModule.
 - [ ] Resolve open questions: KYC provider, commission levels, return window duration.
 - [ ] Run migrations on PostgreSQL: `npx typeorm migration:run -d src/config/database.config.ts`
+
+---
+
+## 2026-03-31 (Phase 1 + Phase 2 — Post-Fix Error Remediation)
+
+### Changed
+
+- **NEW-ERROR-1 (🔴 CRITICAL)**: Added `cross-env NODE_ENV=test` to `package.json` `"test"`
+  script. Without this, all integration tests crashed with `DataTypeNotSupportedError` because
+  entities used PostgreSQL-specific column types that SQLite cannot handle. The `test:e2e`
+  script already had `cross-env NODE_ENV=test`; `test` did not.
+
+- **NEW-ERROR-2 (🟡 MEDIUM)**: Fixed OTP 5-strike lockout in `SignupFlowService.verifyOtp()`.
+  Previous implementation ran a DB count before saving the failed attempt, which always returned 0.
+  New implementation tracks failure count in the `failure_reason` field as a counter string
+  (`Invalid OTP:N`), parsed and incremented in-memory. No schema change required.
+
+- **NEW-ERROR-3 (🟡 MEDIUM)**: Removed unused `BadRequestException` import from
+  `policy-evaluation.service.ts`.
+
+- **NEW-ERROR-4 (🟡 MEDIUM)**: Removed unused `OneToMany` import from `user.entity.ts`.
+
+- **NEW-ERROR-5 (🟢 LOW)**: Removed unused `IsDateString`, `ValidateNested`, and `Type`
+  imports from `commission-rule.dto.ts`.
+
+- **NEW-ERROR-6 (🟢 LOW)**: Removed unused `Max` import from
+  `create-compensation-policy.dto.ts`.
+
+- **NEW-ERROR-7 (🟢 LOW)**: Removed `Observable` import from rxjs in `admin.guard.ts` and
+  simplified return type to `boolean`.
+
+### Why
+- NEW-ERROR-1: `npm run test` silently skipped integration tests. Fixed by aligning with
+  the `test:e2e` script.
+- NEW-ERROR-2: OTP brute-force protection was unreachable dead code. Fixed without schema changes.
+- NEW-ERROR-3 through 7: Dead-code cleanup before Phase 3.
+
+### Impact
+- `npm run test` now correctly runs all unit AND integration tests under NODE_ENV=test.
+- OTP 5-strike lockout now correctly fires after 5 consecutive failures per OTP send.
+- No existing test was broken. No production behavior was changed.
+
+### Follow-up
+- [ ] Begin Phase 3: Sponsorship network graph, qualification engine, rank engine.
+- [ ] Phase 7: Consolidate ThrottlerModule — remove from AuthModule once tests use AppModule.
+- [ ] Phase 7: Replace ADMIN_ACTOR_ID system UUID with real RBAC admin identity.
+
