@@ -114,7 +114,7 @@ describe('Sponsor Correction Workflow (Integration)', () => {
     await em.transaction(async (txEm) => {
       originalLink!.corrected_at = new Date();
       originalLink!.corrected_by = null;
-      await txEm.save(SponsorshipLink, originalLink);
+      await txEm.save(SponsorshipLink, originalLink!);
 
       const newUpline = [newSponsorId];
       const codeRepo = txEm.getRepository(ReferralCode);

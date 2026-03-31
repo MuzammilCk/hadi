@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Body,
+  Req,
   BadRequestException,
   UseGuards,
 } from '@nestjs/common';
@@ -54,6 +55,7 @@ export class AdminReferralController {
     @Param('userId') userId: string,
     @Body('new_sponsor_id') newSponsorId: string,
     @Body('reason') reason: string,
+    @Req() req: any,
   ) {
     if (!reason || reason.length < 10) {
       throw new BadRequestException('Reason must be at least 10 characters long');
@@ -90,8 +92,9 @@ export class AdminReferralController {
       }
 
       // Mark old link as corrected — preserve history, never delete
+      const adminActorId = req.adminActorId || null;
       currentLink.corrected_at = new Date();
-      currentLink.corrected_by = null; // Will be a real admin UUID when RBAC is added in Phase 7
+      currentLink.corrected_by = adminActorId;
       await em.save(SponsorshipLink, currentLink);
 
       // Create new active link
@@ -107,9 +110,9 @@ export class AdminReferralController {
       });
       await em.save(SponsorshipLink, newLink);
 
-      // Audit log — actor_id will be set properly when RBAC is added in Phase 7
+      // Audit log — actor_id set from AdminGuard context
       const auditLog = em.create(OnboardingAuditLog, {
-        actor_id: null,
+        actor_id: adminActorId,
         action: 'admin_sponsor_correction',
         target_type: 'sponsorship_link',
         target_id: newLink.id,

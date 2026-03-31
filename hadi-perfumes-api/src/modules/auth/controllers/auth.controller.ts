@@ -1,7 +1,6 @@
 import {
   Controller,
   Post,
-  Get,
   Body,
   UnauthorizedException,
   Req,
@@ -10,7 +9,10 @@ import {
 import { SignupFlowService } from '../services/signup-flow.service';
 import { JwtService } from '@nestjs/jwt';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { SendOtpDto } from '../dto/send-otp.dto';
+import { VerifyOtpDto } from '../dto/verify-otp.dto';
+import { SignupDto } from '../dto/signup.dto';
+import { RefreshTokenDto } from '../dto/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -21,20 +23,20 @@ export class AuthController {
 
   @UseGuards(ThrottlerGuard)
   @Post('otp/send')
-  async sendOtp(@Body('phone') phone: string, @Req() req: any) {
+  async sendOtp(@Body() dto: SendOtpDto, @Req() req: any) {
     const ip = req.ip || req.connection?.remoteAddress;
     const deviceHash = req.headers['x-device-hash'] || null;
-    return this.signupFlowService.sendOtp(phone, ip, deviceHash);
+    return this.signupFlowService.sendOtp(dto.phone, ip, deviceHash);
   }
 
   @UseGuards(ThrottlerGuard)
   @Post('otp/verify')
-  async verifyOtp(@Body('phone') phone: string, @Body('otp') otp: string) {
-    return this.signupFlowService.verifyOtp(phone, otp);
+  async verifyOtp(@Body() dto: VerifyOtpDto) {
+    return this.signupFlowService.verifyOtp(dto.phone, dto.otp);
   }
 
   @Post('signup')
-  async signup(@Body() dto: any, @Req() req: any) {
+  async signup(@Body() dto: SignupDto, @Req() req: any) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException('Missing or invalid session token');
@@ -66,18 +68,12 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(@Body('refresh_token') refreshToken: string) {
-    if (!refreshToken) {
-      throw new UnauthorizedException('Missing refresh token');
-    }
-    return this.signupFlowService.refresh(refreshToken);
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.signupFlowService.refresh(dto.refresh_token);
   }
 
   @Post('logout')
-  async logout(@Body('refresh_token') refreshToken: string) {
-    if (!refreshToken) {
-      return { success: true }; // Already logged out
-    }
-    return this.signupFlowService.logout(refreshToken);
+  async logout(@Body() dto: RefreshTokenDto) {
+    return this.signupFlowService.logout(dto.refresh_token);
   }
 }

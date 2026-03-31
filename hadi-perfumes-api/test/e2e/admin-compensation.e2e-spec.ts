@@ -4,12 +4,16 @@ const request = require('supertest');
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommissionModule } from '../../src/modules/commission/commission.module';
 
+const ADMIN_TOKEN = 'test-admin-token';
+
 describe('AdminCompensationController (e2e)', () => {
   jest.setTimeout(30000);
 
   let app: INestApplication;
 
   beforeAll(async () => {
+    process.env.ADMIN_TOKEN = ADMIN_TOKEN;
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({
@@ -34,9 +38,16 @@ describe('AdminCompensationController (e2e)', () => {
 
   let draftId: string;
 
+  it('should reject requests without admin token', () => {
+    return request(app.getHttpServer())
+      .get('/admin/compensation-policy/current')
+      .expect(401);
+  });
+
   it('/admin/compensation-policy/drafts (POST) - Valid payload', () => {
     return request(app.getHttpServer())
       .post('/admin/compensation-policy/drafts')
+      .set('x-admin-token', ADMIN_TOKEN)
       .send({
         name: 'E2E Test Policy',
         commission_rules: [{ level: 1, percentage: 0.15 }],
@@ -49,7 +60,7 @@ describe('AdminCompensationController (e2e)', () => {
         ],
       })
       .expect(201)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.id).toBeDefined();
         expect(res.body.status).toBe('draft');
         draftId = res.body.id;
@@ -59,6 +70,7 @@ describe('AdminCompensationController (e2e)', () => {
   it('/admin/compensation-policy/drafts (POST) - Invalid payload (missing rules)', () => {
     return request(app.getHttpServer())
       .post('/admin/compensation-policy/drafts')
+      .set('x-admin-token', ADMIN_TOKEN)
       .send({
         name: 'Bad Policy',
       })
@@ -68,8 +80,9 @@ describe('AdminCompensationController (e2e)', () => {
   it('/admin/compensation-policy/drafts/:id/validate (POST)', () => {
     return request(app.getHttpServer())
       .post(`/admin/compensation-policy/drafts/${draftId}/validate`)
+      .set('x-admin-token', ADMIN_TOKEN)
       .expect(201)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.valid).toBe(true);
       });
   });
@@ -77,8 +90,9 @@ describe('AdminCompensationController (e2e)', () => {
   it('/admin/compensation-policy/drafts/:id/activate (POST)', () => {
     return request(app.getHttpServer())
       .post(`/admin/compensation-policy/drafts/${draftId}/activate`)
+      .set('x-admin-token', ADMIN_TOKEN)
       .expect(201)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.status).toBe('active');
         expect(res.body.version).toBe(1);
       });
@@ -87,8 +101,9 @@ describe('AdminCompensationController (e2e)', () => {
   it('/admin/compensation-policy/current (GET)', () => {
     return request(app.getHttpServer())
       .get('/admin/compensation-policy/current')
+      .set('x-admin-token', ADMIN_TOKEN)
       .expect(200)
-      .expect((res) => {
+      .expect((res: any) => {
         expect(res.body.id).toBe(draftId);
       });
   });
