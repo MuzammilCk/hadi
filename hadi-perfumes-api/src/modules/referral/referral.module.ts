@@ -18,6 +18,6 @@ import { OnboardingAuditLog } from '../auth/entities/onboarding-audit-log.entity
   ],
   providers: [ReferralValidationService],
   controllers: [AdminReferralController],
-  exports: [ReferralValidationService],
+  exports: [ReferralValidationService, TypeOrmModule],
 })
 export class ReferralModule {}

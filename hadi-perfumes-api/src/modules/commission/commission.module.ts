@@ -23,6 +23,10 @@ import { AdminCompensationController } from './controllers/admin-compensation.co
   ],
   controllers: [AdminCompensationController],
   providers: [PolicyEvaluationService, AdminPolicyService],
-  exports: [PolicyEvaluationService],
+  exports: [
+    PolicyEvaluationService,
+    AdminPolicyService,
+    TypeOrmModule,
+  ],
 })
 export class CommissionModule {}
