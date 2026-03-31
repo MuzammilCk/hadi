@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { CompensationPolicyVersion } from './compensation-policy-version.entity';
 import { tstz } from '../../../common/utils/db-type.util';
 
@@ -7,7 +14,10 @@ export class CommissionRule {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => CompensationPolicyVersion, (version) => version.commission_rules)
+  @ManyToOne(
+    () => CompensationPolicyVersion,
+    (version) => version.commission_rules,
+  )
   @JoinColumn({ name: 'policy_version_id' })
   policy_version: CompensationPolicyVersion;
 

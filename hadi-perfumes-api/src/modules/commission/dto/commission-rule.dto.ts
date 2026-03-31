@@ -1,5 +1,11 @@
-import { IsString, IsNumber, IsOptional, IsArray, IsDateString, ValidateNested, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class CommissionRuleDto {
   @IsNumber()

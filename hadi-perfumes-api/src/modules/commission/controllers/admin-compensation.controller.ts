@@ -1,8 +1,19 @@
-import { Controller, Post, Get, Body, Param, Req, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Req,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { AdminPolicyService } from '../services/admin-policy.service';
 import { CreateCompensationPolicyDto } from '../dto/create-compensation-policy.dto';
+import { AdminGuard } from '../../admin/guards/admin.guard';
 
-// Notice: In real app, apply @UseGuards(RolesGuard) to ensure only admins access this
+@UseGuards(AdminGuard)
 @Controller('admin/compensation-policy')
 export class AdminCompensationController {
   constructor(private readonly adminPolicyService: AdminPolicyService) {}
@@ -15,9 +26,8 @@ export class AdminCompensationController {
   @Post('drafts')
   @UsePipes(new ValidationPipe({ transform: true }))
   async createDraft(@Body() dto: CreateCompensationPolicyDto, @Req() req: any) {
-    // In actual implementation, extract actorId from request user (e.g., req.user.id)
-    const mockActorId = '00000000-0000-0000-0000-000000000001'; 
-    return this.adminPolicyService.createDraft(dto, mockActorId);
+    const actorId = req.adminActorId || '00000000-0000-0000-0000-000000000000';
+    return this.adminPolicyService.createDraft(dto, actorId);
   }
 
   @Post('drafts/:id/validate')
@@ -27,8 +37,8 @@ export class AdminCompensationController {
 
   @Post('drafts/:id/activate')
   async activateDraft(@Param('id') id: string, @Req() req: any) {
-    const mockActorId = '00000000-0000-0000-0000-000000000001';
-    return this.adminPolicyService.activateDraft(id, mockActorId);
+    const actorId = req.adminActorId || '00000000-0000-0000-0000-000000000000';
+    return this.adminPolicyService.activateDraft(id, actorId);
   }
 
   @Get(':id')

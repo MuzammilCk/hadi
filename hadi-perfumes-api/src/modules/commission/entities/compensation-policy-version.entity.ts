@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+} from 'typeorm';
 import { CommissionRule } from './commission-rule.entity';
 import { ComplianceDisclosure } from './compliance-disclosure.entity';
 import { AllowedEarningsClaim } from './allowed-earnings-claim.entity';
@@ -18,7 +25,11 @@ export class CompensationPolicyVersion {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: process.env.NODE_ENV === 'test' ? 'varchar' : 'enum', enum: ['draft', 'active', 'archived', 'deprecated'], default: 'draft' })
+  @Column({
+    type: process.env.NODE_ENV === 'test' ? 'varchar' : 'enum',
+    enum: ['draft', 'active', 'archived', 'deprecated'],
+    default: 'draft',
+  })
   status: 'draft' | 'active' | 'archived' | 'deprecated';
 
   @Column({ type: tstz() as any, nullable: true })
@@ -27,13 +38,21 @@ export class CompensationPolicyVersion {
   @Column({ type: tstz() as any, nullable: true })
   effective_to: Date;
 
-  @OneToMany(() => CommissionRule, (rule) => rule.policy_version, { cascade: true })
+  @OneToMany(() => CommissionRule, (rule) => rule.policy_version, {
+    cascade: true,
+  })
   commission_rules: CommissionRule[];
 
-  @OneToMany(() => ComplianceDisclosure, (disclosure) => disclosure.policy_version, { cascade: true })
+  @OneToMany(
+    () => ComplianceDisclosure,
+    (disclosure) => disclosure.policy_version,
+    { cascade: true },
+  )
   compliance_disclosures: ComplianceDisclosure[];
 
-  @OneToMany(() => AllowedEarningsClaim, (claim) => claim.policy_version, { cascade: true })
+  @OneToMany(() => AllowedEarningsClaim, (claim) => claim.policy_version, {
+    cascade: true,
+  })
   allowed_earnings_claims: AllowedEarningsClaim[];
 
   @CreateDateColumn({ type: tstz() as any })

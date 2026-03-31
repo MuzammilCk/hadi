@@ -1,4 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+} from 'typeorm';
 import { tstz } from '../../../common/utils/db-type.util';
 
 @Entity('rule_audit_logs')
@@ -21,7 +26,10 @@ export class RuleAuditLog {
   @Column({ type: 'simple-json', nullable: true })
   metadata: any;
 
-  @Column({ type: process.env.NODE_ENV === 'test' ? 'varchar' : 'inet', nullable: true })
+  @Column({
+    type: process.env.NODE_ENV === 'test' ? 'varchar' : 'inet',
+    nullable: true,
+  })
   ip_address: string;
 
   @CreateDateColumn({ type: tstz() as any })
