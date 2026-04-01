@@ -1,0 +1,2 @@
+src/modules/listing/dto/update-category.dto.ts(1,29): error TS2307: Cannot find module '@nestjs/mapped-types' or its corresponding type declarations.
+src/modules/listing/dto/update-listing.dto.ts(1,29): error TS2307: Cannot find module '@nestjs/mapped-types' or its corresponding type declarations.
