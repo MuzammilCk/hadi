@@ -348,8 +348,10 @@
 
 ### Changed
 - Built foundational Multi-Level Marketing (MLM) topologies including `network_nodes` cache and computed `upline_path`.
+- Finalized Supabase cloud database migration, configuring the production `DATABASE_URL` to connect to a Supabase PostgreSQL instance effectively.
 - Implemented `NetworkGraphService` with traversal (upline/downline bounded by limits) and automated cycle/loop detection within graph rebuilding.
 - Implemented core entities: `GraphRebuildJob`, `GraphCorrectionLog`, and `NetworkSnapshot` for graph correction flow auditability.
+- Created migration `1711300001000-AddRetailOnlyToRules.ts` and appended `is_retail_only` flag to `QualificationRule` entity to exclusively block participant self-purchases.
 - Added explicit type `'varchar'` and `'int'` into all TypeORM `@Column({ nullable: true })` decorators across 8 Phase 3 entities to dynamically support SQLite and prevent `DataTypeNotSupportedError: Data type "Object" ...`.
 - Refactored `upline_path LIKE :pattern` descendants queries globally to format `%userId%` safely without stringified JSON internal quotes ensuring 100% matches across SQLite array dialect limitations.
 - Configured E2E testing setups in `network.e2e-spec.ts` and `admin-network.e2e-spec.ts` matching Module paradigms, utilizing SQLite isolated DataSources successfully. 

@@ -1201,3 +1201,203 @@ Output expectations:
 Do not proceed to later phases in this implementation.
 Do not invent future-phase systems.
 Build Phase 2 as if it will be used in production immediately.
+====================================================================
+phase 3 build prompt
+You are a senior MNC backend architect building the production backend for Hadi Perfumes, a real-world perfume buy/sell networked direct-selling marketplace with a multi-level commission ledger.
+
+Your task in this phase is ONLY Phase 3:
+Network graph and qualification engine.
+
+Do not build catalog, seller accounts, inventory, orders, payments, wallet movement, payout execution, or dispute systems in this phase except for the minimum read-only hooks needed to evaluate qualification state.
+Do not invent business rules.
+Do not hardcode level counts, qualification thresholds, rank logic, volume formulas, or activation rules.
+All network and qualification rules must be configurable, versioned where needed, and auditable.
+The system must be safe for real sponsorship trees, real multi-level traversal, and future commission settlement.
+
+Primary objective:
+Build a reliable, auditable sponsorship graph and qualification engine that can answer who is in whose downline, who is in whose upline, whether a participant is active, and whether they qualify for commission eligibility under the current rule set.
+
+Core principles:
+1. The sponsorship graph must be immutable except through audited correction flows.
+2. Sponsor assignments come from Phase 2 and are treated as source-of-truth inputs.
+3. Upline and downline queries must be fast, deterministic, and server-side.
+4. Qualification must be based on verified sales and rule-driven volume logic, not recruitment alone.
+5. Rank progression must never depend on recruitment alone.
+6. All graph state changes must be auditable.
+7. Commission eligibility must reference stored rule versions, not mutable runtime guesses.
+8. Cycle prevention and path consistency are mandatory.
+9. The graph must support future multi-level commission calculation without redesign.
+10. The engine must be resilient to stale reads, concurrent updates, and repeated recalculation jobs.
+
+Phase 3 deliverables:
+A. Sponsorship graph model
+Design a backend model that supports:
+- sponsor_id adjacency
+- materialized upline_path
+- depth
+- direct recruits
+- downline traversal
+- ancestor traversal
+- correction-safe graph updates
+- immutable historical sponsor records
+- future commission-tree queries
+
+B. Qualification engine
+Implement a rule-driven engine that can determine:
+- whether a user is active
+- whether a user is qualified for commission receipt
+- whether a user meets personal sales requirements
+- whether a user meets downline sales requirements
+- whether a user meets rank requirements
+- whether a user is temporarily suspended from qualification
+- whether a rule version applies to a user at evaluation time
+
+C. Rank and level logic
+Implement a versioned model for:
+- rank definitions
+- rank thresholds
+- commission eligibility thresholds
+- qualification refresh windows
+- sales-volume calculations
+- direct and indirect qualification paths
+
+Important:
+- Rank must be sales-based, not recruitment-based.
+- Do not mix participant purchases and retail sales unless the policy explicitly allows it.
+- Keep participant versus retail volume separated.
+
+D. Data model
+Create PostgreSQL-first schema or equivalent entities for:
+- sponsorship_tree
+- network_edges
+- network_snapshots
+- qualification_rules
+- qualification_events
+- qualification_states
+- rank_definitions
+- rank_assignments
+- graph_rebuild_jobs
+- graph_correction_logs
+
+Each entity must support:
+- traceability
+- immutable historical records where required
+- safe correction flow
+- performant reads for downline/upline traversal
+
+E. Graph maintenance
+Implement safe mechanisms for:
+- creating graph edges from Phase 2 sponsor data
+- preventing circular references
+- rebuilding materialized paths
+- recalculating qualification state
+- handling delayed or corrected onboarding data
+- auditing graph corrections
+
+F. Read APIs
+Implement the minimal APIs needed for this phase:
+- GET /network/upline
+- GET /network/downline
+- GET /network/stats
+- GET /network/qualification-status
+- GET /admin/network/corrections
+- POST /admin/network/corrections
+- POST /admin/network/recalculate
+- GET /admin/network/snapshots
+
+Implementation constraints:
+- Use PostgreSQL as source of truth.
+- Keep adjacency and materialized path both available if needed for performance.
+- Do not compute graph truth only in memory.
+- Do not trust client-provided hierarchy data.
+- Every mutation must be auditable.
+- Use clear domain naming.
+- Keep the qualification engine deterministic and testable.
+- Design for future commission settlement and payout logic without overengineering.
+
+Testing requirements:
+You must include a complete test suite for this phase.
+
+1. Unit tests
+Cover:
+- upline/downline traversal
+- path generation
+- cycle detection
+- qualification evaluation
+- active/inactive state resolution
+- rank threshold checks
+- sales-volume calculation
+- correction validation
+
+2. Integration tests
+Cover:
+- creating a sponsorship edge from onboarding data
+- building the materialized path
+- rejecting circular graph updates
+- recalculating qualification state
+- applying a graph correction with audit logging
+- restoring consistency after a rebuild job
+
+3. Contract/API tests
+Cover:
+- request/response schema validation
+- invalid payload handling
+- unauthorized admin access rejection
+- pagination and filter behavior
+- backward-compatible response structure
+
+4. Property-based / invariant tests
+Verify invariants such as:
+- a user can have at most one sponsor edge
+- the graph cannot contain a cycle
+- the upline path always ends at the root ancestors in the correct order
+- the same graph state always produces the same qualification result
+- rank cannot be awarded from recruitment count alone
+- a correction cannot silently erase historical structure
+
+5. Regression tests
+Create tests for:
+- cycle corruption during correction
+- stale upline_path values
+- duplicate graph edges
+- wrong rank assignment after recalculation
+- recruitment-only qualification attempts
+- broken snapshot rebuilds
+
+6. Security tests
+Cover:
+- tampering with sponsor or path fields
+- privilege escalation on admin graph correction endpoints
+- audit log integrity for graph mutation actions
+- replay of graph correction requests
+- unauthorized qualification-state reads if protected by role
+
+7. Migration tests
+If schema migrations are required:
+- ensure old sponsorship records remain readable
+- ensure materialized path backfills do not corrupt hierarchy
+- ensure qualification history remains stable after migration
+- ensure rank assignments still resolve correctly after schema change
+
+Definition of done:
+- The sponsorship graph is reliable, auditable, and cycle-free.
+- Upline/downline traversal works for arbitrary depth under configured limits.
+- Qualification state is computed from rules and sales data, not recruitment alone.
+- Rank logic is versioned and deterministic.
+- Correction and rebuild flows preserve history.
+- Tests prove graph integrity and qualification correctness.
+
+Output expectations:
+1. Database schema or migrations
+2. Domain model
+3. Sponsorship graph maintenance logic
+4. Qualification engine
+5. Rank assignment logic
+6. Admin graph correction APIs
+7. Full test suite
+8. Clear documentation of graph and qualification semantics
+9. Notes on any assumptions or unresolved business decisions that require approval
+
+Do not proceed to later phases in this implementation.
+Do not invent future-phase systems.
+Build Phase 3 as if it will be used in production immediately.
