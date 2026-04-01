@@ -206,14 +206,12 @@ export class NetworkGraphService {
 
     const nodes = await qb.getMany();
 
-    if (maxDepth) {
-      // Filter by relative depth from the user
-      const userNode = await this.nodeRepo.findOne({ where: { user_id: userId } });
-      const userDepth = userNode ? userNode.depth : 0;
-      return nodes.filter(n => n.depth <= userDepth + maxDepth);
-    }
+    const limitDepth = maxDepth || parseInt(process.env.MAX_NETWORK_DEPTH || '5', 10);
 
-    return nodes;
+    // Filter by relative depth from the user
+    const userNode = await this.nodeRepo.findOne({ where: { user_id: userId } });
+    const userDepth = userNode ? userNode.depth : 0;
+    return nodes.filter(n => n.depth <= userDepth + limitDepth);
   }
 
   /**
@@ -275,11 +273,17 @@ export class NetworkGraphService {
     currentNode.updated_at = new Date();
     await em.save(NetworkNode, currentNode);
 
-    // Cascade rebuild all descendants
-    const descendants = await em
-      .createQueryBuilder(NetworkNode, 'nn')
-      .where('nn.upline_path LIKE :pattern', { pattern: `%${dto.userId}%` })
-      .getMany();
+    // Cascade rebuild all descendants.
+    // Use em.find() instead of em.createQueryBuilder() to ensure the query
+    // uses the transactional entity manager's own query runner (TypeORM 0.3.x).
+    // Entities loaded via em.find() are properly tracked by txEm, making
+    // subsequent em.save() calls work correctly within the same transaction.
+    const allNodes = await em.find(NetworkNode);
+    const descendants = allNodes.filter(n => {
+      if (n.user_id === dto.userId) return false; // exclude the corrected user itself
+      const path = this.parsePath(n.upline_path);
+      return path.includes(dto.userId);
+    });
 
     for (const desc of descendants) {
       const descPath = this.parsePath(desc.upline_path);

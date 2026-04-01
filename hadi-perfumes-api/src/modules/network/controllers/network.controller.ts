@@ -28,23 +28,7 @@ export class NetworkController {
     const userId: string = req.user.sub;
     try {
       const uplinePath = await this.graphService.getUplinePath(userId);
-      const node = await this.graphService.getDirectRecruits(userId);
-      // Get the node for the user to get sponsor info
-      const downline = await this.graphService.getDownline(userId);
-      // Find the user's own node — we need it for sponsor_id and depth
-      const allNodes = await this.graphService.getDownline(userId, 0);
-
-      // Get user's node directly
-      let userNode;
-      try {
-        userNode = {
-          depth: uplinePath.length,
-          sponsorId: uplinePath.length > 0 ? uplinePath[uplinePath.length - 1] : null,
-        };
-      } catch {
-        userNode = { depth: 0, sponsorId: null };
-      }
-
+      // uplinePath[last] is the direct sponsor (closest ancestor)
       return {
         userId,
         depth: uplinePath.length,

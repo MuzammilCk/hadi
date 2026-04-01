@@ -368,3 +368,64 @@
 ### Follow-up
 - [ ] Begin Phase 4: Orders & Volume Ledger (Tracking `PV` and `DV` via raw e-commerce events integration).
 - [ ] Phase 8 / Deferred: Move `QualificationRecalcJob` into a decoupled `BullMQ` asynchronous worker setup.
+
+### Phase 3 Open Questions & Safe Defaults Addressed
+1. **Maximum commission depth**: Safely defaulted to `process.env.MAX_NETWORK_DEPTH || 5` in `NetworkGraphService.getDownline()` traversal queries.
+2. **What counts as "active"**: Users default to `isActive: false` until valid metrics update their active volume.
+3. **Retail vs Participant Volume**: Created `is_retail_only` boolean on `QualificationRule` (defaults to true) to exclusively block participant self-purchases.
+4. **Rank names**: Identified statically by `rank_level` integer tracking in correlation with `rank_name` display.
+5. **Snapshot frequency**: Restricted to Manual trigger via Admin Controllers currently. Scheduled queue logic deferred to Phase 8 BullMQ configuration.
+
+---
+
+## 2026-04-01 (Phase 3 — Post-Implementation Error Remediation)
+
+### Changed
+
+- **ERROR-1 (🔴 CRITICAL)**: Fixed `applyGraphCorrection()` descendant cascade update
+  in `NetworkGraphService`. The original code used `em.createQueryBuilder(NetworkNode, 'nn')`
+  within a transactional entity manager (`txEm`), which in TypeORM 0.3.28 does NOT
+  automatically use the transaction's query runner. This caused the subsequent `em.save(desc)`
+  calls for descendants to fail silently. Replaced with `em.find(NetworkNode)` + JavaScript
+  filter, which correctly uses `txEm.queryRunner` and ensures entities are properly tracked
+  for subsequent saves within the same transaction. Test 8 ("after a graph correction,
+  descendants of the corrected user have their upline_path updated") now passes.
+
+- **ERROR-2 (🟡 MEDIUM)**: Created `test/unit/network-invariants.spec.ts`. Pure-function
+  tests verifying: cycle cannot be injected, upline_path[last] is always direct sponsor,
+  depth equals path length, corrections preserve node identity, rank requires volume not
+  just leg count, isQualified cannot be true when isActive is false, qualification is
+  deterministic (same input always same output).
+
+- **ERROR-3 (🟡 MEDIUM)**: Created `test/unit/network-regression.spec.ts`. Regression
+  guards for: cycle injection blocked by detectCycle, self-correction detected as cycle,
+  parsePath handles both JSON string and array forms, depth computation correct for 3-level
+  chain, cascade update correctly replaces old upline segment with new one, cascade
+  preserves suffix after corrected user (deep descendant scenario), non-descendant nodes
+  unaffected by cascade, qualification recalc never awards rank from leg count alone.
+
+- **ERROR-4 (🟢 LOW)**: Removed 3 dead DB queries in `NetworkController.getUpline()`.
+  Variables `node`, `downline`, `allNodes`, and `userNode` were computed but never used,
+  causing 3 unnecessary DB round-trips on every `GET /network/upline` call.
+
+### Why
+- ERROR-1: TypeORM 0.3.x known issue where `em.createQueryBuilder(entity, alias)` on a
+  transactional entity manager does not pass `this.queryRunner` to the query builder.
+  Using `em.find()` correctly participates in the transaction.
+- ERROR-2/3: Phase 3 Definition of Done required invariant and regression tests. These
+  were missing from the initial implementation.
+- ERROR-4: Dead code discovered during audit. No correctness impact, only performance.
+
+### Impact
+- All 4 errors are fixed without touching Phase 1 or Phase 2 code.
+- `npm run test`: now 0 failures (was 1 — Test 8 in network-graph-build.spec.ts).
+- New test files add ~21 additional test cases for graph and qualification invariants.
+- Phase 3 Definition of Done is now fully met.
+
+### Follow-up
+- [ ] Begin Phase 4: Catalog, Seller Accounts, Inventory.
+- [ ] Phase 8: Add BullMQ queue wiring for `QualificationRecalcJob` (currently manual trigger).
+- [ ] Phase 8: Optimize `applyGraphCorrection()` descendant cascade for large networks
+      (replace `em.find(NetworkNode)` full table scan with paginated query or Postgres `@>` operator).
+- [ ] Resolve open questions: commission depth limit (MAX_NETWORK_DEPTH env default = 5),
+      retail volume definition (is_retail_only flag on QualificationRule), exact rank names.

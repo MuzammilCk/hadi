@@ -32,6 +32,9 @@ export class QualificationRule {
   @Column({ default: true })
   is_mandatory: boolean;
 
+  @Column({ default: true })
+  is_retail_only: boolean;
+
   @Column({ type: 'varchar', nullable: true })
   description: string | null;
 
