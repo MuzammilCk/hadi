@@ -480,4 +480,33 @@
 - Local SQLite resilience maintained flawlessly utilizing the same simplified application schema boundaries.
 
 ### Follow-up
-- [ ] The schema is physically ready for Phase 5 development (Orders & Wallet infrastructure).
+- [ ] The schema is physically ready for Phase 5 development (Orders & Wallet infrastructure).
+---
+
+## 2026-04-01 (Phase 4 Architecture Pivot Documentation Sync)
+
+### Changed
+- Audited current backend implementation under `hadi-perfumes-api/src/modules` and Phase 4 migration artifacts to confirm the live architecture.
+- Updated `context.md` to remove multi-vendor/P2P marketplace assumptions and codify the Admin-Owned Catalog model.
+- Rewrote Phase 4/5/6 planning language to reflect:
+  - Admin-only catalog ownership
+  - Standard single-merchant checkout/payment collection
+  - MLM commission settlement from platform revenue pool
+- Updated `The prompt.txt` to remove seller-created listing flows, seller profile tables, and Stripe Connect split transfer instructions.
+- Updated `claude.md` working rules/payments constraints to explicitly prohibit reintroducing multi-party seller payout architecture.
+
+### Why
+- The implemented codebase diverged from the old docs: marketplace seller flows were intentionally purged in Phase 4 for compliance and operational safety.
+- Outdated docs were creating dangerous forward-phase ambiguity (especially Phase 5 payments design).
+
+### Impact
+- Architecture source-of-truth now matches the implemented backend:
+  - `listings.seller_id` retained only as admin/company ownership mapping.
+  - No `seller_profiles`, no vendor KYC module/table, no seller store onboarding.
+  - Phase 5 no longer implies Stripe Connect split payouts.
+- Future contributors can safely continue with single-vendor checkout + commission-ledger phases without resurrecting deprecated marketplace concepts.
+
+### Follow-up
+- [ ] Phase 5 implementation should scaffold orders/payments with strict idempotency and webhook dedup in single-merchant mode.
+- [ ] Phase 6 should introduce commission_event + ledger_entries + payout settlement from platform-controlled funds.
+- [ ] Add an explicit runtime guard in listing creation/update path to enforce seller/admin ownership invariants at service layer.
