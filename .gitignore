@@ -72,7 +72,8 @@ typings/
 
 # dotenv environment variables file
 .env
-.env.test
+.env.*
+!.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -107,3 +108,7 @@ Thumbs.db
 *_fails.log
 test-output.txt
 out.txt
+
+# AI Agent caching & settings
+.agents/
+skills-lock.json
