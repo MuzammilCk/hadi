@@ -65,24 +65,13 @@ export class Listing {
   @Column({ type: 'int', default: 0 })
   quantity: number;
 
-  @Column({
-    type: enumType() as any,
-    enum: process.env.NODE_ENV === 'test' ? undefined : ListingCondition,
-  })
+  @Column({ type: 'varchar' })
   condition: ListingCondition | string;
 
-  @Column({
-    type: enumType() as any,
-    enum: process.env.NODE_ENV === 'test' ? undefined : AuthenticityStatus,
-    default: AuthenticityStatus.UNVERIFIED,
-  })
+  @Column({ type: 'varchar', default: AuthenticityStatus.UNVERIFIED })
   authenticity_status: AuthenticityStatus | string;
 
-  @Column({
-    type: enumType() as any,
-    enum: process.env.NODE_ENV === 'test' ? undefined : ListingStatus,
-    default: ListingStatus.DRAFT,
-  })
+  @Column({ type: 'varchar', default: ListingStatus.DRAFT })
   status: ListingStatus | string;
 
   @Column({ default: false })

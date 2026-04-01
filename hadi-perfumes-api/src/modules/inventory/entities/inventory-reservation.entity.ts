@@ -41,11 +41,7 @@ export class InventoryReservation {
   @Column({ type: tstz() as any })
   expires_at: Date;
 
-  @Column({
-    type: enumType() as any,
-    enum: process.env.NODE_ENV === 'test' ? undefined : ReservationStatus,
-    default: ReservationStatus.RESERVED,
-  })
+  @Column({ type: 'varchar', default: ReservationStatus.RESERVED })
   status: ReservationStatus | string;
 
   @Column({ type: 'int', default: 900 })

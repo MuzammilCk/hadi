@@ -31,10 +31,7 @@ export class ListingModerationAction {
   @JoinColumn({ name: 'admin_id' })
   admin: User;
 
-  @Column({
-    type: enumType() as any,
-    enum: process.env.NODE_ENV === 'test' ? undefined : ModerationAction,
-  })
+  @Column({ type: 'varchar' })
   action: ModerationAction | string;
 
   @Column({ type: 'text', nullable: true })

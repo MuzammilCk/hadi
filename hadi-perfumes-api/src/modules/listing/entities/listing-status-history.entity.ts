@@ -20,16 +20,10 @@ export class ListingStatusHistory {
   @JoinColumn({ name: 'listing_id' })
   listing: Listing;
 
-  @Column({
-    type: enumType() as any,
-    enum: process.env.NODE_ENV === 'test' ? undefined : ListingStatus,
-  })
+  @Column({ type: 'varchar' })
   from_status: ListingStatus | string;
 
-  @Column({
-    type: enumType() as any,
-    enum: process.env.NODE_ENV === 'test' ? undefined : ListingStatus,
-  })
+  @Column({ type: 'varchar' })
   to_status: ListingStatus | string;
 
   @Column({ type: 'uuid', nullable: true })
@@ -39,11 +33,7 @@ export class ListingStatusHistory {
   @JoinColumn({ name: 'actor_id' })
   actor: User;
 
-  @Column({
-    type: enumType() as any,
-    enum: process.env.NODE_ENV === 'test' ? undefined : ActorType,
-    default: ActorType.SYSTEM,
-  })
+  @Column({ type: 'varchar', default: ActorType.SYSTEM })
   actor_type: ActorType | string;
 
   @Column({ type: 'text', nullable: true })

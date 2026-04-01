@@ -33,10 +33,7 @@ export class InventoryEvent {
   @JoinColumn({ name: 'listing_id' })
   listing: Listing;
 
-  @Column({
-    type: enumType() as any,
-    enum: process.env.NODE_ENV === 'test' ? undefined : InventoryEventType,
-  })
+  @Column({ type: 'varchar' })
   event_type: InventoryEventType | string;
 
   @Column({ type: 'int' })

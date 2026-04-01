@@ -461,4 +461,23 @@
 ### Follow-up
 - [ ] Begin Phase 5: Orders & Wallet (Order processing engine connecting Phase 4 inventory reservations to checkout confirmation, initiating Phase 1 calculations).
 - [ ] Phase 8 / Deferred: Configure Supabase Storage buckets formally aligning with `storage_key`.
-- [ ] Implement robust `reservation-expiry.job.ts` scheduling via `BullMQ` (currently manual `POST /admin/inventory/expire-reservations` trigger).
+- [ ] Implement robust `reservation-expiry.job.ts` scheduling via `BullMQ` (currently manual `POST /admin/inventory/expire-reservations` trigger).
+
+---
+
+## 2026-04-01 (Phase 4 — Supabase Deployment & PostgreSQL Remediation)
+
+### Changed
+- Refactored `enumType()` usage in `listing.entity.ts`, `listing-status-history.entity.ts`, `listing-moderation-action.entity.ts`, `inventory-event.entity.ts`, and `inventory-reservation.entity.ts` directly to `@Column({ type: 'varchar' })`.
+- Executed `npm run typeorm:run` successfully against the remote Supabase PostgreSQL instance.
+- Verified all SQLite in-memory integration and E2E testing pipelines remain 100% green after schema decoration simplifications.
+
+### Why
+- An initial attempt to run `typeorm:run` on Supabase crashed with `TypeORMError: Column "from_status" ... missing "enum" or "enumName" properties`. This occurred because TypeScript decorator resolution encountered circular dependencies alongside unresolved mapped enums natively evaluated in PostgreSQL (unlike SQLite, which dynamically fell back to text mappings smoothly). Modifying decorators to explicitly request `'varchar'` synced the objects identically with the `Phase4CatalogInit` migration's `character varying` implementations without runtime collisions.
+
+### Impact
+- Database schema successfully instantiated in the remote Supabase backend.
+- Local SQLite resilience maintained flawlessly utilizing the same simplified application schema boundaries.
+
+### Follow-up
+- [ ] The schema is physically ready for Phase 5 development (Orders & Wallet infrastructure).
