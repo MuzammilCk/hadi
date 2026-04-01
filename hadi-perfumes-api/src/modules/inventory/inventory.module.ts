@@ -8,6 +8,7 @@ import { InventoryController } from './controllers/inventory.controller';
 import { AdminInventoryController } from './controllers/admin-inventory.controller';
 import { ReservationExpiryJob } from '../../jobs/reservation-expiry.job';
 import { ListingModule } from '../listing/listing.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ListingModule } from '../listing/listing.module';
       InventoryEvent,
     ]),
     ListingModule,
+    AuthModule,
   ],
   providers: [InventoryService, ReservationExpiryJob],
   controllers: [InventoryController, AdminInventoryController],

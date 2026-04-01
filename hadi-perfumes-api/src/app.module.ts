@@ -10,6 +10,7 @@ import { UserModule } from './modules/user/user.module';
 import { NetworkModule } from './modules/network/network.module';
 import { ListingModule } from './modules/listing/listing.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { OrderModule } from './modules/order/order.module';
 import { dataSourceOptions } from './config/database.config';
 
 @Module({
@@ -26,6 +27,7 @@ import { dataSourceOptions } from './config/database.config';
     NetworkModule,
     ListingModule,
     InventoryModule,
+    OrderModule,
   ],
   controllers: [AppController],
   providers: [AppService],
