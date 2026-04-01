@@ -8,6 +8,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ReferralModule } from './modules/referral/referral.module';
 import { UserModule } from './modules/user/user.module';
 import { NetworkModule } from './modules/network/network.module';
+import { ListingModule } from './modules/listing/listing.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 import { dataSourceOptions } from './config/database.config';
 
 @Module({
@@ -22,6 +24,8 @@ import { dataSourceOptions } from './config/database.config';
     ReferralModule,
     UserModule,
     NetworkModule,
+    ListingModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
