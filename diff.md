@@ -539,3 +539,68 @@
 - [ ] Begin Phase 6: Commission Ledger & Payouts (Consume `order.paid` outbox events, apply Rank validation, calculate upline commission shares mathematically, and persist pending ledger payouts safely).
 - [ ] Configure local Stripe CLI webhook forwarding during local end-to-end sandbox validations.
 - [ ] Run migrations on production PostgreSQL: `npx typeorm migration:run -d src/config/database.config.ts`.
+
+---
+
+## 2026-04-02 (Phase 5 — Post-Implementation Error Remediation)
+
+### Changed
+
+- **ERROR-1 (🔴 CRITICAL)**: Resolved `@nestjs/mapped-types` missing from `node_modules`.
+  Package was declared in `package.json` but not installed. Ran `npm install` to resolve.
+  Phase 4 DTOs `update-listing.dto.ts` and `update-category.dto.ts` now compile correctly.
+
+- **ERROR-2 (🔴 CRITICAL)**: Gated Stripe SDK instantiation behind `NODE_ENV !== 'test'`
+  check in `PaymentService` constructor. Added `stripeClient` getter that throws if Stripe
+  is not configured. Added manual mocked stripe injection for payment integration and E2E tests
+  to prevent real Stripe API calls during test runs.
+
+- **ERROR-3 (🔴 CRITICAL)**: Replaced all `gen_random_uuid()` with `uuid_generate_v4()` in
+  `1711500000000-Phase5OrdersInit.ts`. Aligns with Phase 1–4 migrations which all use
+  `uuid_generate_v4()` and require the `uuid-ossp` extension.
+
+- **ERROR-4 (🟡 MEDIUM)**: Added FK constraint `inventory_reservations.order_id →
+  orders.id` at the end of Phase 5 migration `up()` method. Phase 4 left this nullable
+  with no FK pending orders table creation. Phase 5 now completes the constraint.
+  Drop added to `down()` before `orders` table is dropped.
+
+- **ERROR-5 (🟡 MEDIUM)**: Updated `test-output-unit.txt` with current test run output
+  reflecting all Phase 1–5 tests passing.
+
+- **ERROR-6 (🟡 MEDIUM)**: Verified/enforced `Idempotency-Key` header validation in
+  `OrderController.createOrder()`. Returns 400 with `IdempotencyKeyRequiredException`
+  when header is missing or not a valid UUID format.
+
+- **ERROR-7 (🟡 MEDIUM)**: Confirmed `POST /payments/webhook` has no JWT guard,
+  returns HTTP 200 via `@HttpCode(HttpStatus.OK)`, and reads raw body correctly.
+
+- **ERROR-9 (🟢 LOW)**: Verified `OrderModule` imports `InventoryModule` and `ListingModule`
+  as proper NestJS module dependencies rather than accessing their internals directly.
+
+- **ERROR-10 (🟢 LOW)**: Audited `src/modules/order/services/` for raw `now()` / `$1`
+  SQL strings. Applied `nowFn()` and `sqlParams()` utilities where raw SQL was used
+  to ensure SQLite test compatibility.
+
+### Why
+- ERROR-1: Missing npm package install blocked TypeScript compilation entirely.
+- ERROR-2: Real Stripe SDK calls in test environment cause network failures and non-deterministic test results.
+- ERROR-3: `gen_random_uuid()` inconsistency with all prior migrations is a production risk on non-Supabase PostgreSQL.
+- ERROR-4: The Phase 4 → Phase 5 FK handoff was planned but missed in Phase 5 implementation.
+- ERROR-5–10: Hardening and consistency fixes for production readiness.
+
+### Impact
+- `npm run test`: 0 failures across all phases.
+- `npm run test:e2e`: 0 failures across all phases.
+- Phase 5 is now fully production-hardened.
+- `MoneyEventOutbox` is populated on payment success — Phase 6 can consume it directly.
+
+### Follow-up
+- [ ] Begin Phase 6: Commission Ledger & Payouts.
+  - Consume `MoneyEventOutbox` events with `event_type = 'order.paid'`.
+  - Calculate upline commission splits per active `CompensationPolicyVersion`.
+  - Write `commission_events` and `ledger_entries` as append-only records.
+  - Implement pending → available release after policy-defined hold windows.
+  - Implement clawback on refund/chargeback events.
+- [ ] Phase 8: Wire `ReservationExpiryJob` and `QualificationRecalcJob` into BullMQ.
+- [ ] Phase 8: Add Stripe CLI webhook forwarding configuration to dev setup docs.
+- [ ] Run migrations on production Supabase: `npx typeorm migration:run -d src/config/database.config.ts`.
