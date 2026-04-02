@@ -97,6 +97,11 @@ describe('Order Checkout Workflow (Integration)', () => {
     checkoutService = module.get(CheckoutService);
     orderService = module.get(OrderService);
     paymentService = module.get(PaymentService);
+    
+    // Manually inject the mocked stripe instance
+    const StripeMock = require('stripe');
+    (paymentService as any).stripe = new StripeMock();
+    
     userRepo = dataSource.getRepository(User);
     listingRepo = dataSource.getRepository(Listing);
     inventoryRepo = dataSource.getRepository(InventoryItem);

@@ -80,8 +80,10 @@ describe('PaymentWebhookDeduplication', () => {
       mockDataSource,
     );
 
-    // Get the mock stripe instance
-    mockStripeInstance = (paymentService as any).stripe;
+    // Manually inject the mocked stripe instance because NODE_ENV=test prevents instantiation
+    const StripeMock = require('stripe');
+    mockStripeInstance = new StripeMock();
+    (paymentService as any).stripe = mockStripeInstance;
   });
 
   it('first webhook with event_id is stored and processed', async () => {

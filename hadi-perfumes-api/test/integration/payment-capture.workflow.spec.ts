@@ -93,6 +93,11 @@ describe('Payment Capture Workflow (Integration)', () => {
     checkoutService = module.get(CheckoutService);
     orderService = module.get(OrderService);
     paymentService = module.get(PaymentService);
+    
+    // Manually inject the mocked stripe instance
+    const StripeMock = require('stripe');
+    (paymentService as any).stripe = new StripeMock();
+    
     orderRepo = dataSource.getRepository(Order);
     webhookRepo = dataSource.getRepository(PaymentWebhookEvent);
     outboxRepo = dataSource.getRepository(MoneyEventOutbox);

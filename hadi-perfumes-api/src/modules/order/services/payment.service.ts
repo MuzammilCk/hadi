@@ -18,7 +18,7 @@ import {
 
 @Injectable()
 export class PaymentService {
-  private stripe: Stripe;
+  private stripe?: Stripe;
   private readonly stateMachine = new OrderStateMachine();
   private readonly logger = new Logger(PaymentService.name);
 
@@ -38,10 +38,18 @@ export class PaymentService {
     private readonly inventoryService: InventoryService,
     private readonly dataSource: DataSource,
   ) {
-    this.stripe = new Stripe(
-      process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder',
-      { apiVersion: '2024-06-20' as any },
-    );
+    if (process.env.NODE_ENV !== 'test' && process.env.STRIPE_SECRET_KEY) {
+      this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2024-06-20' as any,
+      });
+    }
+  }
+
+  private get stripeClient(): Stripe {
+    if (!this.stripe) {
+      throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY in production.');
+    }
+    return this.stripe;
   }
 
   async createPaymentIntent(
@@ -81,7 +89,7 @@ export class PaymentService {
     });
 
     // Create Stripe PaymentIntent
-    const intent = await this.stripe.paymentIntents.create(
+    const intent = await this.stripeClient.paymentIntents.create(
       {
         amount: Math.round(Number(order.total_amount) * 100), // smallest currency unit (paise)
         currency: order.currency.toLowerCase(),
@@ -112,7 +120,7 @@ export class PaymentService {
 
     // 1. Verify signature
     try {
-      event = this.stripe.webhooks.constructEvent(
+      event = this.stripeClient.webhooks.constructEvent(
         rawBody,
         signature,
         process.env.STRIPE_WEBHOOK_SECRET || '',

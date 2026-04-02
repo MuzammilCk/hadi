@@ -54,7 +54,10 @@ describe('InventoryService', () => {
     it('should block reservation and throw InsufficientStockException if atomic update fails', async () => {
       mockInventoryRepo.findOne.mockResolvedValueOnce({ id: 'inv1', total_qty: 10 } as InventoryItem);
 
-      mockEntityManager.query.mockResolvedValueOnce([]); // No row returned = insufficient
+      mockEntityManager.query.mockImplementation(async (sql) => {
+        if (sql.includes('changes()')) return [{ changed: 0 }];
+        return [];
+      });
 
       mockEntityManager.create.mockImplementation((entityClass, data) => data as any);
       
@@ -64,7 +67,7 @@ describe('InventoryService', () => {
 
       expect(mockEntityManager.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE inventory_items'),
-        [5, 'inv1']
+        [5, 5, 'inv1', 5]
       );
       
       // Should create OVERSELL_BLOCKED event
@@ -77,7 +80,11 @@ describe('InventoryService', () => {
     it('should complete reservation and log event if stock is available', async () => {
       mockInventoryRepo.findOne.mockResolvedValueOnce({ id: 'inv1', total_qty: 10 } as InventoryItem);
 
-      mockEntityManager.query.mockResolvedValueOnce([{ id: 'inv1', available_qty: 5, total_qty: 10 }]);
+      mockEntityManager.query.mockImplementation(async (sql) => {
+        if (sql.includes('changes()')) return [{ changed: 1 }];
+        if (sql.includes('SELECT')) return [{ id: 'inv1', available_qty: 5, total_qty: 10 }];
+        return [];
+      });
 
       mockEntityManager.create.mockImplementation((entity, data) => data as any);
       mockEntityManager.save.mockImplementation(async (entityClass, data) => {
@@ -126,7 +133,11 @@ describe('InventoryService', () => {
       mockEntityManager.findOne.mockResolvedValueOnce(mockRes);
       
       // Returns after stock update
-      mockEntityManager.query.mockResolvedValueOnce([{ id: 'inv1', available_qty: 5, total_qty: 10 }]);
+      mockEntityManager.query.mockImplementation(async (sql) => {
+        if (sql.includes('changes()')) return [{ changed: 1 }];
+        if (sql.includes('SELECT')) return [{ id: 'inv1', available_qty: 5, total_qty: 10 }];
+        return [];
+      });
       
       mockEntityManager.save.mockImplementation(async (entityClass, data) => data as any);
       mockEntityManager.create.mockImplementation((entityClass, data) => data as any);
@@ -139,12 +150,12 @@ describe('InventoryService', () => {
       // Check stock add back query
       expect(mockEntityManager.query).toHaveBeenNthCalledWith(1,
         expect.stringContaining('UPDATE inventory_items'),
-        [5, 'inv1']
+        [5, 5, 'inv1']
       );
 
       // Check listing status update
-      expect(mockEntityManager.query).toHaveBeenNthCalledWith(2,
-        expect.stringContaining('UPDATE listings SET status = $1'),
+      expect(mockEntityManager.query).toHaveBeenNthCalledWith(3,
+        expect.stringContaining('UPDATE listings SET status = ?'),
         [ListingStatus.ACTIVE, 'list1', ListingStatus.SOLD_OUT]
       );
 

@@ -7,7 +7,7 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     // 1. checkout_sessions
     await queryRunner.query(`
       CREATE TABLE "checkout_sessions" (
-        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "idempotency_key" character varying(255) NOT NULL,
         "buyer_id" uuid NOT NULL,
         "status" character varying(50) NOT NULL DEFAULT 'pending',
@@ -32,7 +32,7 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     // 2. orders
     await queryRunner.query(`
       CREATE TABLE "orders" (
-        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "idempotency_key" character varying(255) NOT NULL,
         "checkout_session_id" uuid,
         "buyer_id" uuid NOT NULL,
@@ -63,7 +63,7 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     // 3. order_items
     await queryRunner.query(`
       CREATE TABLE "order_items" (
-        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "order_id" uuid NOT NULL,
         "listing_id" uuid NOT NULL,
         "inventory_reservation_id" uuid,
@@ -83,7 +83,7 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     // 4. order_status_history
     await queryRunner.query(`
       CREATE TABLE "order_status_history" (
-        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "order_id" uuid NOT NULL,
         "from_status" character varying,
         "to_status" character varying NOT NULL,
@@ -100,7 +100,7 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     // 5. payments
     await queryRunner.query(`
       CREATE TABLE "payments" (
-        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "order_id" uuid NOT NULL,
         "idempotency_key" character varying(255) NOT NULL,
         "provider" character varying NOT NULL DEFAULT 'stripe',
@@ -128,7 +128,7 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     // 6. payment_webhook_events
     await queryRunner.query(`
       CREATE TABLE "payment_webhook_events" (
-        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "provider" character varying NOT NULL,
         "provider_event_id" character varying(255) NOT NULL,
         "event_type" character varying NOT NULL,
@@ -150,7 +150,7 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     // 7. order_audit_logs
     await queryRunner.query(`
       CREATE TABLE "order_audit_logs" (
-        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "order_id" uuid NOT NULL,
         "action" character varying NOT NULL,
         "actor_type" character varying NOT NULL,
@@ -168,7 +168,7 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     // 8. money_event_outbox
     await queryRunner.query(`
       CREATE TABLE "money_event_outbox" (
-        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "event_type" character varying NOT NULL,
         "aggregate_id" uuid NOT NULL,
         "payload" text NOT NULL,
@@ -185,9 +185,22 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     await queryRunner.query(`CREATE INDEX "IDX_order_items_order_id" ON "order_items" ("order_id")`);
     await queryRunner.query(`CREATE INDEX "IDX_payments_order_id" ON "payments" ("order_id")`);
     await queryRunner.query(`CREATE INDEX "IDX_money_event_outbox_published" ON "money_event_outbox" ("published")`);
+
+    // Add FK constraint to inventory_reservations
+    await queryRunner.query(`
+      ALTER TABLE "inventory_reservations"
+        ADD CONSTRAINT "FK_inventory_reservations_order"
+        FOREIGN KEY ("order_id")
+        REFERENCES "orders"("id")
+        ON DELETE SET NULL ON UPDATE NO ACTION
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      ALTER TABLE "inventory_reservations"
+        DROP CONSTRAINT IF EXISTS "FK_inventory_reservations_order"
+    `);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_money_event_outbox_published"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_payments_order_id"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_order_items_order_id"`);
