@@ -604,3 +604,81 @@
 - [ ] Phase 8: Wire `ReservationExpiryJob` and `QualificationRecalcJob` into BullMQ.
 - [ ] Phase 8: Add Stripe CLI webhook forwarding configuration to dev setup docs.
 - [ ] Run migrations on production Supabase: `npx typeorm migration:run -d src/config/database.config.ts`.
+
+---
+
+## 2026-04-02 (Phase 5 — Post-Implementation Error Remediation Part 2)
+
+### Changed
+
+- **ERROR-1 (🟢 VERIFIED-CLEAN)**: Confirmed `update-category.dto.ts` and `update-listing.dto.ts`
+  have NO stale `@nestjs/mapped-types` import. The `ts_errors.txt` was stale. No fix needed.
+
+- **ERROR-2 (🔴 CRITICAL)**: Fixed `PaymentService.handleWebhook()` to guard against
+  `this.stripe` being `undefined` in test environment. The original code called
+  `this.stripeClient.webhooks.constructEvent(...)` which throws a generic `Error('Stripe is not
+  configured')` → HTTP 500 instead of `WebhookSignatureInvalidException` → HTTP 401.
+  Fix: replaced `this.stripeClient.webhooks.constructEvent(...)` with a null guard
+  `if (!this.stripe) throw new WebhookSignatureInvalidException()` followed by
+  `this.stripe.webhooks.constructEvent(...)`. E2E test 8 in `order.e2e-spec.ts`
+  (POST /payments/webhook without stripe-signature → 401) now passes.
+
+- **ERROR-3 (🟡 MEDIUM)**: Added `.where('1=1')` base condition to `adminListOrders()` in
+  `OrderService` before the conditional `andWhere()` calls. Prevents semantically fragile
+  `andWhere()` as first call on a fresh QueryBuilder. Matches established codebase pattern.
+
+- **ERROR-4 (🟡 MEDIUM)**: Fixed `cancelOrder()` race condition in `OrderService`. Moved the
+  `canTransition` check inside the `dataSource.transaction()` block using the transactionally
+  consistent `freshOrder`. Previously, status was read and checked outside the transaction;
+  concurrent webhook events could change status between the outer check and the inner save,
+  causing `InvalidOrderTransitionException` instead of `OrderNotCancellableException`.
+
+- **ERROR-5 (🟡 MEDIUM)**: Added unique constraint violation catch in
+  `PaymentService.createPaymentIntent()`. Two concurrent requests for the same order that both
+  pass the initial `findOne` check would both attempt insert, with the second throwing an
+  unhandled TypeORM `QueryFailedError` (HTTP 500). Now catches unique constraint errors and
+  returns the already-created payment record instead.
+
+- **ERROR-6 (🟢 NOTED — NO CHANGE)**: Nested transaction in `processWebhookEvent`
+  (`confirmReservation` inside outer `dataSource.transaction()`) is a known architectural
+  constraint. SQLite flattens it (tests pass). PostgreSQL handles it via savepoints (production
+  safe). Deferred to Phase 6: refactor `confirmReservation` to accept an optional `EntityManager`
+  parameter for full transactional participation.
+
+- **ERROR-7 (🔴)**: Fixed `test/app.e2e-spec.ts` ES module import syntax.
+  Replaced `import request from 'supertest'` with `const request = require('supertest')`
+  to match all other test files and avoid potential ESM/CJS interop issues under
+  `"module": "nodenext"` TypeScript config.
+
+- **ERROR-8 (🟢 NOT AN ERROR)**: `checkout-idempotency.spec.ts` confirmed present and passing.
+
+- **ERROR-9 (🟡 DOC FIX)**: Corrected this diff.md Phase 5 entry's description of
+  `OrderStateMachine`. The machine has 13 states (not the 6 listed), includes non-forward
+  transitions (e.g. `PAYMENT_FAILED` → `PAYMENT_PENDING`), and terminal states
+  (`CANCELLED`, `REFUNDED`, `CHARGEBACK`). It is a deterministic state machine, not
+  strictly forward-only.
+
+### Why
+- ERROR-2 was the only test-breaking error: the webhook endpoint returned HTTP 500 instead of
+  HTTP 401 in test environments because the Stripe client is intentionally not instantiated under
+  `NODE_ENV=test`.
+- ERROR-7 prevents a potential future regression under stricter ESM resolution.
+- Errors 3, 4, 5 are production safety hardening — not currently causing test failures but
+  would cause observable failures under real concurrent load.
+
+### Impact
+- `npm run test`: 0 failures (was passing; ERROR-7 prevented any unit test regressions).
+- `npm run test:e2e`: 0 failures (ERROR-2 fix restores order.e2e-spec.ts Test 8 to pass).
+- Phase 5 error remediation complete. All 9 reported errors assessed; real fixes applied.
+
+### Follow-up
+- [ ] Begin Phase 6: Commission Ledger, Wallets, Payout Settlement.
+  - Consume `MoneyEventOutbox` events with `event_type = 'order.paid'`.
+  - Calculate upline commission per active `CompensationPolicyVersion`.
+  - Write `commission_events` as pending ledger entries.
+  - Implement pending → available release after policy hold windows.
+  - Implement clawback on refund/chargeback.
+- [ ] Phase 6: Refactor `InventoryService.confirmReservation()` to accept optional `EntityManager`
+  to allow participation in outer transaction.
+- [ ] Phase 8: Wire `ReservationExpiryJob` into BullMQ.
+- [ ] Phase 8: Configure Stripe CLI local webhook forwarding.
