@@ -108,7 +108,16 @@ export class PaymentService {
       amount: Number(order.total_amount),
       currency: order.currency,
     });
-    return this.paymentRepo.save(payment);
+    try {
+      return await this.paymentRepo.save(payment);
+    } catch (err: any) {
+      // Handle unique constraint violation from concurrent request (PSQL code 23505)
+      if (err?.code === '23505' || err?.message?.includes('UNIQUE constraint failed') || err?.message?.includes('unique constraint')) {
+        const duplicate = await this.paymentRepo.findOne({ where: { order_id: orderId } });
+        if (duplicate) return duplicate;
+      }
+      throw err;
+    }
   }
 
   async getPayment(orderId: string): Promise<Payment | null> {
@@ -120,12 +129,14 @@ export class PaymentService {
 
     // 1. Verify signature
     try {
-      event = this.stripeClient.webhooks.constructEvent(
+      if (!this.stripe) throw new WebhookSignatureInvalidException();
+      event = this.stripe.webhooks.constructEvent(
         rawBody,
         signature,
         process.env.STRIPE_WEBHOOK_SECRET || '',
       );
-    } catch {
+    } catch (err) {
+      if (err instanceof WebhookSignatureInvalidException) throw err;
       throw new WebhookSignatureInvalidException();
     }
 

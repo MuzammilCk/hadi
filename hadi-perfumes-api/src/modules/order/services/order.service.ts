@@ -99,15 +99,18 @@ export class OrderService {
   }
 
   async cancelOrder(orderId: string, buyerId: string): Promise<Order> {
-    const order = await this.getOrder(orderId, buyerId);
-
-    if (!this.stateMachine.canTransition(order.status, OrderStatus.CANCELLED)) {
-      throw new OrderNotCancellableException(order.status);
-    }
+    // Verify ownership first (read outside transaction is fine for auth check)
+    await this.getOrder(orderId, buyerId);
 
     return this.dataSource.transaction(async (em) => {
+      // Re-read inside transaction to get consistent status
       const freshOrder = await em.findOne(Order, { where: { id: orderId } });
       if (!freshOrder) throw new OrderNotFoundException(orderId);
+
+      // Check cancellability on the transactionally-consistent read
+      if (!this.stateMachine.canTransition(freshOrder.status, OrderStatus.CANCELLED)) {
+        throw new OrderNotCancellableException(freshOrder.status);
+      }
 
       const prevStatus = freshOrder.status;
       this.stateMachine.transition(freshOrder, OrderStatus.CANCELLED);
@@ -152,7 +155,9 @@ export class OrderService {
     const page = query.page || 1;
     const limit = query.limit || 20;
 
-    const qb = this.orderRepo.createQueryBuilder('order');
+    const qb = this.orderRepo
+      .createQueryBuilder('order')
+      .where('1=1');
 
     if (query.status) {
       qb.andWhere('order.status = :status', { status: query.status });
