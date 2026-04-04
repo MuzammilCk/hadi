@@ -83,7 +83,7 @@ export class InventoryService {
 
       // If listing was sold out, update strictly to active.
       await em.query(
-        `UPDATE listings SET status = $1, updated_at = now() WHERE id = $2 AND status = $3`,
+        sqlParams(`UPDATE listings SET status = $1, updated_at = ${nowFn()} WHERE id = $2 AND status = $3`),
         [ListingStatus.ACTIVE, listingId, ListingStatus.SOLD_OUT],
       );
 

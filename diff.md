@@ -672,7 +672,7 @@
 - Phase 5 error remediation complete. All 9 reported errors assessed; real fixes applied.
 
 ### Follow-up
-- [ ] Begin Phase 6: Commission Ledger, Wallets, Payout Settlement.
+- [x] Begin Phase 6: Commission Ledger, Wallets, Payout Settlement.
   - Consume `MoneyEventOutbox` events with `event_type = 'order.paid'`.
   - Calculate upline commission per active `CompensationPolicyVersion`.
   - Write `commission_events` as pending ledger entries.
@@ -682,3 +682,63 @@
   to allow participation in outer transaction.
 - [ ] Phase 8: Wire `ReservationExpiryJob` into BullMQ.
 - [ ] Phase 8: Configure Stripe CLI local webhook forwarding.
+
+---
+
+## 2026-04-04 (Phase 6 — Commission Ledger, Wallets & Payout Settlement)
+
+### Changed
+**Migration**: `1711600000000-Phase6LedgerInit.ts`
+- Creates 5 tables: `commission_events`, `commission_event_sources`, `ledger_entries`, `payout_batches`, `payout_requests`
+- All with proper indexes and foreign key constraints
+
+**Commission Module** (extended):
+- `CommissionEvent` entity + `CommissionEventSource` entity
+- `CommissionCalculationService` — consumes MoneyEventOutbox, traverses upline_path, checks qualification, writes commission_events + ledger entries atomically
+- `AdminCommissionTriggerController` — POST /admin/commission/process-outbox, POST /admin/commission/release
+- `CommissionReleaseJob` — releases pending→available after available_after passes
+- `ClawbackJob` — reverses commissions on refund/chargeback with negative ledger entries
+- Commission exceptions for idempotency, policy, qualification, self-purchase violations
+
+**Ledger Module** (new):
+- `LedgerEntry` entity — append-only, NO updated_at column
+- `LedgerService` — single write method with optional EntityManager for transaction participation
+- `WalletService` — derived balance view (pending + available, never stored)
+- `WalletController` — GET /wallet/balance, GET /wallet/ledger
+- `LedgerModule` registered in AppModule
+
+**Payout Module** (new):
+- `PayoutRequest` entity + `PayoutBatch` entity
+- `PayoutService` — full lifecycle: create, approve, reject, batch execute
+- `PayoutController` — POST /wallet/payout-request, GET /wallet/payout-requests (JWT-protected)
+- `AdminPayoutController` — GET/POST /admin/payouts (AdminGuard-protected)
+- `PayoutModule` registered in AppModule
+- DTOs: CreatePayoutRequestDto, RejectPayoutDto, PayoutQueryDto
+
+### Why
+- Phase 6 of the 8-phase build plan: enables the financial backbone for participant earnings
+- Commission events are created from verified paid retail orders only (FTC compliance)
+- Ledger is append-only — immutable audit trail for all balance mutations
+- Wallet balances are always derived, never stored (prevents data inconsistency)
+- HELD status for PAYOUT_REQUESTED prevents double-payout (FAILURE-11 architectural fix)
+
+### Impact
+- `npm run test`: 249 tests pass, 0 failures (36 suites)
+- `npm run test:e2e`: 63 tests pass, 0 failures (10 suites)
+- No existing Phase 1–5 tests broken (all 203 original tests still pass)
+- Phase 6 adds: 5 unit suites (46 tests), 4 integration suites (20 tests), 2 E2E suites (16 tests)
+
+### Financial Invariants Verified
+- Self-purchase commission blocked (buyer_id !== beneficiary_id)
+- Unqualified upline participants skipped
+- cap_per_order applied when calculated > cap
+- Commission amounts always parseFloat(x.toFixed(2))
+- Idempotency: same outbox event processed twice → no duplicate commission_events
+- Clawback writes negative amounts only
+- PAYOUT_REQUESTED with HELD status deducted from available balance
+- Payout rejection restores balance via PAYOUT_FAILED ledger entry
+
+### Follow-up
+- [ ] Phase 7: Real bank transfer / UPI payout provider integration
+- [ ] Phase 8: Wire BullMQ for scheduled commission release and reservation expiry
+- [ ] Phase 8: Configure Stripe CLI local webhook forwarding

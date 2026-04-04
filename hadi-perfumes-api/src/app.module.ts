@@ -11,6 +11,8 @@ import { NetworkModule } from './modules/network/network.module';
 import { ListingModule } from './modules/listing/listing.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { OrderModule } from './modules/order/order.module';
+import { LedgerModule } from './modules/ledger/ledger.module';
+import { PayoutModule } from './modules/payout/payout.module';
 import { dataSourceOptions } from './config/database.config';
 
 @Module({
@@ -28,6 +30,8 @@ import { dataSourceOptions } from './config/database.config';
     ListingModule,
     InventoryModule,
     OrderModule,
+    LedgerModule,       // Phase 6 — new
+    PayoutModule,       // Phase 6 — new
   ],
   controllers: [AppController],
   providers: [AppService],

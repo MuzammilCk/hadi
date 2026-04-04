@@ -1,0 +1,30 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { PayoutRequest } from './entities/payout-request.entity';
+import { PayoutBatch } from './entities/payout-batch.entity';
+import { QualificationState } from '../network/entities/qualification-state.entity';
+import { PayoutService } from './services/payout.service';
+import { PayoutController } from './controllers/payout.controller';
+import { AdminPayoutController } from './controllers/admin-payout.controller';
+import { LedgerModule } from '../ledger/ledger.module';
+import { UserModule } from '../user/user.module';
+import { AuthModule } from '../auth/auth.module';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      PayoutRequest,
+      PayoutBatch,
+      // QualificationState is needed by PayoutService for eligibility check
+      // NetworkModule doesn't export TypeOrmModule so we register it here
+      QualificationState,
+    ]),
+    UserModule,    // exports TypeOrmModule → provides User repository
+    LedgerModule,  // provides LedgerService and WalletService
+    AuthModule,    // provides JwtAuthGuard
+  ],
+  providers: [PayoutService],
+  controllers: [PayoutController, AdminPayoutController],
+  exports: [PayoutService, TypeOrmModule],
+})
+export class PayoutModule {}
