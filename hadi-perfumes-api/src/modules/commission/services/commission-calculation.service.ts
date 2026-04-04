@@ -58,6 +58,7 @@ export class CommissionCalculationService {
 
     const buyerNode = await this.networkNodeRepo.findOne({ where: { user_id: payload.buyer_id } });
     if (!buyerNode) {
+      this.logger.warn(`Buyer ${payload.buyer_id} (Order ${payload.order_id}) has no network node. Marking outbox ${outboxEvent.id} as published but no commissions generated.`);
       await this.outboxRepo.update({ id: outboxEvent.id }, { published: true, published_at: new Date() });
       return;
     }

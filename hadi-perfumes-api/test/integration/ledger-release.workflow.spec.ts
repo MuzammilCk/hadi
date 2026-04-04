@@ -123,7 +123,7 @@ describe('Ledger Release Workflow (Integration)', () => {
 
   it('getPendingBalance reflects pending commission entries', async () => {
     const pending = await ledgerService.getPendingBalance(beneficiaryId);
-    // The original COMMISSION_PENDING entry (100) is still there
-    expect(pending).toBeGreaterThanOrEqual(100);
+    // Because we write a negative COMMISSION_PENDING entry on release, the net pending balance for this release must be 0
+    expect(pending).toBe(0);
   });
 });

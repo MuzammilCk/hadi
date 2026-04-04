@@ -51,6 +51,7 @@ import { OnboardingAuditLog } from '../auth/entities/onboarding-audit-log.entity
   exports: [
     NetworkGraphService,
     QualificationEngineService,
+    TypeOrmModule,
   ],
 })
 export class NetworkModule {}

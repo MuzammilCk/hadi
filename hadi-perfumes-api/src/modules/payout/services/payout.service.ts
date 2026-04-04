@@ -80,7 +80,7 @@ export class PayoutService {
         payout_method: dto.payout_method ?? null,
       }));
 
-      await this.ledgerService.writeEntry({
+      const ledgerEntry = await this.ledgerService.writeEntry({
         userId,
         entryType: LedgerEntryType.PAYOUT_REQUESTED,
         amount: -Math.abs(dto.amount),  // negative = debit/hold
@@ -90,6 +90,9 @@ export class PayoutService {
         referenceType: 'payout_request',
         note: `Payout request ${saved.id}`,
       }, em);
+
+      saved.ledger_entry_id = ledgerEntry.id;
+      await em.save(PayoutRequest, saved);
 
       return saved;
     });
@@ -231,6 +234,18 @@ export class PayoutService {
             status: PayoutRequestStatus.FAILED,
             failure_reason: err instanceof Error ? err.message : String(err),
           });
+          
+          await this.ledgerService.writeEntry({
+            userId: request.user_id,
+            entryType: LedgerEntryType.PAYOUT_FAILED,
+            amount: Math.abs(Number(request.amount)), // positive reversal credit
+            currency: request.currency,
+            status: LedgerEntryStatus.SETTLED,
+            referenceId: request.id,
+            referenceType: 'payout_request',
+            note: `Payout failed inside batch, returning funds (batch ${savedBatch.id})`,
+          }, em);
+          
           failedCount++;
         }
       }

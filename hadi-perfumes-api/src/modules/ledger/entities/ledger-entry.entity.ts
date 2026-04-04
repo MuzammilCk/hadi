@@ -32,6 +32,7 @@ export class LedgerEntry {
   @Column({ type: 'varchar', length: 50 }) reference_type: string;
   @Column({ type: 'uuid', nullable: true }) reversal_of_entry_id: string | null;
   @Column({ type: 'text', nullable: true }) note: string | null;
+  @Column({ type: 'varchar', length: 255, unique: true }) idempotency_key: string;
   // NO @UpdateDateColumn — WRITE-ONCE ONLY
   @CreateDateColumn({ type: tstz() as any }) created_at: Date;
 }

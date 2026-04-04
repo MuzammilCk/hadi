@@ -21,6 +21,7 @@ export class PayoutRequest {
   @Column({ type: 'varchar', length: 255, unique: true }) idempotency_key: string;
   @Column({ type: 'simple-json', nullable: true }) payout_method: Record<string, any> | null;
   @Column({ type: 'uuid', nullable: true }) batch_id: string | null;
+  @Column({ type: 'uuid', nullable: true }) ledger_entry_id: string | null;
   @Column({ type: 'uuid', nullable: true }) approved_by: string | null;
   @Column({ type: tstz() as any, nullable: true }) approved_at: Date | null;
   @Column({ type: 'uuid', nullable: true }) rejected_by: string | null;

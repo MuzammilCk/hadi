@@ -28,10 +28,13 @@ export class LedgerService {
       referenceType: string;
       reversalOfEntryId?: string;
       note?: string;
+      idempotencyKey?: string;
     },
     em?: EntityManager,
   ): Promise<LedgerEntry> {
     const manager = em ?? this.entryRepo.manager;
+    const idempotency_key = params.idempotencyKey ?? `${params.referenceId}:${params.entryType}`;
+    
     const entry = manager.create(LedgerEntry, {
       user_id: params.userId,
       entry_type: params.entryType,
@@ -42,8 +45,18 @@ export class LedgerService {
       reference_type: params.referenceType,
       reversal_of_entry_id: params.reversalOfEntryId ?? null,
       note: params.note ?? null,
+      idempotency_key,
     });
-    return manager.save(LedgerEntry, entry);
+    
+    try {
+      return await manager.save(LedgerEntry, entry);
+    } catch (err: any) {
+      if (err?.code === '23505' || err?.message?.includes('UNIQUE constraint failed')) {
+        const existing = await manager.findOne(LedgerEntry, { where: { idempotency_key } });
+        if (existing) return existing;
+      }
+      throw err;
+    }
   }
 
   async getPendingBalance(userId: string): Promise<number> {

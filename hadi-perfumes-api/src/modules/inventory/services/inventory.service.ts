@@ -16,33 +16,7 @@ import {
 import { ListingStatus } from '../../listing/entities/listing.entity';
 import { nowFn, sqlParams, isSqlite } from '../../../common/utils/db-type.util';
 
-/** Run an UPDATE with RETURNING * on Postgres, or UPDATE + SELECT on SQLite */
-async function updateReturning(
-  em: EntityManager,
-  opts: {
-    pgSql: string;
-    pgParams: any[];
-    sqliteSql: string;
-    sqliteParams: any[];
-    selectSql: string;
-    selectParams: any[];
-    /** If true, return null when SQLite UPDATE affected 0 rows (for conditional WHERE clauses) */
-    checkChanges?: boolean;
-  },
-): Promise<any> {
-  if (isSqlite()) {
-    await em.query(opts.sqliteSql, opts.sqliteParams);
-    if (opts.checkChanges) {
-      const [{ changed }] = await em.query(`SELECT changes() as changed`);
-      if (changed === 0) return null;
-    }
-    const rows = await em.query(opts.selectSql, opts.selectParams);
-    return rows.length > 0 ? rows[0] : null;
-  } else {
-    const rows = await em.query(opts.pgSql, opts.pgParams);
-    return rows.length > 0 ? rows[0] : null;
-  }
-}
+
 
 @Injectable()
 export class InventoryService {
@@ -154,17 +128,24 @@ export class InventoryService {
       const item = await this.getInventoryItem(dto.listingId);
 
       // ATOMIC UPDATE FOR RESERVATION
-      const result = await updateReturning(em, {
-        pgSql: `UPDATE inventory_items SET available_qty = available_qty - $1, reserved_qty = reserved_qty + $1, updated_at = now() WHERE id = $2 AND available_qty >= $1 RETURNING *`,
-        pgParams: [dto.qty, item.id],
-        sqliteSql: `UPDATE inventory_items SET available_qty = available_qty - ?, reserved_qty = reserved_qty + ?, updated_at = ${nowFn()} WHERE id = ? AND available_qty >= ?`,
-        sqliteParams: [dto.qty, dto.qty, item.id, dto.qty],
-        selectSql: `SELECT * FROM inventory_items WHERE id = ?`,
-        selectParams: [item.id],
-        checkChanges: true,
-      });
+      const updateRes = await em.query(
+        sqlParams(`UPDATE inventory_items SET available_qty = available_qty - $1, reserved_qty = reserved_qty + $1, updated_at = ${nowFn()} WHERE id = $2 AND available_qty >= $1`),
+        isSqlite() ? [dto.qty, dto.qty, item.id, dto.qty] : [dto.qty, item.id]
+      );
+      
+      const changes = isSqlite() ? updateRes : updateRes[1]; // pg returns [data, affected]
+      const affected = isSqlite() ? undefined : (Array.isArray(updateRes) ? updateRes[1] : updateRes);
 
-      if (!result) {
+      // Verify if rows were affected in Postgres, or manually re-fetch and check if SQLite changes > 0
+      let rowUpdated = true;
+      if (isSqlite()) {
+        const [{ changed }] = await em.query(`SELECT changes() as changed`);
+        if (changed === 0) rowUpdated = false;
+      } else {
+        if (affected === 0) rowUpdated = false;
+      }
+
+      if (!rowUpdated) {
         const event = em.create(InventoryEvent, {
           inventory_item_id: item.id,
           listing_id: dto.listingId,
@@ -176,6 +157,9 @@ export class InventoryService {
         await em.save(InventoryEvent, event);
         throw new InsufficientStockException();
       }
+
+      const result = await em.findOne(InventoryItem, { where: { id: item.id } });
+      if (!result) throw new InventoryItemNotFoundException();
 
       // Check if item went completely out of stock by this reservation
       if (result.available_qty === 0 || Number(result.available_qty) === 0) {
@@ -224,14 +208,13 @@ export class InventoryService {
       res.order_id = orderId;
       await em.save(InventoryReservation, res);
 
-      const result = await updateReturning(em, {
-        pgSql: `UPDATE inventory_items SET reserved_qty = reserved_qty - $1, sold_qty = sold_qty + $1, updated_at = now() WHERE id = $2 RETURNING *`,
-        pgParams: [res.qty, res.inventory_item_id],
-        sqliteSql: `UPDATE inventory_items SET reserved_qty = reserved_qty - ?, sold_qty = sold_qty + ?, updated_at = ${nowFn()} WHERE id = ?`,
-        sqliteParams: [res.qty, res.qty, res.inventory_item_id],
-        selectSql: `SELECT * FROM inventory_items WHERE id = ?`,
-        selectParams: [res.inventory_item_id],
-      });
+      await em.query(
+        sqlParams(`UPDATE inventory_items SET reserved_qty = reserved_qty - $1, sold_qty = sold_qty + $1, updated_at = ${nowFn()} WHERE id = $2`),
+        isSqlite() ? [res.qty, res.qty, res.inventory_item_id] : [res.qty, res.inventory_item_id]
+      );
+
+      const result = await em.findOne(InventoryItem, { where: { id: res.inventory_item_id } });
+      if (!result) throw new InventoryItemNotFoundException();
 
       const event = em.create(InventoryEvent, {
         inventory_item_id: res.inventory_item_id,
@@ -260,14 +243,13 @@ export class InventoryService {
       res.status = isExpiry ? ReservationStatus.EXPIRED : ReservationStatus.RELEASED;
       await em.save(InventoryReservation, res);
 
-      const result = await updateReturning(em, {
-        pgSql: `UPDATE inventory_items SET reserved_qty = reserved_qty - $1, available_qty = available_qty + $1, updated_at = now() WHERE id = $2 RETURNING *`,
-        pgParams: [res.qty, res.inventory_item_id],
-        sqliteSql: `UPDATE inventory_items SET reserved_qty = reserved_qty - ?, available_qty = available_qty + ?, updated_at = ${nowFn()} WHERE id = ?`,
-        sqliteParams: [res.qty, res.qty, res.inventory_item_id],
-        selectSql: `SELECT * FROM inventory_items WHERE id = ?`,
-        selectParams: [res.inventory_item_id],
-      });
+      await em.query(
+        sqlParams(`UPDATE inventory_items SET reserved_qty = reserved_qty - $1, available_qty = available_qty + $1, updated_at = ${nowFn()} WHERE id = $2`),
+        isSqlite() ? [res.qty, res.qty, res.inventory_item_id] : [res.qty, res.inventory_item_id]
+      );
+
+      const result = await em.findOne(InventoryItem, { where: { id: res.inventory_item_id } });
+      if (!result) throw new InventoryItemNotFoundException();
 
       // Restore active status if it was previously sold out
       if (result.available_qty > 0) {
@@ -296,8 +278,8 @@ export class InventoryService {
     return this.dataSource.transaction(async (em: EntityManager) => {
       // Find all reserved stock that passed expiry
       const expirySql = isSqlite()
-        ? `SELECT id FROM inventory_reservations WHERE status = ? AND expires_at < ${nowFn()} LIMIT 100`
-        : `SELECT id FROM inventory_reservations WHERE status = $1 AND expires_at < now() FOR UPDATE SKIP LOCKED LIMIT 100`;
+        ? sqlParams(`SELECT id FROM inventory_reservations WHERE status = $1 AND expires_at < ${nowFn()} LIMIT 100`)
+        : sqlParams(`SELECT id FROM inventory_reservations WHERE status = $1 AND expires_at < ${nowFn()} FOR UPDATE SKIP LOCKED LIMIT 100`);
       const expired = await em.query(expirySql, [ReservationStatus.RESERVED]);
 
       let processed = 0;
@@ -309,14 +291,13 @@ export class InventoryService {
             res.status = ReservationStatus.EXPIRED;
             await em.save(InventoryReservation, res);
 
-            const result = await updateReturning(em, {
-              pgSql: `UPDATE inventory_items SET reserved_qty = reserved_qty - $1, available_qty = available_qty + $1, updated_at = now() WHERE id = $2 RETURNING *`,
-              pgParams: [res.qty, res.inventory_item_id],
-              sqliteSql: `UPDATE inventory_items SET reserved_qty = reserved_qty - ?, available_qty = available_qty + ?, updated_at = ${nowFn()} WHERE id = ?`,
-              sqliteParams: [res.qty, res.qty, res.inventory_item_id],
-              selectSql: `SELECT * FROM inventory_items WHERE id = ?`,
-              selectParams: [res.inventory_item_id],
-            });
+            await em.query(
+              sqlParams(`UPDATE inventory_items SET reserved_qty = reserved_qty - $1, available_qty = available_qty + $1, updated_at = ${nowFn()} WHERE id = $2`),
+              isSqlite() ? [res.qty, res.qty, res.inventory_item_id] : [res.qty, res.inventory_item_id]
+            );
+
+            const result = await em.findOne(InventoryItem, { where: { id: res.inventory_item_id } });
+            if (!result) throw new InventoryItemNotFoundException();
 
             if (result.available_qty > 0) {
               await em.query(

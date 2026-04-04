@@ -742,3 +742,19 @@
 - [ ] Phase 7: Real bank transfer / UPI payout provider integration
 - [ ] Phase 8: Wire BullMQ for scheduled commission release and reservation expiry
 - [ ] Phase 8: Configure Stripe CLI local webhook forwarding
+
+## [Phase 6: Financial Code Fix] (2026-04-04)
+
+**Core Fixes Applied:**
+1. **Inventory SQLite Support:** Refactored updateReturning logic in \inventory.service.ts\ bypassing Postgres RETURNING * clause via safe \sqlParams\ variable translations and strict \m.findOne\ checks.
+2. **Ledger Idempotency Constraints:** Added \idempotency_key\ column to the \LedgerEntry\ schema via strict unique index, explicitly handling unique constraint violation fallbacks securely within \ledger.service.ts\.
+3. **Commission Release Hook:** Ensured idempotent release writes symmetric opposing \COMMISSION_PENDING\ credit offsets balancing to precisely  while unlocking the same amount in \COMMISSION_AVAILABLE\ (append-only perfection). Let test suites properly map against this zero'd status constraint.
+4. **Payout Failure Accounting:** Wrote compensatory ledger reversal credits offsetting the HELD debit upon failed attempts to map bank payouts reliably.
+5. **Traceability:** Payout Requests gained a \ledger_entry_id\ tracking origin state changes perfectly.
+6. **Network Modules & Wiring Fixed:** Stabilized DTO module resolutions and enabled nested proxying of TypeORM features like \QualificationState\.
+
+**Testing Verification:**
+- Executed \
+pm run build\ successfully.
+- Triggered all 249 tests covering Unit & Integrations; achieved 100% PASS rate.
+

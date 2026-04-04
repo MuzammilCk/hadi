@@ -91,6 +91,7 @@ describe('InventoryService', () => {
         if (entityClass === InventoryReservation) return { id: 'res1', ...(data as any) } as any;
         return data as any;
       });
+      mockEntityManager.findOne.mockResolvedValue({ id: 'inv1', available_qty: 5, total_qty: 10 } as InventoryItem);
 
       const res = await service.reserveStock('user1', { listingId: 'list1', qty: 5 });
 
@@ -130,7 +131,9 @@ describe('InventoryService', () => {
         listing_id: 'list1'
       } as InventoryReservation;
       
-      mockEntityManager.findOne.mockResolvedValueOnce(mockRes);
+      mockEntityManager.findOne
+        .mockResolvedValueOnce(mockRes)
+        .mockResolvedValueOnce({ id: 'inv1', available_qty: 5, total_qty: 10 } as InventoryItem);
       
       // Returns after stock update
       mockEntityManager.query.mockImplementation(async (sql) => {
@@ -154,7 +157,7 @@ describe('InventoryService', () => {
       );
 
       // Check listing status update
-      expect(mockEntityManager.query).toHaveBeenNthCalledWith(3,
+      expect(mockEntityManager.query).toHaveBeenNthCalledWith(2,
         expect.stringContaining('UPDATE listings SET status = ?'),
         [ListingStatus.ACTIVE, 'list1', ListingStatus.SOLD_OUT]
       );

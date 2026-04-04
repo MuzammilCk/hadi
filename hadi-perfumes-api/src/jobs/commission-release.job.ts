@@ -40,6 +40,20 @@ export class CommissionReleaseJob {
 
           await em.update(CommissionEvent, { id: fresh.id }, { status: 'available' });
 
+          // 1) Write the offset to the pending sum
+          await this.ledgerService.writeEntry({
+            userId: fresh.beneficiary_id,
+            entryType: LedgerEntryType.COMMISSION_PENDING,
+            amount: -Number(fresh.calculated_amount),
+            currency: fresh.currency,
+            status: LedgerEntryStatus.PENDING,
+            referenceId: fresh.id,
+            referenceType: 'commission_event',
+            note: `Pending offset for commission release: ${fresh.id}`,
+            idempotencyKey: `release-offset:${fresh.id}`,
+          }, em);
+
+          // 2) Write the new available credit
           await this.ledgerService.writeEntry({
             userId: fresh.beneficiary_id,
             entryType: LedgerEntryType.COMMISSION_AVAILABLE,
@@ -49,6 +63,7 @@ export class CommissionReleaseJob {
             referenceId: fresh.id,
             referenceType: 'commission_event',
             note: `Commission released: ${fresh.id}`,
+            idempotencyKey: `release-credit:${fresh.id}`,
           }, em);
         });
         released++;
