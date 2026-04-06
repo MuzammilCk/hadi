@@ -132,17 +132,18 @@ export class InventoryService {
         sqlParams(`UPDATE inventory_items SET available_qty = available_qty - $1, reserved_qty = reserved_qty + $1, updated_at = ${nowFn()} WHERE id = $2 AND available_qty >= $1`),
         isSqlite() ? [dto.qty, dto.qty, item.id, dto.qty] : [dto.qty, item.id]
       );
-      
-      const changes = isSqlite() ? updateRes : updateRes[1]; // pg returns [data, affected]
-      const affected = isSqlite() ? undefined : (Array.isArray(updateRes) ? updateRes[1] : updateRes);
 
-      // Verify if rows were affected in Postgres, or manually re-fetch and check if SQLite changes > 0
+      // Check if the UPDATE actually affected a row (conditional on db driver)
       let rowUpdated = true;
       if (isSqlite()) {
         const [{ changed }] = await em.query(`SELECT changes() as changed`);
-        if (changed === 0) rowUpdated = false;
+        rowUpdated = Number(changed) > 0;
       } else {
-        if (affected === 0) rowUpdated = false;
+        // PostgreSQL: em.query() UPDATE returns [data[], affectedRowCount]
+        const affectedCount = Array.isArray(updateRes) && updateRes.length === 2 
+          ? Number(updateRes[1]) 
+          : 0;
+        rowUpdated = affectedCount > 0;
       }
 
       if (!rowUpdated) {

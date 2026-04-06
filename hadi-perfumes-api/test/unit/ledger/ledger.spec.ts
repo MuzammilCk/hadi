@@ -82,8 +82,9 @@ describe('LedgerService', () => {
   });
 
   it('getPendingBalance returns SUM of COMMISSION_PENDING entries with status=PENDING', async () => {
+    const testUserId = uuidv4();
     await service.writeEntry({
-      userId,
+      userId: testUserId,
       entryType: LedgerEntryType.COMMISSION_PENDING,
       amount: 100,
       currency: 'INR',
@@ -92,7 +93,7 @@ describe('LedgerService', () => {
       referenceType: 'commission_event',
     });
     await service.writeEntry({
-      userId,
+      userId: testUserId,
       entryType: LedgerEntryType.COMMISSION_PENDING,
       amount: 50,
       currency: 'INR',
@@ -101,14 +102,15 @@ describe('LedgerService', () => {
       referenceType: 'commission_event',
     });
 
-    const balance = await service.getPendingBalance(userId);
+    const balance = await service.getPendingBalance(testUserId);
     expect(balance).toBe(150);
   });
 
   it('getAvailableBalance = credits - abs(debits), includes HELD for PAYOUT_REQUESTED', async () => {
+    const testUserId = uuidv4();
     // Write a commission_available entry (credit)
     await service.writeEntry({
-      userId,
+      userId: testUserId,
       entryType: LedgerEntryType.COMMISSION_AVAILABLE,
       amount: 500,
       currency: 'INR',
@@ -118,7 +120,7 @@ describe('LedgerService', () => {
     });
     // Write a PAYOUT_REQUESTED entry (debit/hold)
     await service.writeEntry({
-      userId,
+      userId: testUserId,
       entryType: LedgerEntryType.PAYOUT_REQUESTED,
       amount: -200,
       currency: 'INR',
@@ -127,7 +129,7 @@ describe('LedgerService', () => {
       referenceType: 'payout_request',
     });
 
-    const balance = await service.getAvailableBalance(userId);
+    const balance = await service.getAvailableBalance(testUserId);
     expect(balance).toBe(300); // 500 - 200 = 300
   });
 
@@ -137,9 +139,10 @@ describe('LedgerService', () => {
   });
 
   it('PAYOUT_REQUESTED with status=HELD is correctly deducted from available balance (FAILURE-11 fix)', async () => {
+    const testUserId = uuidv4();
     // Give user 1000 available
     await service.writeEntry({
-      userId,
+      userId: testUserId,
       entryType: LedgerEntryType.COMMISSION_AVAILABLE,
       amount: 1000,
       currency: 'INR',
@@ -150,7 +153,7 @@ describe('LedgerService', () => {
 
     // Hold 600 for payout
     await service.writeEntry({
-      userId,
+      userId: testUserId,
       entryType: LedgerEntryType.PAYOUT_REQUESTED,
       amount: -600,
       currency: 'INR',
@@ -159,7 +162,7 @@ describe('LedgerService', () => {
       referenceType: 'payout_request',
     });
 
-    const balance = await service.getAvailableBalance(userId);
+    const balance = await service.getAvailableBalance(testUserId);
     expect(balance).toBe(400); // 1000 - 600 = 400
     // This verifies that a second payout of >400 would be rejected
   });
@@ -178,9 +181,10 @@ describe('LedgerService', () => {
   });
 
   it('getLedgerHistory returns paginated DESC by created_at', async () => {
+    const testUserId = uuidv4();
     for (let i = 0; i < 5; i++) {
       await service.writeEntry({
-        userId,
+        userId: testUserId,
         entryType: LedgerEntryType.COMMISSION_PENDING,
         amount: 10 * (i + 1),
         currency: 'INR',
@@ -190,7 +194,7 @@ describe('LedgerService', () => {
       });
     }
 
-    const result = await service.getLedgerHistory(userId, { page: 1, limit: 3 });
+    const result = await service.getLedgerHistory(testUserId, { page: 1, limit: 3 });
     expect(result.data.length).toBe(3);
     expect(result.total).toBe(5);
     expect(result.page).toBe(1);

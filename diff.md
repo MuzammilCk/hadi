@@ -758,3 +758,38 @@
 pm run build\ successfully.
 - Triggered all 249 tests covering Unit & Integrations; achieved 100% PASS rate.
 
+## 2026-04-05 (Phase 6 — Error Remediation)
+
+### Changed
+- FIX-1: reserveStock() affected-row detection rewritten. Removed dead `changes`/`affected`
+  variables. SQLite uses `SELECT changes()`. PostgreSQL uses `updateRes[1]` from `em.query()`.
+  Fixes 12 failing tests (3 unit, 9 integration).
+- FIX-2: `LedgerEntry` entity gets `idempotency_key: string | null` column with `unique: true`.
+  Migration `1711600000000` updated to make column nullable (was NOT NULL, incompatible).
+- FIX-3: `LedgerService.writeEntry()` accepts `idempotencyKey?` param. Default derivation:
+  `${referenceId}:${entryType}`. On UNIQUE constraint violation, returns existing entry instead of
+  throwing. All callers (CommissionReleaseJob, ClawbackJob, PayoutService) now fully idempotent.
+- FIX-4: `PayoutModule` no longer imports `NetworkModule`. Registers `QualificationState` directly
+  in `TypeOrmModule.forFeature()` since NetworkModule does not export TypeOrmModule. Prevents
+  `No repository for QualificationState found` runtime error.
+- FIX-5: `executeBatch()` catch block now writes `PAYOUT_FAILED` positive credit ledger entry
+  when a payout request fails, restoring the user's available balance.
+- FIX-6: `PayoutRequest` entity gets `ledger_entry_id: string | null` column.
+- FIX-7: `createPayoutRequest()` captures returned LedgerEntry and stores `.id` in
+  `PayoutRequest.ledger_entry_id` via `em.update()`.
+- FIX-8/9: `ledger.spec.ts` balance-sensitive tests now use per-test isolated `userId` to prevent
+  cross-test state accumulation in shared in-memory SQLite DB.
+
+### Impact
+- `npm run test`: 0 failures (was 13 failures in 5 suites)
+- `npm run test:e2e`: 0 failures
+- Ledger entries are now fully idempotent on retry
+- Payout balance correctly restored on failure
+- QualificationState repo injection works at runtime
+
+### Follow-up
+- [ ] Phase 7: Add `em?: EntityManager` param to `ClawbackJob.clawbackForOrder()` for
+  participation in refund transaction
+- [ ] Phase 8: Wire CommissionReleaseJob and CommissionCalculationService into BullMQ
+- [ ] Phase 8: Replace payout executeBatch stub with real provider (Razorpay/NEFT)
+

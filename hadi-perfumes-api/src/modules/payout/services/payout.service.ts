@@ -89,10 +89,10 @@ export class PayoutService {
         referenceId: saved.id,
         referenceType: 'payout_request',
         note: `Payout request ${saved.id}`,
+        idempotencyKey: `payout-requested:${saved.id}`,
       }, em);
 
-      saved.ledger_entry_id = ledgerEntry.id;
-      await em.save(PayoutRequest, saved);
+      await em.update(PayoutRequest, { id: saved.id }, { ledger_entry_id: ledgerEntry.id });
 
       return saved;
     });
@@ -243,7 +243,8 @@ export class PayoutService {
             status: LedgerEntryStatus.SETTLED,
             referenceId: request.id,
             referenceType: 'payout_request',
-            note: `Payout failed inside batch, returning funds (batch ${savedBatch.id})`,
+            note: `Payout failed — balance restored (batch ${savedBatch.id})`,
+            idempotencyKey: `payout-failed:${request.id}`,
           }, em);
           
           failedCount++;

@@ -72,7 +72,7 @@ export class Phase6LedgerInit1711600000000 implements MigrationInterface {
         "reference_type" character varying(50) NOT NULL,
         "reversal_of_entry_id" uuid,
         "note" text,
-        "idempotency_key" character varying(255) NOT NULL,
+        "idempotency_key" character varying(255),
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         CONSTRAINT "UQ_ledger_entries_idempotency_key" UNIQUE ("idempotency_key"),
         CONSTRAINT "PK_ledger_entries" PRIMARY KEY ("id"),

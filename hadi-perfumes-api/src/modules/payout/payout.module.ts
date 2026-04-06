@@ -9,18 +9,17 @@ import { AdminPayoutController } from './controllers/admin-payout.controller';
 import { LedgerModule } from '../ledger/ledger.module';
 import { UserModule } from '../user/user.module';
 import { AuthModule } from '../auth/auth.module';
-import { NetworkModule } from '../network/network.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       PayoutRequest,
       PayoutBatch,
+      QualificationState,
     ]),
     UserModule,    // exports TypeOrmModule → provides User repository
     LedgerModule,  // provides LedgerService and WalletService
     AuthModule,    // provides JwtAuthGuard
-    NetworkModule, // exports TypeOrmModule caching QualificationState
   ],
   providers: [PayoutService],
   controllers: [PayoutController, AdminPayoutController],
