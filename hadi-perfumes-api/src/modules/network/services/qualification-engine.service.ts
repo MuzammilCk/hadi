@@ -178,18 +178,20 @@ export class QualificationEngineService {
     let changed = 0;
 
     for (const user of users) {
-      // Phase 3: no order data, all volumes default to 0
-      const context: QualificationContext = {
-        personalVolume: 0,
-        downlineVolume: 0,
-        activeLegCount: 0,
-      };
+      // Fix H7: read existing QualificationState volumes instead of hardcoding zeros.
+      // Passing zeros permanently disqualifies every user any time a full recalc runs
+      // after Phase 6 order data has been accumulated.
+      const existingState = await this.stateRepo.findOne({ where: { user_id: user.id } });
+      const context: QualificationContext = existingState
+        ? {
+            personalVolume: Number(existingState.personal_volume ?? 0),
+            downlineVolume: Number(existingState.downline_volume ?? 0),
+            activeLegCount: Number(existingState.active_legs_count ?? 0),
+          }
+        : { personalVolume: 0, downlineVolume: 0, activeLegCount: 0 };
 
       // Load previous state to determine if it changed
-      const prevState = await this.stateRepo.findOne({
-        where: { user_id: user.id },
-      });
-      const prevIsActive = prevState?.is_active ?? null;
+      const prevIsActive = existingState?.is_active ?? null;
 
       const result = await this.evaluateUser(
         user.id,

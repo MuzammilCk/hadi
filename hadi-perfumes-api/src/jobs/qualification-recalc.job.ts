@@ -47,9 +47,21 @@ export class QualificationRecalcJob {
       if (targetUserId) {
         // 2. If targetUserId: rebuild just that user's node and evaluate qualification
         await this.graphService.buildNodeForUser(targetUserId);
+
+        // Load actual qualification context from persisted QualificationState (Fix #1).
+        // Using the existing getCurrentState helper avoids adding a new repo injection.
+        const existingState = await this.qualEngine.getCurrentState(targetUserId);
+        const qualificationContext = existingState
+          ? {
+              personalVolume: Number(existingState.personal_volume ?? 0),
+              downlineVolume: Number(existingState.downline_volume ?? 0),
+              activeLegCount: Number(existingState.active_legs_count ?? 0),
+            }
+          : { personalVolume: 0, downlineVolume: 0, activeLegCount: 0 };
+
         await this.qualEngine.evaluateUser(
           targetUserId,
-          { personalVolume: 0, downlineVolume: 0, activeLegCount: 0 },
+          qualificationContext,
           policyVersionId,
         );
         job.nodes_processed = 1;

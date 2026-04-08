@@ -1,5 +1,5 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { createHash } from 'crypto';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { InjectRepository, InjectEntityManager } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -34,11 +34,13 @@ export class SignupFlowService {
     return createHash('sha256').update(token).digest('hex');
   }
 
+  // Fix M1: use CSPRNG (randomBytes) instead of Math.random() — prevents code enumeration
   private generateReferralCode(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const bytes = randomBytes(8);
     let code = '';
     for (let i = 0; i < 8; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += chars[bytes[i] % chars.length];
     }
     return code;
   }
@@ -184,12 +186,17 @@ export class SignupFlowService {
         await txEm.save(SponsorshipLink, link);
       }
 
-      // 4. Generate a referral code for the new user
-      let newCodeStr = this.generateReferralCode();
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const exists = await txEm.findOne(ReferralCode, { where: { code: newCodeStr } });
-        if (!exists) break;
-        newCodeStr = this.generateReferralCode();
+      // 4. Generate a unique referral code for the new user (Fix H4: explicit throw on exhaustion)
+      let newCodeStr: string | null = null;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const candidate = this.generateReferralCode();
+        const exists = await txEm.findOne(ReferralCode, { where: { code: candidate } });
+        if (!exists) { newCodeStr = candidate; break; }
+      }
+      if (!newCodeStr) {
+        throw new InternalServerErrorException(
+          'Failed to generate a unique referral code after 10 attempts',
+        );
       }
       const newUserCode = txEm.create(ReferralCode, {
         code: newCodeStr,

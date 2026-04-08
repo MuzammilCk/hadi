@@ -39,6 +39,7 @@ export class ClawbackJob {
 
           await em.update(CommissionEvent, { id: fresh.id }, { status: 'clawed_back' });
 
+          // Fix #7: idempotency key prevents duplicate debit on admin retry
           await this.ledgerService.writeEntry({
             userId: fresh.beneficiary_id,
             entryType,
@@ -48,12 +49,15 @@ export class ClawbackJob {
             referenceId: fresh.id,
             referenceType: 'commission_event',
             note: `Clawback for order ${orderId}`,
+            idempotencyKey: `clawback:${fresh.id}`,
           }, em);
         });
         clawedBack++;
       } catch (err) {
         this.logger.error(`Failed to claw back commission event ${event.id}:`, err);
-        throw err;
+        // Fix #4: count as skipped, do NOT rethrow — one failed event must not
+        // abort processing of remaining events in this order's commission set.
+        skipped++;
       }
     }
     return { clawedBack, skipped };

@@ -21,6 +21,13 @@ export class MoneyEventOutbox {
   @Column({ type: tstz() as any, nullable: true })
   published_at: Date | null;
 
+  // Fix H3: retry tracking for dead-letter logic
+  @Column({ default: 0 })
+  error_count: number;
+
+  @Column({ type: 'varchar', nullable: true })
+  last_error: string | null;
+
   @CreateDateColumn({ type: tstz() as any })
   created_at: Date;
 }

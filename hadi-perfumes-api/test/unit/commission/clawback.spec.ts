@@ -165,4 +165,40 @@ describe('ClawbackJob', () => {
     expect(call.amount).toBeLessThan(0);
     expect(call.amount).toBe(-100);
   });
+
+  // ─── Fix #4 ────────────────────────────────────────────────────────────────
+  it('clawbackForOrder: one event failure does not abort other events (Fix #4)', async () => {
+    const event1 = makeEvent('pending', new Date(Date.now() + 30 * 86400000));
+    const event2 = makeEvent('pending', new Date(Date.now() + 30 * 86400000));
+
+    mockRepo = { find: jest.fn().mockResolvedValue([event1, event2]) };
+
+    let callCount = 0;
+    mockDataSource = {
+      transaction: jest.fn().mockImplementation(async (cb: any) => {
+        callCount++;
+        if (callCount === 1) {
+          // First event succeeds
+          const em = {
+            findOne: jest.fn().mockResolvedValue(event1),
+            update: jest.fn().mockResolvedValue({}),
+          };
+          return cb(em);
+        } else {
+          // Second event's transaction throws (e.g. transient DB error)
+          throw new Error('transient DB error on event 2');
+        }
+      }),
+    };
+
+    job = new ClawbackJob(mockRepo, mockLedgerService, mockDataSource);
+    const result = await job.clawbackForOrder(orderId);
+
+    // First event clawed back; second counted as skipped — NOT rethrown
+    expect(result.clawedBack).toBe(1);
+    expect(result.skipped).toBe(1);
+    // Only one ledger write should have occurred (for event1)
+    expect(mockLedgerService.writeEntry).toHaveBeenCalledTimes(1);
+  });
 });
+

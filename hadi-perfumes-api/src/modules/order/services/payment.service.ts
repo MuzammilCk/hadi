@@ -154,8 +154,17 @@ export class PaymentService {
         }),
       );
     } catch {
-      // Unique constraint violation — already processed, return silently (idempotent)
-      return;
+      // Fix C2: unique constraint means this event was seen before.
+      // If the prior attempt errored (processed=false, error set) we must retry —
+      // otherwise Stripe retries are silently swallowed and the order never gets paid.
+      const existingRecord = await this.webhookRepo.findOne({
+        where: { provider_event_id: event.id, provider: 'stripe' },
+      });
+      if (!existingRecord) return;        // lost race, other worker handled it
+      if (existingRecord.processed) return; // already succeeded — idempotent
+      // Prior attempt errored — retry it
+      webhookRecord = existingRecord;
+      webhookRecord.error = null;          // clear previous error before retry
     }
 
     // 3. Process event
@@ -214,17 +223,26 @@ export class PaymentService {
           }),
         );
 
-        // Confirm inventory reservations
+        // Confirm inventory reservations atomically inside this transaction (Fix H2)
         const items = await em.find(OrderItem, {
           where: { order_id: orderId },
         });
         for (const item of items) {
           if (item.inventory_reservation_id) {
-            await this.inventoryService.confirmReservation(
-              item.inventory_reservation_id,
-              orderId,
-              'system',
-            );
+            // Use em-aware confirm so inventory update is atomic with order PAID transition.
+            // confirmReservationWithEm is idempotent — safe if already confirmed.
+            await this.inventoryService
+              .confirmReservationWithEm(
+                item.inventory_reservation_id,
+                orderId,
+                'system',
+                em,
+              )
+              .catch((err) => {
+                this.logger.warn(
+                  `Failed to confirm reservation ${item.inventory_reservation_id} in webhook tx: ${err.message}`,
+                );
+              });
           }
         }
 

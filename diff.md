@@ -793,3 +793,191 @@ pm run build\ successfully.
 - [ ] Phase 8: Wire CommissionReleaseJob and CommissionCalculationService into BullMQ
 - [ ] Phase 8: Replace payout executeBatch stub with real provider (Razorpay/NEFT)
 
+---
+
+## 2026-04-08 (Phase 6 — Surgical Audit: 12 Bugs Fixed)
+
+### Changed
+
+**Fix #1 (🔴 CRITICAL)** — `jobs/qualification-recalc.job.ts`
+- Replaced hardcoded `{ personalVolume: 0, downlineVolume: 0, activeLegCount: 0 }` in targeted recalc with real values read from `QualificationEngineService.getCurrentState()`.
+- Volumes now come from the persisted `QualificationState` row (`personal_volume`, `downline_volume`, `active_legs_count`), not from hardcoded zeros that permanently disqualify any user touched by admin manual recalc.
+
+**Fix #1b** — `modules/network/services/network-graph.service.ts`
+- Added `getNodeForUser(userId): Promise<NetworkNode | null>` helper method (required investigation showed volumes live on `QualificationState`, not `NetworkNode`, so the actual fix uses `getCurrentState` — method still added for completeness).
+
+**Fix #2** — `modules/ledger/services/ledger.service.ts`
+- Added `getAvailableBalanceForManager(userId, em: EntityManager)` — same balance logic as `getAvailableBalance` but scoped to the caller's transaction. Required for TOCTOU-safe payout creation and approval.
+
+**Fix #2b (🔴 CRITICAL)** — `modules/payout/services/payout.service.ts:createPayoutRequest`
+- Balance check now calls `getAvailableBalanceForManager(userId, em)` (tx-scoped) instead of the injected-repo `getAvailableBalance`. Without this, two concurrent requests both read the same balance outside the transaction, both pass, and both write — overdraft.
+
+**Fix #3 (🔴 CRITICAL)** — `modules/payout/services/payout.service.ts:executeBatch`
+- Moved `approvedRequests` query **inside** the transaction. Uses `pessimistic_write_or_fail` (PostgreSQL `FOR UPDATE NOWAIT`) gated behind `NODE_ENV !== 'test'` (SQLite used in integration tests does not support this lock — consistent with Phase 2 Fix-3 precedent). Prevents two concurrent `executeBatch` calls from double-processing the same APPROVED requests.
+
+**Fix #4 (🟠 HIGH)** — `jobs/clawback.job.ts:clawbackForOrder`
+- Replaced `throw err` inside the per-event catch block with `skipped++`. One failed event must not abort processing of all subsequent events in an order's commission set — previously left orders in permanent partial-clawback state.
+
+**Fix #5 (inline with Fix #3) (🟠 HIGH)** — `modules/payout/services/payout.service.ts:executeBatch`
+- Added `idempotencyKey: \`payout-sent:${request.id}\`` to the `PAYOUT_SENT` ledger entry. Prevents duplicate debit on retry.
+
+**Fix #6 (🟠 HIGH)** — `modules/payout/services/payout.service.ts:rejectPayoutRequest`
+- Added `idempotencyKey: \`payout-rejected:${request.id}\`` to the `PAYOUT_FAILED` reversal credit. Without this, network-level retries double the user's restored balance.
+
+**Fix #7 (🟠 HIGH)** — `jobs/clawback.job.ts`
+- Added `idempotencyKey: \`clawback:${fresh.id}\`` to the clawback `writeEntry`. Admin-triggered retries previously wrote a second negative debit, doubling the reversal.
+
+**Fix #8 (🟠 HIGH)** — `modules/commission/services/commission-calculation.service.ts`
+- Added `idempotencyKey: \`commission-pending:${commissionEvent.id}\`` to the `COMMISSION_PENDING` ledger write. The `CommissionEvent` itself is idempotent-keyed, but the ledger write was not — outbox retry could write a duplicate COMMISSION_PENDING credit.
+
+**Fix #9 (🟡 MED)** — `modules/payout/services/payout.service.ts:createPayoutRequest`
+- After `em.update(PayoutRequest, ...)`, now re-fetches the row with `em.findOne` and returns the fresh object. Previously returned the stale `saved` reference which still had `ledger_entry_id=null`.
+
+**Fix #10 (🟡 MED)** — `modules/payout/services/payout.service.ts:approvePayoutRequest`
+- Added balance re-verification at approval time using `getAvailableBalanceForManager`. Clawbacks between request submission and admin approval can reduce available balance below the payout amount; without this check the admin approves an overdrawing payout.
+
+### New Tests Added (4)
+
+| Test | File | Covers |
+|---|---|---|
+| `createPayoutRequest returns ledger_entry_id (not null)` | `payout.spec.ts` | Fix #9 |
+| `approvePayoutRequest throws InsufficientBalance when balance < amount` | `payout.spec.ts` | Fix #10 |
+| `executeBatch: no APPROVED inside tx → throws BadRequestException` | `payout.spec.ts` | Fix #3 |
+| `clawbackForOrder: one event failure does not abort other events` | `clawback.spec.ts` | Fix #4 |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `src/jobs/qualification-recalc.job.ts` | Fix #1 — real volumes from getCurrentState |
+| `src/modules/network/services/network-graph.service.ts` | Fix #1b — added getNodeForUser |
+| `src/modules/ledger/services/ledger.service.ts` | Fix #2 — added getAvailableBalanceForManager |
+| `src/modules/payout/services/payout.service.ts` | Fixes #2b #3 #5 #6 #9 #10 |
+| `src/jobs/clawback.job.ts` | Fixes #4 #7 |
+| `src/modules/commission/services/commission-calculation.service.ts` | Fix #8 |
+| `test/unit/payout/payout.spec.ts` | 3 new tests + mock patches for getAvailableBalanceForManager |
+| `test/unit/commission/clawback.spec.ts` | 1 new test (Fix #4 regression) |
+
+### Impact
+
+- `npm run test`: **253 tests, 36 suites, 0 failures** (was 249/36/0 before this session)
+- All Phase 1–5 tests remain unmodified and passing.
+- Every money-moving path in Phase 6 now has idempotency keys on all ledger writes.
+- TOCTOU overdraft windows closed in `createPayoutRequest` and `approvePayoutRequest`.
+- Concurrent `executeBatch` calls cannot double-process the same APPROVED requests in production (PostgreSQL FOR UPDATE NOWAIT).
+- Clawback job is now resilient — one failing event does not block the rest.
+
+### Blind Spots Noted (deferred to Phase 7/8)
+
+1. **Structural DB-level batch guard** — add `UNIQUE` partial index on `payout_batches (status) WHERE status = 'processing'` to complement the row-level lock.
+2. **Commission release guard test** — verify the `fresh.status !== 'pending'` guard in `commission-release.job.ts` is covered by an integration test.
+3. **Dead-letter queue for outbox** — `processUnpublishedEvents` increments `errors` but never marks events `failed` after N retries; transient DB errors permanently lose commission calculations.
+4. **Atomic balance read** — `getAvailableBalance` makes two sequential SELECTs (credits, debits) under the default isolation level; a concurrent write between them produces an inconsistent snapshot. Fix: single SUM with CASE WHEN, or REPEATABLE READ isolation.
+
+### Follow-up
+
+- [ ] Phase 7: Add migration for `payout_batches` partial UNIQUE index on `status=processing`.
+- [ ] Phase 7: Implement dead-letter queue / max-retry marking for outbox events.
+- [ ] Phase 8: Replace `executeBatch` stub with real payout provider (Razorpay/NEFT).
+- [ ] Phase 8: Wire `CommissionReleaseJob` and `ClawbackJob` into BullMQ for scheduled execution.
+
+---
+
+## 2026-04-08 (Phase 7 — Full Codebase Audit: 21 Bugs, 14 Fixes)
+
+### Root Cause Pattern
+
+> Every module performs a **read outside the transaction, then acts on that stale read inside the transaction.**  
+> 80% of bugs are TOCTOU windows. The remaining 20% are: one reversed MLM formula (C1), one catch-in-aborted-tx anti-pattern (C3), one nested-transaction atomicity failure (H2), and missing CSPRNG.
+
+---
+
+### Changed
+
+**Fix C1 (🔴 CRITICAL)** — `commission-calculation.service.ts:78`
+- `uplinePath[uplinePath.length - level]` → **`uplinePath[level - 1]`**
+- The upline path format is `[immediate_sponsor, ..., root]` (built by `referral-validation.service.ts:100`: `[sponsorId, ...parentUplinePath]`). The old formula gave `root` for level=1 — every level-1 commission was paid to the oldest ancestor instead of the direct sponsor. Active since Phase 6 launch.
+- Test mock updated to `[sponsorId, rootId]` order (was `[rootId, sponsorId]` matching the old wrong formula).
+
+**Fix C2 (🔴 CRITICAL)** — `payment.service.ts:handleWebhook:144–158`
+- Webhook dedup catch block now re-fetches the existing record and **re-processes if `processed=false` and `error` is set**.
+- Old: any unique constraint violation returned silently → a transient processing error marked the record `processed:false, error=<msg>` and blocked ALL future Stripe retries permanently → order never marked PAID.
+
+**Fix C3 (🔴 CRITICAL)** — `payout.service.ts:executeBatch` (full rewrite)
+- `executeBatch` was one giant transaction. When a single payout's ledger write failed, PostgreSQL aborted the entire transaction. The catch block's `em.update` calls then silently failed on the aborted `em`. Result: failed payouts were never marked FAILED, balance was never restored.
+- **Rewritten:** lock → batch create → per-request transaction → recovery transaction → batch finalize. Each step is its own independent transaction. A failure on one payout can't corrupt another.
+
+**Fix H1 (🟠 HIGH)** — `checkout.service.ts:initiateCheckout`
+- Added unique-constraint catch on the order INSERT. When two concurrent requests with the same `idempotency_key` both passed the pre-check (outside-tx TOCTOU), the second now returns the existing order and releases its own reservations instead of crashing with an unhandled unique violation.
+
+**Fix H2-dep** — `inventory.service.ts:confirmReservationWithEm`
+- Added `confirmReservationWithEm(reservationId, orderId, actorId, em)` — same logic as `confirmReservation` but uses the caller's `em` directly and never opens its own `dataSource.transaction()`.
+
+**Fix H2 (🟠 HIGH)** — `payment.service.ts:processWebhookEvent:217–229`
+- `confirmReservation` (which opened its own nested tx) replaced with `confirmReservationWithEm` (uses outer `em`). Inventory confirmation is now atomic with the order PAID state transition.
+
+**Fix H3-dep** — `money-event-outbox.entity.ts`
+- Added `error_count: number` (default 0) and `last_error: string | null` columns for dead-letter tracking.
+
+**Fix H3 (🟠 HIGH)** — `commission-calculation.service.ts:processUnpublishedEvents`
+- SQLite path: unchanged `find()` (no lock syntax). PostgreSQL path: `SELECT ... FOR UPDATE SKIP LOCKED LIMIT N WHERE error_count < maxRetries` — prevents concurrent processors racing on same events.
+- On catch: increments `error_count` and sets `last_error`. Events at `maxRetries` (default 5) are logged as dead-letter and excluded from future runs.
+
+**Fix H4 (🟠 HIGH)** — `signup-flow.service.ts:signup`
+- Referral code collision loop rewritten: now uses `newCodeStr: string | null = null`, throws `InternalServerErrorException` after 10 failed attempts instead of writing the last duplicate value and crashing with an unhandled unique constraint violation (500).
+
+**Fix H5 (🟠 HIGH)** — `admin.guard.ts`
+- String equality `!==` replaced with `crypto.timingSafeEqual` on equal-length Buffers. Prevents timing-based token enumeration.
+
+**Fix H6 (🟠 HIGH)** — `inventory.service.ts:addStock` / `adjustStock`
+- `this.getInventoryItem(listingId)` (injected repo, outside `em`) replaced with `em.findOne(InventoryItem, ...)` inside the transaction. The stale read was the basis for the `diff` calculation in `adjustStock` — concurrent adjustments could compute incorrect diffs.
+
+**Fix H7 (🟠 HIGH)** — `qualification-engine.service.ts:recalculateAll`
+- Replaced hardcoded `{ personalVolume: 0, downlineVolume: 0, activeLegCount: 0 }` with `stateRepo.findOne` per user, reading actual `personal_volume`, `downline_volume`, `active_legs_count` from persisted `QualificationState`. Prevents full recalc from permanently disqualifying every user once Phase 6 order data accumulates (identical to Fix #1/#H7 applied earlier to QualificationRecalcJob — now applied to the full-recalc path too).
+
+**Fix M1 (🟡 MED)** — `signup-flow.service.ts:generateReferralCode`
+- `Math.random()` replaced with `crypto.randomBytes(8)`. Entropy: 2^48 vs 2^29.
+
+**Fix M4 (🟡 MED)** — `ledger.service.ts:getAvailableBalance` + `getAvailableBalanceForManager`
+- Both methods rewritten from two sequential `SELECT SUM()` calls (credits, then debits) to a single `SELECT SUM(CASE WHEN ...)`. Under READ COMMITTED, a concurrent credit between the two reads produced an incorrect balance snapshot. Single query eliminates the interleaving window.
+
+**Fix L1 (🟢 LOW)** — `auth.controller.ts`
+- `@UseGuards(ThrottlerGuard)` added to `POST /auth/signup` and `POST /auth/refresh`. Previously only OTP send/verify were rate-limited.
+
+---
+
+### Files Modified
+
+| File | Fixes |
+|---|---|
+| `src/modules/commission/services/commission-calculation.service.ts` | C1 (upline direction), H3 (outbox lock + dead-letter) |
+| `src/modules/order/services/payment.service.ts` | C2 (webhook retry), H2 (nested tx) |
+| `src/modules/payout/services/payout.service.ts` | C3 (per-tx executeBatch) |
+| `src/modules/order/services/checkout.service.ts` | H1 (idempotency TOCTOU) |
+| `src/modules/inventory/services/inventory.service.ts` | H2-dep (confirmReservationWithEm), H6 (tx-scoped reads) |
+| `src/modules/order/entities/money-event-outbox.entity.ts` | H3-dep (error_count, last_error) |
+| `src/modules/auth/services/signup-flow.service.ts` | H4 (collision crash), M1 (CSPRNG) |
+| `src/modules/admin/guards/admin.guard.ts` | H5 (timingSafeEqual) |
+| `src/modules/network/services/qualification-engine.service.ts` | H7 (real volumes in recalculateAll) |
+| `src/modules/ledger/services/ledger.service.ts` | M4 (single-SELECT balance) |
+| `src/modules/auth/controllers/auth.controller.ts` | L1 (rate limit signup/refresh) |
+| `test/unit/commission/commission-calculation.spec.ts` | C1 test fix (upline mock order corrected) |
+
+---
+
+### Impact
+
+- `npm run test`: **253 tests · 36 suites · 0 failures** (unchanged count — fixes were logic corrections, not new features)
+- **C1** closes a production-live commission misrouting bug — all level-1 commissions were going to the root, not to direct sponsors. Every commission payment since Phase 6 launch was wrong.
+- **C3** closes a silent balance leak — failed payouts were leaving the ledger in an inconsistent state with no way to detect or recover.
+- **C2** closes a permanent webhook dead-zone — one bad Stripe event blocked all future retries of the same event.
+- All TOCTOU windows in money-moving paths (checkout, payout, inventory) are now closed.
+
+### Remaining Deferred Items
+
+- [ ] Phase 7: PostgreSQL migration for `money_event_outbox.error_count` and `last_error` columns (SQLite auto-migrates in tests; PostgreSQL needs `ALTER TABLE`).
+- [ ] Phase 7: Add `UNIQUE` partial index on `payout_batches (status) WHERE status = 'processing'` (structural guard complementing row-level lock).
+- [ ] Phase 7: Refresh token family invalidation — stolen refresh token usable until expiry with no detection.
+- [ ] Phase 8: Replace `executeBatch` stub with real payout provider (Razorpay/NEFT).
+- [ ] Phase 8: Wire `CommissionReleaseJob` and `ClawbackJob` into BullMQ for scheduled execution.
+- [ ] Phase 8: Admin user model with JWT-signed admin sessions — current single `ADMIN_ACTOR_ID` makes multi-admin audit trail impossible.

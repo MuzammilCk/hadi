@@ -112,7 +112,9 @@ describe('CommissionCalculationService', () => {
     mockNetworkNodeRepo = {
       findOne: jest.fn().mockResolvedValue({
         user_id: buyerId,
-        upline_path: JSON.stringify([rootId, sponsorId]),
+        // Fix C1 test: actual format is [immediate_sponsor, ..., root]
+        // referral-validation.service.ts:100 builds [sponsorId, ...parentUplinePath]
+        upline_path: JSON.stringify([sponsorId, rootId]),
       }),
     };
     mockQualStateRepo = {
@@ -156,7 +158,7 @@ describe('CommissionCalculationService', () => {
     const event = makeOutboxEvent();
     await service.processOutboxEvent(event);
 
-    // sponsorId is at uplinePath[1] = L1
+    // Fix C1: uplinePath[0] = immediate sponsor (level 1)
     const l1Event = savedCommissionEvents.find(e => e.commission_level === 1);
     expect(l1Event).toBeDefined();
     expect(l1Event!.calculated_amount).toBe(100);  // 1000 * 0.10
@@ -185,10 +187,11 @@ describe('CommissionCalculationService', () => {
   });
 
   it('Buyer === L1 sponsor → commission skipped (self-purchase guard)', async () => {
-    // upline_path includes buyerId as sponsor
+    // Fix C1 test: format is [immediate_sponsor, ..., root]
+    // buyer is their own immediate sponsor — should be skipped at level 1
     (mockNetworkNodeRepo.findOne as jest.Mock).mockResolvedValue({
       user_id: buyerId,
-      upline_path: JSON.stringify([rootId, buyerId]),
+      upline_path: JSON.stringify([buyerId, rootId]),
     });
 
     await service.processOutboxEvent(makeOutboxEvent());

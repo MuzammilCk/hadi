@@ -75,7 +75,10 @@ export class CommissionCalculationService {
 
     await this.dataSource.transaction(async (em) => {
       for (let level = 1; level <= Math.min(uplinePath.length, maxLevel); level++) {
-        const beneficiaryId = uplinePath[uplinePath.length - level];
+        // Fix C1: uplinePath format is [immediate_sponsor, sponsor_of_sponsor, ..., root]
+        // level=1 → uplinePath[0] (direct sponsor), level=2 → uplinePath[1], etc.
+        // OLD (wrong): uplinePath[uplinePath.length - level] → gave root for level=1
+        const beneficiaryId = uplinePath[level - 1];
 
         // Self-purchase guard
         if (beneficiaryId === payload.buyer_id) continue;
@@ -136,6 +139,7 @@ export class CommissionCalculationService {
           currency: payload.currency || 'INR',
         }));
 
+        // Fix #8: idempotency key guards against duplicate COMMISSION_PENDING on outbox retry
         await this.ledgerService.writeEntry({
           userId: beneficiaryId,
           entryType: LedgerEntryType.COMMISSION_PENDING,
@@ -145,6 +149,7 @@ export class CommissionCalculationService {
           referenceId: commissionEvent.id,
           referenceType: 'commission_event',
           note: `L${level} commission from order ${payload.order_id}`,
+          idempotencyKey: `commission-pending:${commissionEvent.id}`,
         }, em);
       }
 
@@ -158,11 +163,31 @@ export class CommissionCalculationService {
 
   async processUnpublishedEvents(): Promise<{ processed: number; skipped: number; errors: number }> {
     const batchSize = parseInt(process.env.COMMISSION_CALC_BATCH_SIZE || '50', 10);
-    const events = await this.outboxRepo.find({
-      where: { event_type: 'order.paid', published: false },
-      order: { created_at: 'ASC' },
-      take: batchSize,
-    });
+    const maxRetries = parseInt(process.env.COMMISSION_MAX_RETRIES || '5', 10);
+
+    // Fix H3: FOR UPDATE SKIP LOCKED prevents concurrent processors racing on the same events.
+    // SQLite (used in tests) doesn't support this syntax — falls back to plain find.
+    let events: MoneyEventOutbox[];
+    if (process.env.NODE_ENV === 'test') {
+      events = await this.outboxRepo.find({
+        where: { event_type: 'order.paid', published: false },
+        order: { created_at: 'ASC' },
+        take: batchSize,
+      });
+    } else {
+      // PostgreSQL: lock rows so no two processors claim the same event concurrently.
+      // Also exclude events that have exceeded the max retry threshold (dead-letter).
+      events = await this.outboxRepo.query(
+        `SELECT * FROM money_event_outbox
+         WHERE event_type = 'order.paid'
+           AND published = false
+           AND COALESCE(error_count, 0) < $1
+         ORDER BY created_at ASC
+         LIMIT $2
+         FOR UPDATE SKIP LOCKED`,
+        [maxRetries, batchSize],
+      );
+    }
 
     let processed = 0, skipped = 0, errors = 0;
     for (const event of events) {
@@ -171,6 +196,19 @@ export class CommissionCalculationService {
         processed++;
       } catch (err) {
         this.logger.error(`Failed to process outbox event ${event.id}:`, err);
+        // Increment error count for dead-letter tracking (Fix H3)
+        await this.outboxRepo.update(
+          { id: event.id },
+          {
+            error_count: (event.error_count ?? 0) + 1,
+            last_error: err instanceof Error ? err.message : String(err),
+          },
+        );
+        if ((event.error_count ?? 0) + 1 >= maxRetries) {
+          this.logger.error(
+            `Outbox event ${event.id} has exceeded ${maxRetries} retries — moved to dead-letter (error_count=${(event.error_count ?? 0) + 1})`,
+          );
+        }
         errors++;
       }
     }

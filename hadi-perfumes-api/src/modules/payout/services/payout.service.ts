@@ -67,8 +67,8 @@ export class PayoutService {
       });
       if (pending) throw new PendingPayoutAlreadyExistsException();
 
-      // Balance check
-      const available = await this.ledgerService.getAvailableBalance(userId);
+      // Balance check inside transaction using em so it participates in the lock (Fix #2b)
+      const available = await this.ledgerService.getAvailableBalanceForManager(userId, em);
       if (available < dto.amount) throw new InsufficientBalanceForPayoutException(available, dto.amount);
 
       const saved = await em.save(PayoutRequest, em.create(PayoutRequest, {
@@ -94,7 +94,9 @@ export class PayoutService {
 
       await em.update(PayoutRequest, { id: saved.id }, { ledger_entry_id: ledgerEntry.id });
 
-      return saved;
+      // Fix #9: re-fetch so the returned object reflects updated ledger_entry_id
+      const updated = await em.findOne(PayoutRequest, { where: { id: saved.id } });
+      return updated!;
     });
   }
 
@@ -105,6 +107,15 @@ export class PayoutService {
       if (request.status !== PayoutRequestStatus.REQUESTED) {
         throw new PayoutNotApprovableException(request.status);
       }
+
+      // Fix #10: Re-verify balance at approval time — clawbacks since request can reduce it
+      const currentBalance = await this.ledgerService.getAvailableBalanceForManager(
+        request.user_id, em,
+      );
+      if (currentBalance < Number(request.amount)) {
+        throw new InsufficientBalanceForPayoutException(currentBalance, Number(request.amount));
+      }
+
       request.status = PayoutRequestStatus.APPROVED;
       request.approved_by = adminActorId;
       request.approved_at = new Date();
@@ -126,6 +137,7 @@ export class PayoutService {
       await em.save(PayoutRequest, request);
 
       // Reverse the held ledger debit (positive credit to restore balance)
+      // Fix #6: idempotency key prevents duplicate credit on transaction retry
       await this.ledgerService.writeEntry({
         userId: request.user_id,
         entryType: LedgerEntryType.PAYOUT_FAILED,
@@ -135,6 +147,7 @@ export class PayoutService {
         referenceId: request.id,
         referenceType: 'payout_request',
         note: `Payout rejected: ${reason}`,
+        idempotencyKey: `payout-rejected:${request.id}`,
       }, em);
 
       return request;
@@ -187,36 +200,56 @@ export class PayoutService {
   }
 
   /**
-   * Phase 6 stub: processes approved requests without real bank transfer.
-   * Phase 8 replaces this with real provider integration.
+   * Fix C3: each payout request runs in its OWN independent transaction.
+   * PostgreSQL aborts the entire transaction on any error — the old single-tx approach meant
+   * the catch block's em.update calls silently failed on the already-aborted em.
+   * Now: lock → batch create → per-request tx → recovery tx → batch update are all separate.
    */
   async executeBatch(adminActorId: string): Promise<PayoutBatch> {
-    const approvedRequests = await this.payoutRequestRepo.find({
-      where: { status: PayoutRequestStatus.APPROVED },
+    // Step 1: Acquire row-level lock on APPROVED requests inside a short transaction
+    const approvedRequests = await this.dataSource.transaction(async (em) => {
+      const qb = em
+        .createQueryBuilder(PayoutRequest, 'pr')
+        .where('pr.status = :status', { status: PayoutRequestStatus.APPROVED });
+      if (process.env.NODE_ENV !== 'test') {
+        qb.setLock('pessimistic_write_or_fail');
+      }
+      return qb.getMany();
     });
+
     if (!approvedRequests.length) {
       throw new BadRequestException('No approved payout requests to batch');
     }
 
-    return this.dataSource.transaction(async (em) => {
-      const totalAmount = approvedRequests.reduce((sum, r) => sum + Number(r.amount), 0);
-      const savedBatch = await em.save(PayoutBatch, em.create(PayoutBatch, {
+    // Step 2: Create the batch record
+    const totalAmount = approvedRequests.reduce((sum, r) => sum + Number(r.amount), 0);
+    const savedBatch = await this.dataSource.transaction(async (em) =>
+      em.save(PayoutBatch, em.create(PayoutBatch, {
         status: PayoutBatchStatus.PROCESSING,
         total_amount: parseFloat(totalAmount.toFixed(2)),
         currency: process.env.DEFAULT_CURRENCY || 'INR',
         request_count: approvedRequests.length,
         initiated_by: adminActorId,
         started_at: new Date(),
-      }));
+      })),
+    );
 
-      let processedCount = 0, failedCount = 0;
+    let processedCount = 0, failedCount = 0;
 
-      for (const request of approvedRequests) {
-        try {
+    // Step 3: Each payout request in its OWN clean transaction
+    for (const request of approvedRequests) {
+      try {
+        await this.dataSource.transaction(async (em) => {
+          // Re-read inside tx to guard against concurrent batch runs
+          const fresh = await em.findOne(PayoutRequest, { where: { id: request.id } });
+          if (!fresh || fresh.status !== PayoutRequestStatus.APPROVED) return;
+
           await em.update(PayoutRequest, { id: request.id }, {
             status: PayoutRequestStatus.SENT,
             batch_id: savedBatch.id,
           });
+
+          // Fix #5 retained: idempotency key prevents duplicate debit on retry
           await this.ledgerService.writeEntry({
             userId: request.user_id,
             entryType: LedgerEntryType.PAYOUT_SENT,
@@ -226,40 +259,51 @@ export class PayoutService {
             referenceId: request.id,
             referenceType: 'payout_request',
             note: `Payout sent (batch ${savedBatch.id})`,
+            idempotencyKey: `payout-sent:${request.id}`,
           }, em);
-          processedCount++;
-        } catch (err) {
-          this.logger.error(`Failed payout request ${request.id}:`, err);
+        });
+        processedCount++;
+      } catch (err) {
+        this.logger.error(`Failed payout request ${request.id}:`, err);
+        // Recovery in a fresh, clean transaction — the failed tx is already gone
+        await this.dataSource.transaction(async (em) => {
           await em.update(PayoutRequest, { id: request.id }, {
             status: PayoutRequestStatus.FAILED,
             failure_reason: err instanceof Error ? err.message : String(err),
           });
-          
           await this.ledgerService.writeEntry({
             userId: request.user_id,
             entryType: LedgerEntryType.PAYOUT_FAILED,
-            amount: Math.abs(Number(request.amount)), // positive reversal credit
+            amount: Math.abs(Number(request.amount)),
             currency: request.currency,
             status: LedgerEntryStatus.SETTLED,
             referenceId: request.id,
             referenceType: 'payout_request',
             note: `Payout failed — balance restored (batch ${savedBatch.id})`,
-            idempotencyKey: `payout-failed:${request.id}`,
+            idempotencyKey: `payout-batch-failed:${request.id}`,
           }, em);
-          
-          failedCount++;
-        }
+        }).catch((recoveryErr) => {
+          // Recovery itself failed — log for manual intervention
+          this.logger.error(
+            `CRITICAL: recovery write failed for payout ${request.id}`,
+            recoveryErr,
+          );
+        });
+        failedCount++;
       }
+    }
 
-      await em.update(PayoutBatch, { id: savedBatch.id }, {
+    // Step 4: Finalize batch status
+    await this.dataSource.transaction(async (em) =>
+      em.update(PayoutBatch, { id: savedBatch.id }, {
         status: failedCount > 0 ? PayoutBatchStatus.FAILED : PayoutBatchStatus.COMPLETED,
         processed_count: processedCount,
         failed_count: failedCount,
         completed_at: new Date(),
-      });
+      }),
+    );
 
-      const result = await em.findOne(PayoutBatch, { where: { id: savedBatch.id } });
-      return result!;
-    });
+    const result = await this.payoutBatchRepo.findOne({ where: { id: savedBatch.id } });
+    return result!;
   }
 }

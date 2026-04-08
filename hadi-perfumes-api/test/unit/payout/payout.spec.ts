@@ -45,6 +45,8 @@ describe('PayoutService', () => {
 
     mockLedgerService = {
       getAvailableBalance: jest.fn().mockResolvedValue(1000),
+      // Fix #2b / #10: getAvailableBalanceForManager is now called inside the tx
+      getAvailableBalanceForManager: jest.fn().mockResolvedValue(1000),
       writeEntry: jest.fn().mockImplementation(async (params: any) => {
         ledgerWriteCalls.push(params);
         return { id: uuidv4(), ...params };
@@ -124,7 +126,8 @@ describe('PayoutService', () => {
   });
 
   it('available_balance < amount → InsufficientBalanceForPayoutException', async () => {
-    mockLedgerService.getAvailableBalance.mockResolvedValue(50);
+    // Fix #2b: createPayoutRequest now uses getAvailableBalanceForManager (tx-scoped)
+    mockLedgerService.getAvailableBalanceForManager.mockResolvedValue(50);
     await expect(service.createPayoutRequest(userId, { amount: 200 }, uuidv4()))
       .rejects.toThrow('Insufficient balance');
   });
@@ -228,4 +231,77 @@ describe('PayoutService', () => {
     const payout = await service.getPayoutRequest(payoutId);
     expect(payout.id).toBe(payoutId);
   });
+
+  // ─── Fix #9 ────────────────────────────────────────────────────────────────
+  it('createPayoutRequest returns ledger_entry_id on result (not null)', async () => {
+    const ledgerEntryId = uuidv4();
+
+    // Mock em.save to return a PayoutRequest with an id
+    const savedId = uuidv4();
+    const mockEm2: any = {
+      findOne: jest.fn().mockImplementation(async (EntityClass: any, opts: any) => {
+        const name = EntityClass?.name ?? '';
+        if (name === 'User') return { id: userId, status: 'active' };
+        if (name === 'QualificationState') return { user_id: userId, is_qualified: true };
+        if (name === 'PayoutRequest') {
+          // First call (pending check) → null; second call (re-fetch after update) → with ledger_entry_id
+          if (opts?.where?.id === savedId) return { id: savedId, ledger_entry_id: ledgerEntryId, status: 'requested' };
+          return null;
+        }
+        return null;
+      }),
+      create: jest.fn((_: any, data: any) => ({ ...data, id: data.id || savedId })),
+      save: jest.fn(async (_: any, data: any) => ({ ...data, id: savedId })),
+      update: jest.fn(async () => {}),
+    };
+    mockDataSource.transaction = jest.fn().mockImplementation(async (cb: any) => cb(mockEm2));
+    mockLedgerService.getAvailableBalanceForManager = jest.fn().mockResolvedValue(1000);
+    mockLedgerService.writeEntry = jest.fn().mockResolvedValue({ id: ledgerEntryId });
+
+    const result = await service.createPayoutRequest(userId, { amount: 200 }, uuidv4());
+    expect(result.ledger_entry_id).toBeDefined();
+    expect(result.ledger_entry_id).not.toBeNull();
+    expect(result.ledger_entry_id).toBe(ledgerEntryId);
+  });
+
+  // ─── Fix #10 ───────────────────────────────────────────────────────────────
+  it('approvePayoutRequest throws InsufficientBalanceForPayoutException when balance < amount', async () => {
+    mockLedgerService.getAvailableBalanceForManager = jest.fn().mockResolvedValue(10);
+    (mockDataSource.transaction as jest.Mock).mockImplementation(async (cb: any) => {
+      const em = {
+        findOne: jest.fn().mockResolvedValue({
+          id: payoutId,
+          user_id: userId,
+          status: PayoutRequestStatus.REQUESTED,
+          amount: 500,
+        }),
+      };
+      // Attach getAvailableBalanceForManager to the service-level mock so the service can call it
+      return cb({ ...em });
+    });
+    await expect(service.approvePayoutRequest(payoutId, adminActorId))
+      .rejects.toThrow('Insufficient balance');
+  });
+
+  // ─── Fix #3 ────────────────────────────────────────────────────────────────
+  it('executeBatch: no APPROVED requests inside tx → throws BadRequestException', async () => {
+    // After a first successful batch, APPROVED requests are gone (status=SENT).
+    // Simulate by returning empty list from the in-tx query.
+    (mockDataSource.transaction as jest.Mock).mockImplementation(async (cb: any) => {
+      const em = {
+        createQueryBuilder: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnThis(),
+          setLock: jest.fn().mockReturnThis(),
+          getMany: jest.fn().mockResolvedValue([]),    // no APPROVED requests found inside tx
+        }),
+        save: jest.fn(),
+        update: jest.fn(),
+        findOne: jest.fn(),
+      };
+      return cb(em);
+    });
+    await expect(service.executeBatch(adminActorId))
+      .rejects.toThrow('No approved payout requests to batch');
+  });
 });
+

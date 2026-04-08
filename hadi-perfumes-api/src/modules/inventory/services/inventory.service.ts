@@ -40,7 +40,9 @@ export class InventoryService {
 
   async addStock(listingId: string, dto: AddStockDto, actorId: string): Promise<InventoryItem> {
     return this.dataSource.transaction(async (em: EntityManager) => {
-      const item = await this.getInventoryItem(listingId);
+      // Fix H6: read inside the transaction em, not the injected repo (TOCTOU fix)
+      const item = await em.findOne(InventoryItem, { where: { listing_id: listingId } });
+      if (!item) throw new InventoryItemNotFoundException();
 
       // We can use standard save here or atomic update since we are purely adding
       await em.query(
@@ -77,7 +79,9 @@ export class InventoryService {
 
   async adjustStock(listingId: string, dto: AdjustStockDto, actorId: string): Promise<InventoryItem> {
     return this.dataSource.transaction(async (em: EntityManager) => {
-      const item = await this.getInventoryItem(listingId);
+      // Fix H6: read inside the transaction em so the diff is based on a consistent snapshot
+      const item = await em.findOne(InventoryItem, { where: { listing_id: listingId } });
+      if (!item) throw new InventoryItemNotFoundException();
       const diff = dto.newTotalQty - item.total_qty;
 
       if (item.available_qty + diff < 0) {
@@ -230,6 +234,51 @@ export class InventoryService {
 
       return res;
     });
+  }
+
+  /**
+   * Fix H2: em-aware variant of confirmReservation for callers that already own a transaction.
+   * Pass the outer EntityManager so inventory confirmation is atomic with the caller's operation
+   * (e.g., marking an order PAID in the Stripe webhook handler).
+   * NEVER opens its own dataSource.transaction() — uses the provided em directly.
+   */
+  async confirmReservationWithEm(
+    reservationId: string,
+    orderId: string,
+    actorId: string,
+    em: EntityManager,
+  ): Promise<InventoryReservation> {
+    const res = await em.findOne(InventoryReservation, { where: { id: reservationId } });
+    if (!res) throw new ReservationNotFoundException();
+    if (res.status !== ReservationStatus.RESERVED) {
+      // Already confirmed by a prior call — idempotent
+      return res;
+    }
+
+    res.status = ReservationStatus.CONFIRMED;
+    res.order_id = orderId;
+    await em.save(InventoryReservation, res);
+
+    await em.query(
+      sqlParams(`UPDATE inventory_items SET reserved_qty = reserved_qty - $1, sold_qty = sold_qty + $1, updated_at = ${nowFn()} WHERE id = $2`),
+      isSqlite() ? [res.qty, res.qty, res.inventory_item_id] : [res.qty, res.inventory_item_id],
+    );
+
+    const result = await em.findOne(InventoryItem, { where: { id: res.inventory_item_id } });
+    if (!result) throw new InventoryItemNotFoundException();
+
+    const event = em.create(InventoryEvent, {
+      inventory_item_id: res.inventory_item_id,
+      listing_id: res.listing_id,
+      event_type: InventoryEventType.RESERVATION_CONFIRMED,
+      qty_delta: 0,
+      qty_after: result.total_qty,
+      actor_id: actorId,
+      reference_id: res.id,
+    });
+    await em.save(InventoryEvent, event);
+
+    return res;
   }
 
   async releaseReservation(reservationId: string, actorId: string, isExpiry: boolean = false): Promise<InventoryReservation> {

@@ -222,6 +222,14 @@ export class NetworkGraphService {
   }
 
   /**
+   * Fix #1b — Return the NetworkNode for a single user, or null if not found.
+   * Required by QualificationRecalcJob to load real volumes for targeted recalc.
+   */
+  async getNodeForUser(userId: string): Promise<NetworkNode | null> {
+    return (await this.nodeRepo.findOne({ where: { user_id: userId } })) ?? null;
+  }
+
+  /**
    * Apply a graph correction — update network_nodes after a sponsor change.
    *
    * PHASE 3 GRAPH CORRECTION NOTE:

@@ -135,12 +135,21 @@ export class CheckoutService {
 
         return savedOrder;
       });
-    } catch (err) {
-      // Release all reservations if order creation failed
+    } catch (err: any) {
+      // Fix H1: unique constraint on idempotency_key means a concurrent request just won.
+      // Return the existing order and release OUR reservations — the winner owns theirs.
+      if (err?.code === '23505' || err?.message?.includes('UNIQUE constraint failed')) {
+        const deduped = await this.orderRepo.findOne({ where: { idempotency_key: idempotencyKey } });
+        if (deduped) {
+          for (const resId of reservationIds) {
+            await this.inventoryService.releaseReservation(resId, buyerId).catch(() => {});
+          }
+          return deduped;
+        }
+      }
+      // Any other error: release all our reservations, then rethrow
       for (const resId of reservationIds) {
-        await this.inventoryService
-          .releaseReservation(resId, buyerId)
-          .catch(() => {});
+        await this.inventoryService.releaseReservation(resId, buyerId).catch(() => {});
       }
       throw err;
     }

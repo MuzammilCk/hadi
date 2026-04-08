@@ -35,6 +35,8 @@ export class AuthController {
     return this.signupFlowService.verifyOtp(dto.phone, dto.otp);
   }
 
+  // Fix L1: signup must be rate-limited — prevents credential stuffing via session tokens
+  @UseGuards(ThrottlerGuard)
   @Post('signup')
   async signup(@Body() dto: SignupDto, @Req() req: any) {
     const authHeader = req.headers.authorization;
@@ -67,6 +69,8 @@ export class AuthController {
     );
   }
 
+  // Fix L1: refresh must be rate-limited — prevents brute-force refresh token guessing
+  @UseGuards(ThrottlerGuard)
   @Post('refresh')
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.signupFlowService.refresh(dto.refresh_token);

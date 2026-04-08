@@ -71,53 +71,60 @@ export class LedgerService {
   }
 
   /**
-   * FIXED: includes HELD status for PAYOUT_REQUESTED so balance correctly reflects
-   * held-but-not-yet-sent payout requests. Without this, user could double-request payouts.
+   * Fix M4: single atomic SUM with CASE WHEN replaces two sequential SELECTs.
+   * Under READ COMMITTED, a concurrent credit between two reads produced an incorrect snapshot.
+   * FIXED: available_balance is now computed in one statement — no interleaving window.
    *
-   * available_balance = credits (commission_available + payout_failed[settled])
-   *                   - abs(debits)
-   *
-   * Debit types and their expected statuses:
-   *   PAYOUT_REQUESTED → HELD   (money reserved, not yet processed)
-   *   PAYOUT_SENT      → SETTLED (money sent)
-   *   CLAWBACK         → REVERSED
-   *   COMMISSION_REVERSED → REVERSED
+   * balance = sum of:
+   *   + COMMISSION_AVAILABLE (settled) credits
+   *   + PAYOUT_FAILED (settled) reversal credits
+   *   + CLAWBACK (reversed) debits          (negative amounts)
+   *   + COMMISSION_REVERSED (reversed) debits (negative amounts)
+   *   + PAYOUT_REQUESTED (held) debits       (negative amounts)
+   *   + PAYOUT_SENT (settled) debits         (negative amounts)
    */
   async getAvailableBalance(userId: string): Promise<number> {
-    // Credits
-    const creditResult = await this.entryRepo
+    const result = await this.entryRepo
       .createQueryBuilder('le')
-      .select('COALESCE(SUM(CAST(le.amount AS DECIMAL)), 0)', 'total')
+      .select(
+        `COALESCE(SUM(CASE
+          WHEN le.entry_type IN ('commission_available','payout_failed') AND le.status = 'settled'
+            THEN CAST(le.amount AS DECIMAL)
+          WHEN le.entry_type IN ('clawback','commission_reversed','payout_requested','payout_sent')
+            AND le.status IN ('held','settled','reversed')
+            THEN CAST(le.amount AS DECIMAL)
+          ELSE 0
+        END), 0)`,
+        'balance',
+      )
       .where('le.user_id = :userId', { userId })
-      .andWhere('le.entry_type IN (:...creditTypes)', {
-        creditTypes: [LedgerEntryType.COMMISSION_AVAILABLE, LedgerEntryType.PAYOUT_FAILED],
-      })
-      .andWhere('le.status = :status', { status: LedgerEntryStatus.SETTLED })
-      .getRawOne<{ total: string }>();
-    const credits = parseFloat(creditResult?.total ?? '0');
+      .getRawOne<{ balance: string }>();
 
-    // Debits — include HELD for payout_requested, SETTLED for payout_sent, REVERSED for clawbacks
-    const debitResult = await this.entryRepo
-      .createQueryBuilder('le')
-      .select('COALESCE(SUM(CAST(le.amount AS DECIMAL)), 0)', 'total')
+    return parseFloat(result?.balance ?? '0');
+  }
+
+  /**
+   * Fix #2 & M4: Same single-SELECT logic as getAvailableBalance but scoped to
+   * the caller's EntityManager for TOCTOU-safe payout creation and approval.
+   */
+  async getAvailableBalanceForManager(userId: string, em: EntityManager): Promise<number> {
+    const result = await em
+      .createQueryBuilder(LedgerEntry, 'le')
+      .select(
+        `COALESCE(SUM(CASE
+          WHEN le.entry_type IN ('commission_available','payout_failed') AND le.status = 'settled'
+            THEN CAST(le.amount AS DECIMAL)
+          WHEN le.entry_type IN ('clawback','commission_reversed','payout_requested','payout_sent')
+            AND le.status IN ('held','settled','reversed')
+            THEN CAST(le.amount AS DECIMAL)
+          ELSE 0
+        END), 0)`,
+        'balance',
+      )
       .where('le.user_id = :userId', { userId })
-      .andWhere('le.entry_type IN (:...debitTypes)', {
-        debitTypes: [
-          LedgerEntryType.CLAWBACK,
-          LedgerEntryType.COMMISSION_REVERSED,
-          LedgerEntryType.PAYOUT_REQUESTED,
-          LedgerEntryType.PAYOUT_SENT,
-        ],
-      })
-      // Include HELD (payout_requested), SETTLED (payout_sent), REVERSED (clawbacks)
-      .andWhere('le.status IN (:...statuses)', {
-        statuses: [LedgerEntryStatus.HELD, LedgerEntryStatus.SETTLED, LedgerEntryStatus.REVERSED],
-      })
-      .getRawOne<{ total: string }>();
-    // Debit amounts are stored as negative numbers; Math.abs converts to positive for subtraction
-    const debits = Math.abs(parseFloat(debitResult?.total ?? '0'));
+      .getRawOne<{ balance: string }>();
 
-    return parseFloat((credits - debits).toFixed(2));
+    return parseFloat(result?.balance ?? '0');
   }
 
   async getLedgerHistory(
