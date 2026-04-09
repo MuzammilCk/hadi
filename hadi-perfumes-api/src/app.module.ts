@@ -13,6 +13,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { OrderModule } from './modules/order/order.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { PayoutModule } from './modules/payout/payout.module';
+import { TrustModule } from './modules/trust/trust.module';
 import { dataSourceOptions } from './config/database.config';
 
 @Module({
@@ -32,6 +33,7 @@ import { dataSourceOptions } from './config/database.config';
     OrderModule,
     LedgerModule,       // Phase 6 — new
     PayoutModule,       // Phase 6 — new
+    TrustModule,        // Phase 7 — new
   ],
   controllers: [AppController],
   providers: [AppService],

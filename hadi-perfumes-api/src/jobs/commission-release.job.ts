@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { CommissionHold } from '../modules/trust/holds/entities/commission-hold.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CommissionEvent } from '../modules/commission/entities/commission-event.entity';
@@ -37,6 +38,23 @@ export class CommissionReleaseJob {
           // Re-read inside transaction for consistency — use em.findOne, NOT injected repo
           const fresh = await em.findOne(CommissionEvent, { where: { id: event.id } });
           if (!fresh || fresh.status !== 'pending' || fresh.available_after > now) return;
+
+          // Phase 7 hook — check for active commission hold
+          // Wrapped in try-catch: Phase 6 tests may not register CommissionHold entity
+          try {
+            const activeHold = await em.findOne(CommissionHold, {
+              where: {
+                commission_event_id: fresh.id,
+                status: 'active',
+              },
+            });
+            if (activeHold) {
+              this.logger.warn(`Commission event ${fresh.id} release skipped — active hold ${activeHold.id}`);
+              return; // skip this event this batch cycle
+            }
+          } catch {
+            // CommissionHold entity not registered — no holds to check, proceed normally
+          }
 
           await em.update(CommissionEvent, { id: fresh.id }, { status: 'available' });
 

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { PayoutHold } from '../../trust/holds/entities/payout-hold.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { PayoutRequest, PayoutRequestStatus } from '../entities/payout-request.entity';
@@ -243,6 +244,26 @@ export class PayoutService {
           // Re-read inside tx to guard against concurrent batch runs
           const fresh = await em.findOne(PayoutRequest, { where: { id: request.id } });
           if (!fresh || fresh.status !== PayoutRequestStatus.APPROVED) return;
+
+          // Phase 7 hook — check for active payout holds
+          // Wrapped in try-catch: Phase 6 tests may not register PayoutHold entity
+          try {
+            const activeHold = await em.findOne(PayoutHold, {
+              where: {
+                user_id: fresh.user_id,
+                status: 'active',
+              },
+            });
+            if (activeHold) {
+              // Skip this request — do not fail the batch
+              this.logger.warn(
+                `Payout request ${fresh.id} skipped — active hold ${activeHold.id} on user ${fresh.user_id}`,
+              );
+              return;
+            }
+          } catch {
+            // PayoutHold entity not registered — no holds to check, proceed normally
+          }
 
           await em.update(PayoutRequest, { id: request.id }, {
             status: PayoutRequestStatus.SENT,

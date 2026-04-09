@@ -112,7 +112,10 @@ describe('CommissionReleaseJob', () => {
     mockDataSource = {
       transaction: jest.fn().mockImplementation(async (cb: any) => {
         const em = {
-          findOne: jest.fn().mockResolvedValue(pastEvent),
+          findOne: jest.fn().mockImplementation(async (entity: any) => {
+            if (entity === CommissionEvent) return pastEvent;
+            return null; // CommissionHold or any other entity → no hold
+          }),
           update: jest.fn().mockImplementation(async (Entity: any, crit: any, data: any) => {
             if (data?.status === 'available') updateCalled = true;
           }),
