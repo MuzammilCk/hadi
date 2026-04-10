@@ -117,6 +117,10 @@ export class Phase8OpsInit1711800000000 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
+      ALTER TABLE "resolution_events" ADD COLUMN IF NOT EXISTS "processed" boolean NOT NULL DEFAULT false
+    `);
+
+    await queryRunner.query(`
       CREATE INDEX IF NOT EXISTS "IDX_resolution_events_type_processed"
         ON "resolution_events" ("resolution_type", "processed")
         WHERE "processed" = false
