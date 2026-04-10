@@ -10,12 +10,15 @@ import { LedgerModule } from '../ledger/ledger.module';
 import { UserModule } from '../user/user.module';
 import { AuthModule } from '../auth/auth.module';
 
+import { PayoutHold } from '../trust/holds/entities/payout-hold.entity';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       PayoutRequest,
       PayoutBatch,
       QualificationState,
+      PayoutHold,
     ]),
     UserModule,    // exports TypeOrmModule → provides User repository
     LedgerModule,  // provides LedgerService and WalletService

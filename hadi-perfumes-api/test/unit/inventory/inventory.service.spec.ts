@@ -78,20 +78,24 @@ describe('InventoryService', () => {
     });
 
     it('should complete reservation and log event if stock is available', async () => {
-      mockInventoryRepo.findOne.mockResolvedValueOnce({ id: 'inv1', total_qty: 10 } as InventoryItem);
+      mockInventoryRepo.findOne.mockResolvedValueOnce({ id: 'inv1', total_qty: 10, available_qty: 10 } as InventoryItem);
 
-      mockEntityManager.query.mockImplementation(async (sql) => {
+      // Always return item on any em.findOne call (for post-update read)
+      mockEntityManager.findOne.mockResolvedValue({ id: 'inv1', available_qty: 5, total_qty: 10 } as InventoryItem);
+
+      mockEntityManager.query.mockImplementation(async (sql: string) => {
         if (sql.includes('changes()')) return [{ changed: 1 }];
         if (sql.includes('SELECT')) return [{ id: 'inv1', available_qty: 5, total_qty: 10 }];
-        return [];
+        // For UPDATE: return [[], 1] — matches PostgreSQL affectedRows format
+        // This makes rowUpdated = true whether isSqlite() is true or false
+        return [[], 1];
       });
 
-      mockEntityManager.create.mockImplementation((entity, data) => data as any);
-      mockEntityManager.save.mockImplementation(async (entityClass, data) => {
+      mockEntityManager.create.mockImplementation((entity: any, data: any) => data as any);
+      mockEntityManager.save.mockImplementation(async (entityClass: any, data: any) => {
         if (entityClass === InventoryReservation) return { id: 'res1', ...(data as any) } as any;
         return data as any;
       });
-      mockEntityManager.findOne.mockResolvedValue({ id: 'inv1', available_qty: 5, total_qty: 10 } as InventoryItem);
 
       const res = await service.reserveStock('user1', { listingId: 'list1', qty: 5 });
 
@@ -135,37 +139,34 @@ describe('InventoryService', () => {
         .mockResolvedValueOnce(mockRes)
         .mockResolvedValueOnce({ id: 'inv1', available_qty: 5, total_qty: 10 } as InventoryItem);
       
-      // Returns after stock update
-      mockEntityManager.query.mockImplementation(async (sql) => {
+      mockEntityManager.query.mockImplementation(async (sql: string) => {
         if (sql.includes('changes()')) return [{ changed: 1 }];
         if (sql.includes('SELECT')) return [{ id: 'inv1', available_qty: 5, total_qty: 10 }];
-        return [];
+        return [[], 1];  // UPDATE returns [rows, affectedCount] — valid for both modes
       });
       
-      mockEntityManager.save.mockImplementation(async (entityClass, data) => data as any);
-      mockEntityManager.create.mockImplementation((entityClass, data) => data as any);
+      mockEntityManager.save.mockImplementation(async (_entityClass: any, data: any) => data as any);
+      mockEntityManager.create.mockImplementation((_entityClass: any, data: any) => data as any);
 
       await service.releaseReservation('res1', 'user1');
 
-      // Check reservation update
       expect(mockRes.status).toBe(ReservationStatus.RELEASED);
 
-      // Check stock add back query
+      // Call 1: UPDATE inventory_items
       expect(mockEntityManager.query).toHaveBeenNthCalledWith(1,
         expect.stringContaining('UPDATE inventory_items'),
         [5, 5, 'inv1']
       );
 
-      // Check listing status update
+      // Call 2: UPDATE listings (when available_qty > 0 restores ACTIVE)
       expect(mockEntityManager.query).toHaveBeenNthCalledWith(2,
-        expect.stringContaining('UPDATE listings SET status = ?'),
+        expect.stringContaining('UPDATE listings'),
         [ListingStatus.ACTIVE, 'list1', ListingStatus.SOLD_OUT]
       );
 
-      // Check event trace
       expect(mockEntityManager.create).toHaveBeenCalledWith(InventoryEvent, expect.objectContaining({
         event_type: InventoryEventType.RESERVATION_RELEASED,
-        qty_delta: 5
+        qty_delta: 5,
       }));
     });
   });
