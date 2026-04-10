@@ -12,4 +12,12 @@ export class SignupDto {
   @IsOptional()
   @IsString()
   referral_code?: string;
+
+  @IsOptional()
+  @IsString()
+  attempt_id?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
 }
