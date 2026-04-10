@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 
 export class CommissionAlreadyCalculatedException extends ConflictException {
   constructor(idempotencyKey: string) {
@@ -6,11 +10,17 @@ export class CommissionAlreadyCalculatedException extends ConflictException {
   }
 }
 export class NoActivePolicyException extends UnprocessableEntityException {
-  constructor() { super('No active compensation policy version found'); }
+  constructor() {
+    super('No active compensation policy version found');
+  }
 }
 export class BeneficiaryNotQualifiedException extends UnprocessableEntityException {
-  constructor(userId: string) { super(`User ${userId} is not qualified to receive commission`); }
+  constructor(userId: string) {
+    super(`User ${userId} is not qualified to receive commission`);
+  }
 }
 export class SelfPurchaseCommissionException extends BadRequestException {
-  constructor() { super('Commission cannot be paid to the order buyer'); }
+  constructor() {
+    super('Commission cannot be paid to the order buyer');
+  }
 }

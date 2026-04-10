@@ -86,43 +86,56 @@ describe('Order E2E', () => {
 
     // Create test users
     const userRepo = dataSource.getRepository(User);
-    testUser = await userRepo.save(userRepo.create({
-      phone: '+919000000001',
-      status: 'active',
-    }));
-    testUser2 = await userRepo.save(userRepo.create({
-      phone: '+919000000002',
-      status: 'active',
-    }));
+    testUser = await userRepo.save(
+      userRepo.create({
+        phone: '+919000000001',
+        status: 'active',
+      }),
+    );
+    testUser2 = await userRepo.save(
+      userRepo.create({
+        phone: '+919000000002',
+        status: 'active',
+      }),
+    );
 
     buyerToken = jwtService.sign({ sub: testUser.id, phone: testUser.phone });
-    buyerToken2 = jwtService.sign({ sub: testUser2.id, phone: testUser2.phone });
+    buyerToken2 = jwtService.sign({
+      sub: testUser2.id,
+      phone: testUser2.phone,
+    });
 
     // Create admin user for seller_id FK
-    await userRepo.save(userRepo.create({
-      id: process.env.ADMIN_ACTOR_ID!,
-      phone: '+910000000000',
-      status: 'active',
-    }));
+    await userRepo.save(
+      userRepo.create({
+        id: process.env.ADMIN_ACTOR_ID,
+        phone: '+910000000000',
+        status: 'active',
+      }),
+    );
 
     // Create test listing + inventory
     const listingRepo = dataSource.getRepository(Listing);
-    testListing = await listingRepo.save(listingRepo.create({
-      seller_id: process.env.ADMIN_ACTOR_ID!,
-      title: 'E2E Test Perfume',
-      sku: 'E2E-PERF-001',
-      price: 350.00,
-      quantity: 20,
-      condition: 'new',
-      status: 'active',
-    }));
+    testListing = await listingRepo.save(
+      listingRepo.create({
+        seller_id: process.env.ADMIN_ACTOR_ID,
+        title: 'E2E Test Perfume',
+        sku: 'E2E-PERF-001',
+        price: 350.0,
+        quantity: 20,
+        condition: 'new',
+        status: 'active',
+      }),
+    );
 
     const inventoryRepo = dataSource.getRepository(InventoryItem);
-    await inventoryRepo.save(inventoryRepo.create({
-      listing_id: testListing.id,
-      total_qty: 20,
-      available_qty: 20,
-    }));
+    await inventoryRepo.save(
+      inventoryRepo.create({
+        listing_id: testListing.id,
+        total_qty: 20,
+        available_qty: 20,
+      }),
+    );
   }, 30000);
 
   afterAll(async () => {
@@ -190,8 +203,7 @@ describe('Order E2E', () => {
   });
 
   it('4. GET /orders without JWT → 401', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/orders');
+    const res = await request(app.getHttpServer()).get('/orders');
 
     expect(res.status).toBe(401);
   });

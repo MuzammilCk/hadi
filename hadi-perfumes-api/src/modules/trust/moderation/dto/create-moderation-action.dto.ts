@@ -1,5 +1,17 @@
-import { IsEnum, IsUUID, IsString, IsOptional, IsDateString, MinLength, MaxLength, Length } from 'class-validator';
-import { ModerationTargetType, ModerationActionType } from '../entities/moderation-action.entity';
+import {
+  IsEnum,
+  IsUUID,
+  IsString,
+  IsOptional,
+  IsDateString,
+  MinLength,
+  MaxLength,
+  Length,
+} from 'class-validator';
+import {
+  ModerationTargetType,
+  ModerationActionType,
+} from '../entities/moderation-action.entity';
 
 export class CreateModerationActionDto {
   @IsEnum(ModerationTargetType)

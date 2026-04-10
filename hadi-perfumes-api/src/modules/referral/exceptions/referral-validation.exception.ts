@@ -14,7 +14,10 @@ export enum ReferralErrorCode {
 }
 
 export class ReferralValidationException extends HttpException {
-  constructor(public readonly code: ReferralErrorCode, message: string) {
+  constructor(
+    public readonly code: ReferralErrorCode,
+    message: string,
+  ) {
     super({ code, message }, HttpStatus.BAD_REQUEST);
   }
 }

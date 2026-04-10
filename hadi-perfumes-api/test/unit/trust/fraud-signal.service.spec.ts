@@ -2,7 +2,11 @@ jest.setTimeout(30000);
 
 import { v4 as uuidv4 } from 'uuid';
 import { FraudSignalService } from '../../../src/modules/trust/fraud/services/fraud-signal.service';
-import { FraudSignalType, FraudSignalSeverity, FraudSignalStatus } from '../../../src/modules/trust/fraud/entities/fraud-signal.entity';
+import {
+  FraudSignalType,
+  FraudSignalSeverity,
+  FraudSignalStatus,
+} from '../../../src/modules/trust/fraud/entities/fraud-signal.entity';
 
 describe('FraudSignalService', () => {
   let service: FraudSignalService;
@@ -129,8 +133,9 @@ describe('FraudSignalService', () => {
     };
     buildService();
 
-    await expect(service.reviewSignal(uuidv4(), uuidv4(), 'actioned'))
-      .rejects.toThrow('Fraud signal');
+    await expect(
+      service.reviewSignal(uuidv4(), uuidv4(), 'actioned'),
+    ).rejects.toThrow('Fraud signal');
   });
 
   it('getSignal: throws if not found', async () => {

@@ -108,7 +108,12 @@ export class OrderService {
       if (!freshOrder) throw new OrderNotFoundException(orderId);
 
       // Check cancellability on the transactionally-consistent read
-      if (!this.stateMachine.canTransition(freshOrder.status, OrderStatus.CANCELLED)) {
+      if (
+        !this.stateMachine.canTransition(
+          freshOrder.status,
+          OrderStatus.CANCELLED,
+        )
+      ) {
         throw new OrderNotCancellableException(freshOrder.status);
       }
 
@@ -133,8 +138,14 @@ export class OrderService {
       });
       for (const item of items) {
         if (item.inventory_reservation_id) {
+          // Fix H2: use em-aware release so it's atomic with the order cancellation
           await this.inventoryService
-            .releaseReservation(item.inventory_reservation_id, buyerId)
+            .releaseReservationWithEm(
+              item.inventory_reservation_id,
+              buyerId,
+              false,
+              em,
+            )
             .catch((err) => {
               this.logger.warn(
                 `Failed to release reservation ${item.inventory_reservation_id}: ${err.message}`,
@@ -155,9 +166,7 @@ export class OrderService {
     const page = query.page || 1;
     const limit = query.limit || 20;
 
-    const qb = this.orderRepo
-      .createQueryBuilder('order')
-      .where('1=1');
+    const qb = this.orderRepo.createQueryBuilder('order').where('1=1');
 
     if (query.status) {
       qb.andWhere('order.status = :status', { status: query.status });

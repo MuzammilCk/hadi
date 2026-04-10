@@ -1,13 +1,26 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { InjectRepository, InjectEntityManager } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { OtpService } from './otp.service';
-import { OnboardingAttempt, OnboardingStage } from '../entities/onboarding-attempt.entity';
+import {
+  OnboardingAttempt,
+  OnboardingStage,
+} from '../entities/onboarding-attempt.entity';
 import { User, UserStatus, KycStatus } from '../../user/entities/user.entity';
 import { SponsorshipLink } from '../../referral/entities/sponsorship-link.entity';
-import { ReferralCode, ReferralCodeStatus } from '../../referral/entities/referral-code.entity';
+import {
+  ReferralCode,
+  ReferralCodeStatus,
+} from '../../referral/entities/referral-code.entity';
 import { OnboardingAuditLog } from '../entities/onboarding-audit-log.entity';
 import { ReferralValidationService } from '../../referral/services/referral-validation.service';
 import { JwtService } from '@nestjs/jwt';
@@ -50,15 +63,22 @@ export class SignupFlowService {
       throw new BadRequestException('Invalid phone format. Must be E.164');
     }
 
-    const existingUser = await this.userRepo.findOne({ where: { phone, status: UserStatus.ACTIVE } });
+    const existingUser = await this.userRepo.findOne({
+      where: { phone, status: UserStatus.ACTIVE },
+    });
     if (existingUser) {
-      throw new ConflictException('Phone number is already associated with an active user');
+      throw new ConflictException(
+        'Phone number is already associated with an active user',
+      );
     }
 
     await this.otpService.sendOtp(phone);
-    
+
     // Invalidate earlier attempts for this phone
-    await this.attemptRepo.update({ phone, stage: OnboardingStage.OTP_SENT }, { stage: OnboardingStage.FAILED, failure_reason: 'Re-sent OTP' });
+    await this.attemptRepo.update(
+      { phone, stage: OnboardingStage.OTP_SENT },
+      { stage: OnboardingStage.FAILED, failure_reason: 'Re-sent OTP' },
+    );
 
     const attempt = this.attemptRepo.create({
       phone,
@@ -66,7 +86,7 @@ export class SignupFlowService {
       device_hash: deviceHash,
       stage: OnboardingStage.OTP_SENT,
     });
-    
+
     await this.attemptRepo.save(attempt);
     return { message: 'OTP sent' };
   }
@@ -78,7 +98,9 @@ export class SignupFlowService {
     });
 
     if (!attempt) {
-      throw new BadRequestException('No pending OTP request found for this phone');
+      throw new BadRequestException(
+        'No pending OTP request found for this phone',
+      );
     }
 
     const isValid = await this.otpService.verifyOtp(phone, otp);
@@ -87,7 +109,10 @@ export class SignupFlowService {
       // Parse current in-memory failure count from failure_reason field
       // Format: 'Invalid OTP:N' where N is the number of failures so far
       let failCount = 0;
-      if (attempt.failure_reason && attempt.failure_reason.startsWith('Invalid OTP:')) {
+      if (
+        attempt.failure_reason &&
+        attempt.failure_reason.startsWith('Invalid OTP:')
+      ) {
         failCount = parseInt(attempt.failure_reason.split(':')[1], 10) || 0;
       }
       failCount++;
@@ -97,7 +122,9 @@ export class SignupFlowService {
         attempt.stage = OnboardingStage.FAILED;
         attempt.failure_reason = 'Too many failed OTP attempts';
         await this.attemptRepo.save(attempt);
-        throw new UnauthorizedException('Too many failed OTP attempts. Please request a new OTP.');
+        throw new UnauthorizedException(
+          'Too many failed OTP attempts. Please request a new OTP.',
+        );
       }
 
       // Store updated failure count in failure_reason
@@ -127,7 +154,9 @@ export class SignupFlowService {
     deviceHash?: string,
   ) {
     return this.em.transaction(async (txEm) => {
-      const existingUser = await txEm.findOne(User, { where: { phone, status: UserStatus.ACTIVE } });
+      const existingUser = await txEm.findOne(User, {
+        where: { phone, status: UserStatus.ACTIVE },
+      });
       if (existingUser) {
         throw new ConflictException('User already active');
       }
@@ -142,7 +171,10 @@ export class SignupFlowService {
         password_hash: passwordHash,
         full_name: fullName,
         status: process.env.NODE_ENV === 'test' ? 'active' : UserStatus.ACTIVE,
-        kyc_status: process.env.NODE_ENV === 'test' ? 'not_required' : KycStatus.NOT_REQUIRED,
+        kyc_status:
+          process.env.NODE_ENV === 'test'
+            ? 'not_required'
+            : KycStatus.NOT_REQUIRED,
         ip_at_signup: ipAddress,
         device_hash: deviceHash,
         onboarding_completed_at: new Date(),
@@ -156,13 +188,14 @@ export class SignupFlowService {
 
       if (referralCodeStr) {
         try {
-          const referralResult = await this.referralValidationService.validateAndRedeem(
-            referralCodeStr,
-            newUserId,
-            ipAddress,
-            deviceHash,
-            txEm,
-          );
+          const referralResult =
+            await this.referralValidationService.validateAndRedeem(
+              referralCodeStr,
+              newUserId,
+              ipAddress,
+              deviceHash,
+              txEm,
+            );
           sponsorId = referralResult.sponsorId;
           uplinePath = referralResult.uplinePath;
           referralCode = referralResult.referralCode;
@@ -171,7 +204,9 @@ export class SignupFlowService {
           user.sponsor_id = sponsorId;
           await txEm.save(User, user);
         } catch (e) {
-          throw new BadRequestException(e.message || 'Referral validation failed');
+          throw new BadRequestException(
+            e.message || 'Referral validation failed',
+          );
         }
       }
 
@@ -181,7 +216,10 @@ export class SignupFlowService {
           user_id: user.id,
           sponsor_id: sponsorId,
           referral_code_id: referralCode.id,
-          upline_path: process.env.NODE_ENV === 'test' ? JSON.stringify(uplinePath) as any : uplinePath,
+          upline_path:
+            process.env.NODE_ENV === 'test'
+              ? (JSON.stringify(uplinePath) as any)
+              : uplinePath,
         });
         await txEm.save(SponsorshipLink, link);
       }
@@ -190,8 +228,13 @@ export class SignupFlowService {
       let newCodeStr: string | null = null;
       for (let attempt = 0; attempt < 10; attempt++) {
         const candidate = this.generateReferralCode();
-        const exists = await txEm.findOne(ReferralCode, { where: { code: candidate } });
-        if (!exists) { newCodeStr = candidate; break; }
+        const exists = await txEm.findOne(ReferralCode, {
+          where: { code: candidate },
+        });
+        if (!exists) {
+          newCodeStr = candidate;
+          break;
+        }
       }
       if (!newCodeStr) {
         throw new InternalServerErrorException(
@@ -201,7 +244,10 @@ export class SignupFlowService {
       const newUserCode = txEm.create(ReferralCode, {
         code: newCodeStr,
         owner_id: user.id,
-        status: process.env.NODE_ENV === 'test' ? 'active' as any : ReferralCodeStatus.ACTIVE,
+        status:
+          process.env.NODE_ENV === 'test'
+            ? ('active' as any)
+            : ReferralCodeStatus.ACTIVE,
       });
       await txEm.save(ReferralCode, newUserCode);
 
@@ -211,16 +257,22 @@ export class SignupFlowService {
         action: 'user_signup',
         target_type: 'user',
         target_id: user.id,
-        metadata: process.env.NODE_ENV === 'test' 
-          ? JSON.stringify({ sponsor_id: sponsorId, referral_code: referralCodeStr }) as any 
-          : { sponsor_id: sponsorId, referral_code: referralCodeStr },
+        metadata:
+          process.env.NODE_ENV === 'test'
+            ? (JSON.stringify({
+                sponsor_id: sponsorId,
+                referral_code: referralCodeStr,
+              }) as any)
+            : { sponsor_id: sponsorId, referral_code: referralCodeStr },
         ip_address: ipAddress,
       });
       await txEm.save(OnboardingAuditLog, auditLog);
 
       // 4. Update Onboarding Attempt
       if (attemptId) {
-        const attempt = await txEm.findOne(OnboardingAttempt, { where: { id: attemptId } });
+        const attempt = await txEm.findOne(OnboardingAttempt, {
+          where: { id: attemptId },
+        });
         if (attempt) {
           attempt.stage = OnboardingStage.COMPLETED;
           await txEm.save(OnboardingAttempt, attempt);
@@ -228,8 +280,11 @@ export class SignupFlowService {
       }
 
       // 5. Issue Tokens
-      const access_token = this.jwtService.sign({ sub: user.id, role: 'buyer' });
-      
+      const access_token = this.jwtService.sign({
+        sub: user.id,
+        role: 'buyer',
+      });
+
       const refreshTokenValue = uuidv4();
       const tokenHash = this.hashToken(refreshTokenValue);
       const expiresAt = new Date();
@@ -273,7 +328,10 @@ export class SignupFlowService {
     await this.tokenRepo.save(rt);
 
     // Issue new access token
-    const access_token = this.jwtService.sign({ sub: rt.user_id, role: 'buyer' });
+    const access_token = this.jwtService.sign({
+      sub: rt.user_id,
+      role: 'buyer',
+    });
 
     // Issue new refresh token
     const newRefreshValue = uuidv4();

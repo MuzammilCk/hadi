@@ -2,8 +2,14 @@ jest.setTimeout(30000);
 
 import { v4 as uuidv4 } from 'uuid';
 import { CommissionReleaseJob } from '../../../src/jobs/commission-release.job';
-import { CommissionEvent, CommissionEventStatus } from '../../../src/modules/commission/entities/commission-event.entity';
-import { LedgerEntryType, LedgerEntryStatus } from '../../../src/modules/ledger/entities/ledger-entry.entity';
+import {
+  CommissionEvent,
+  CommissionEventStatus,
+} from '../../../src/modules/commission/entities/commission-event.entity';
+import {
+  LedgerEntryType,
+  LedgerEntryStatus,
+} from '../../../src/modules/ledger/entities/ledger-entry.entity';
 
 describe('CommissionReleaseJob', () => {
   let job: CommissionReleaseJob;
@@ -116,9 +122,11 @@ describe('CommissionReleaseJob', () => {
             if (entity === CommissionEvent) return pastEvent;
             return null; // CommissionHold or any other entity → no hold
           }),
-          update: jest.fn().mockImplementation(async (Entity: any, crit: any, data: any) => {
-            if (data?.status === 'available') updateCalled = true;
-          }),
+          update: jest
+            .fn()
+            .mockImplementation(async (Entity: any, crit: any, data: any) => {
+              if (data?.status === 'available') updateCalled = true;
+            }),
         };
         return cb(em);
       }),
@@ -152,7 +160,9 @@ describe('CommissionReleaseJob', () => {
     mockDataSource = {
       transaction: jest.fn().mockImplementation(async (cb: any) => {
         const em = {
-          findOne: jest.fn().mockResolvedValue({ ...pastEvent, status: 'available' }), // already released
+          findOne: jest
+            .fn()
+            .mockResolvedValue({ ...pastEvent, status: 'available' }), // already released
           update: jest.fn(),
         };
         return cb(em);

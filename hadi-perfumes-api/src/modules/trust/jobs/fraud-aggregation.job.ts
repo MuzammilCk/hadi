@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { FraudSignal, FraudSignalSeverity } from '../fraud/entities/fraud-signal.entity';
+import {
+  FraudSignal,
+  FraudSignalSeverity,
+} from '../fraud/entities/fraud-signal.entity';
 import { RiskAssessment } from '../fraud/entities/risk-assessment.entity';
 import { HoldService } from '../holds/services/hold.service';
 import { HoldReasonType } from '../holds/entities/payout-hold.entity';
@@ -26,10 +29,22 @@ export class FraudAggregationJob {
 
   async run(): Promise<void> {
     const severityWeights: Record<string, number> = {
-      [FraudSignalSeverity.LOW]: parseInt(process.env.RISK_WEIGHT_LOW || '5', 10),
-      [FraudSignalSeverity.MEDIUM]: parseInt(process.env.RISK_WEIGHT_MEDIUM || '15', 10),
-      [FraudSignalSeverity.HIGH]: parseInt(process.env.RISK_WEIGHT_HIGH || '30', 10),
-      [FraudSignalSeverity.CRITICAL]: parseInt(process.env.RISK_WEIGHT_CRITICAL || '50', 10),
+      [FraudSignalSeverity.LOW]: parseInt(
+        process.env.RISK_WEIGHT_LOW || '5',
+        10,
+      ),
+      [FraudSignalSeverity.MEDIUM]: parseInt(
+        process.env.RISK_WEIGHT_MEDIUM || '15',
+        10,
+      ),
+      [FraudSignalSeverity.HIGH]: parseInt(
+        process.env.RISK_WEIGHT_HIGH || '30',
+        10,
+      ),
+      [FraudSignalSeverity.CRITICAL]: parseInt(
+        process.env.RISK_WEIGHT_CRITICAL || '50',
+        10,
+      ),
     };
 
     // Find users with signals that need recalculation
@@ -57,12 +72,16 @@ export class FraudAggregationJob {
           else if (riskScore >= 60) riskLevel = 'high';
           else if (riskScore >= 30) riskLevel = 'medium';
 
-          await em.update(RiskAssessment, { id: assessment.id }, {
-            risk_score: riskScore,
-            risk_level: riskLevel,
-            signal_count: totalCount,
-            calculated_at: new Date(),
-          });
+          await em.update(
+            RiskAssessment,
+            { id: assessment.id },
+            {
+              risk_score: riskScore,
+              risk_level: riskLevel,
+              signal_count: totalCount,
+              calculated_at: new Date(),
+            },
+          );
 
           // If risk_level became critical and no active hold exists
           if (riskLevel === 'critical') {
@@ -74,18 +93,24 @@ export class FraudAggregationJob {
               },
             });
             if (!existingHold) {
-              await this.holdService.placePayoutHold({
-                userId: assessment.user_id,
-                reasonType: HoldReasonType.FRAUD_REVIEW,
-                reasonRefId: assessment.id,
-                reasonRefType: 'risk_assessment',
-                idempotencyKey: `fraud-aggregation-hold:${assessment.user_id}:${Date.now()}`,
-              }, em);
+              await this.holdService.placePayoutHold(
+                {
+                  userId: assessment.user_id,
+                  reasonType: HoldReasonType.FRAUD_REVIEW,
+                  reasonRefId: assessment.id,
+                  reasonRefType: 'risk_assessment',
+                  idempotencyKey: `fraud-aggregation-hold:${assessment.user_id}`,
+                },
+                em,
+              );
             }
           }
         });
       } catch (err) {
-        this.logger.error(`Failed to recalculate risk for user ${assessment.user_id}:`, err);
+        this.logger.error(
+          `Failed to recalculate risk for user ${assessment.user_id}:`,
+          err,
+        );
       }
     }
 

@@ -180,11 +180,21 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
     `);
 
     // Indexes
-    await queryRunner.query(`CREATE INDEX "IDX_orders_buyer_id" ON "orders" ("buyer_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_orders_status" ON "orders" ("status")`);
-    await queryRunner.query(`CREATE INDEX "IDX_order_items_order_id" ON "order_items" ("order_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_payments_order_id" ON "payments" ("order_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_money_event_outbox_published" ON "money_event_outbox" ("published")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_orders_buyer_id" ON "orders" ("buyer_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_orders_status" ON "orders" ("status")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_order_items_order_id" ON "order_items" ("order_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_payments_order_id" ON "payments" ("order_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_money_event_outbox_published" ON "money_event_outbox" ("published")`,
+    );
 
     // Add FK constraint to inventory_reservations
     await queryRunner.query(`
@@ -201,7 +211,9 @@ export class Phase5OrdersInit1711500000000 implements MigrationInterface {
       ALTER TABLE "inventory_reservations"
         DROP CONSTRAINT IF EXISTS "FK_inventory_reservations_order"
     `);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_money_event_outbox_published"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_money_event_outbox_published"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_payments_order_id"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_order_items_order_id"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_orders_status"`);

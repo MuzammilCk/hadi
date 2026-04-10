@@ -1,6 +1,17 @@
-import { IsOptional, IsEnum, IsUUID, IsNumber, Min, IsString } from 'class-validator';
+import {
+  IsOptional,
+  IsEnum,
+  IsUUID,
+  IsNumber,
+  Min,
+  IsString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { ListingCondition, AuthenticityStatus, ListingStatus } from '../entities/listing.entity';
+import {
+  ListingCondition,
+  AuthenticityStatus,
+  ListingStatus,
+} from '../entities/listing.entity';
 
 export class ListingSearchDto {
   @IsEnum(ListingStatus)

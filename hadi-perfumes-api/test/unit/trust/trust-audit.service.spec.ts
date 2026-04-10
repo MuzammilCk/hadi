@@ -50,13 +50,16 @@ describe('TrustAuditService', () => {
       create: jest.fn().mockImplementation((_: any, d: any) => d),
     };
 
-    await service.log({
-      actorId: null,
-      actorType: 'system',
-      action: 'system.heartbeat',
-      entityType: 'system',
-      entityId: uuidv4(),
-    }, customEm as any);
+    await service.log(
+      {
+        actorId: null,
+        actorType: 'system',
+        action: 'system.heartbeat',
+        entityType: 'system',
+        entityId: uuidv4(),
+      },
+      customEm as any,
+    );
 
     // Should have used the custom EM, not the default repo manager
     expect(emSaves).toHaveLength(1);

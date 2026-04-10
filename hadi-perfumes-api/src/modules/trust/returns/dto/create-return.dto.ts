@@ -1,4 +1,15 @@
-import { IsUUID, IsEnum, IsString, IsOptional, MaxLength, IsArray, ValidateNested, IsInt, Min, Length } from 'class-validator';
+import {
+  IsUUID,
+  IsEnum,
+  IsString,
+  IsOptional,
+  MaxLength,
+  IsArray,
+  ValidateNested,
+  IsInt,
+  Min,
+  Length,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ReturnReasonCode } from '../entities/return-request.entity';
 

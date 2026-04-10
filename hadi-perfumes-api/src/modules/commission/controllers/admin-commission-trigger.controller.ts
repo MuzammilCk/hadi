@@ -1,4 +1,11 @@
-import { Controller, Post, Param, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Param,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
 import { AdminGuard } from '../../admin/guards/admin.guard';
 import { CommissionCalculationService } from '../services/commission-calculation.service';
 import { CommissionReleaseJob } from '../../../jobs/commission-release.job';
@@ -31,4 +38,3 @@ export class AdminCommissionTriggerController {
     return this.clawbackJob.clawbackForOrder(orderId);
   }
 }
-

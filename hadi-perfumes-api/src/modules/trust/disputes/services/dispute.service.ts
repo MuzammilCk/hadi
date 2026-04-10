@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { Dispute, DisputeStatus, DisputeResolution } from '../entities/dispute.entity';
+import {
+  Dispute,
+  DisputeStatus,
+  DisputeResolution,
+} from '../entities/dispute.entity';
 import { DisputeEvidence } from '../entities/dispute-evidence.entity';
 import { DisputeStatusHistory } from '../entities/dispute-status-history.entity';
 import { ResolutionEvent } from '../../holds/entities/resolution-event.entity';
@@ -56,7 +60,10 @@ export class DisputeService {
       // Verify order exists and belongs to buyer
       const order = await em.findOne(Order, { where: { id: dto.order_id } });
       if (!order) throw new DisputeNotResolvableException('order not found');
-      if (order.buyer_id !== buyerId) throw new DisputeNotResolvableException('order does not belong to this buyer');
+      if (order.buyer_id !== buyerId)
+        throw new DisputeNotResolvableException(
+          'order does not belong to this buyer',
+        );
 
       // Check no open/under_review dispute for same order
       const openDispute = await em.findOne(Dispute, {
@@ -82,32 +89,41 @@ export class DisputeService {
       );
 
       // Write status history
-      await em.save(DisputeStatusHistory, em.create(DisputeStatusHistory, {
-        dispute_id: dispute.id,
-        from_status: null,
-        to_status: DisputeStatus.OPEN,
-        actor_id: buyerId,
-        actor_type: 'customer',
-      }));
+      await em.save(
+        DisputeStatusHistory,
+        em.create(DisputeStatusHistory, {
+          dispute_id: dispute.id,
+          from_status: null,
+          to_status: DisputeStatus.OPEN,
+          actor_id: buyerId,
+          actor_type: 'customer',
+        }),
+      );
 
       // Place payout hold
-      await this.holdService.placePayoutHold({
-        userId: order.buyer_id,
-        reasonType: HoldReasonType.DISPUTE_OPEN,
-        reasonRefId: dispute.id,
-        reasonRefType: 'dispute',
-        idempotencyKey: `payout-hold:dispute:${dispute.id}`,
-      }, em);
+      await this.holdService.placePayoutHold(
+        {
+          userId: order.buyer_id,
+          reasonType: HoldReasonType.DISPUTE_OPEN,
+          reasonRefId: dispute.id,
+          reasonRefType: 'dispute',
+          idempotencyKey: `payout-hold:dispute:${dispute.id}`,
+        },
+        em,
+      );
 
       // Audit log
-      await this.auditService.log({
-        actorId: buyerId,
-        actorType: 'customer',
-        action: 'dispute.opened',
-        entityType: 'dispute',
-        entityId: dispute.id,
-        metadata: { order_id: dto.order_id, reason_code: dto.reason_code },
-      }, em);
+      await this.auditService.log(
+        {
+          actorId: buyerId,
+          actorType: 'customer',
+          action: 'dispute.opened',
+          entityType: 'dispute',
+          entityId: dispute.id,
+          metadata: { order_id: dto.order_id, reason_code: dto.reason_code },
+        },
+        em,
+      );
 
       return dispute;
     });
@@ -118,9 +134,15 @@ export class DisputeService {
     uploaderId: string,
     dto: SubmitEvidenceDto,
   ): Promise<DisputeEvidence> {
-    const dispute = await this.disputeRepo.findOne({ where: { id: disputeId } });
+    const dispute = await this.disputeRepo.findOne({
+      where: { id: disputeId },
+    });
     if (!dispute) throw new DisputeNotFoundException(disputeId);
-    if ([DisputeStatus.CLOSED, DisputeStatus.RESOLVED].includes(dispute.status as DisputeStatus)) {
+    if (
+      [DisputeStatus.CLOSED, DisputeStatus.RESOLVED].includes(
+        dispute.status as DisputeStatus,
+      )
+    ) {
       throw new DisputeAlreadyClosedException();
     }
 
@@ -155,7 +177,13 @@ export class DisputeService {
       const dispute = await em.findOne(Dispute, { where: { id: disputeId } });
       if (!dispute) throw new DisputeNotFoundException(disputeId);
 
-      if (![DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW, DisputeStatus.ESCALATED].includes(dispute.status as DisputeStatus)) {
+      if (
+        ![
+          DisputeStatus.OPEN,
+          DisputeStatus.UNDER_REVIEW,
+          DisputeStatus.ESCALATED,
+        ].includes(dispute.status as DisputeStatus)
+      ) {
         throw new DisputeNotResolvableException(dispute.status);
       }
 
@@ -167,38 +195,51 @@ export class DisputeService {
       ];
       const shouldClawback = clawbackResolutions.includes(dto.resolution);
 
-      await em.update(Dispute, { id: disputeId }, {
-        status: DisputeStatus.RESOLVED,
-        resolution: dto.resolution,
-        resolved_by: adminActorId,
-        resolved_at: new Date(),
-        resolution_note: dto.note ?? null,
-        clawback_triggered: shouldClawback,
-      });
+      await em.update(
+        Dispute,
+        { id: disputeId },
+        {
+          status: DisputeStatus.RESOLVED,
+          resolution: dto.resolution,
+          resolved_by: adminActorId,
+          resolved_at: new Date(),
+          resolution_note: dto.note ?? null,
+          clawback_triggered: shouldClawback,
+        },
+      );
 
-      await em.save(DisputeStatusHistory, em.create(DisputeStatusHistory, {
-        dispute_id: disputeId,
-        from_status: fromStatus,
-        to_status: DisputeStatus.RESOLVED,
-        actor_id: adminActorId,
-        actor_type: 'admin',
-        note: dto.note ?? null,
-      }));
+      await em.save(
+        DisputeStatusHistory,
+        em.create(DisputeStatusHistory, {
+          dispute_id: disputeId,
+          from_status: fromStatus,
+          to_status: DisputeStatus.RESOLVED,
+          actor_id: adminActorId,
+          actor_type: 'admin',
+          note: dto.note ?? null,
+        }),
+      );
 
       // Write resolution event if clawback needed
       if (shouldClawback) {
         try {
-          await em.save(ResolutionEvent, em.create(ResolutionEvent, {
-            entity_type: 'dispute',
-            entity_id: disputeId,
-            resolution_type: 'clawback_triggered',
-            actor_id: adminActorId,
-            actor_type: 'admin',
-            note: `Clawback triggered for dispute ${disputeId}: ${dto.resolution}`,
-            idempotency_key: `dispute-clawback:${disputeId}`,
-          }));
+          await em.save(
+            ResolutionEvent,
+            em.create(ResolutionEvent, {
+              entity_type: 'dispute',
+              entity_id: disputeId,
+              resolution_type: 'clawback_triggered',
+              actor_id: adminActorId,
+              actor_type: 'admin',
+              note: `Clawback triggered for dispute ${disputeId}: ${dto.resolution}`,
+              idempotency_key: `dispute-clawback:${disputeId}`,
+            }),
+          );
         } catch (err: any) {
-          if (!err?.message?.includes('UQ_resolution_events_idempotency_key') && !err?.message?.includes('UNIQUE constraint')) {
+          if (
+            !err?.message?.includes('UQ_resolution_events_idempotency_key') &&
+            !err?.message?.includes('UNIQUE constraint')
+          ) {
             throw err;
           }
         }
@@ -206,18 +247,28 @@ export class DisputeService {
 
       // Release payout hold
       await this.holdService.releasePayoutHoldByRef(
-        'dispute', disputeId, adminActorId, dto.note, em,
+        'dispute',
+        disputeId,
+        adminActorId,
+        dto.note,
+        em,
       );
 
       // Audit log
-      await this.auditService.log({
-        actorId: adminActorId,
-        actorType: 'admin',
-        action: 'dispute.resolved',
-        entityType: 'dispute',
-        entityId: disputeId,
-        metadata: { resolution: dto.resolution, clawback_triggered: shouldClawback },
-      }, em);
+      await this.auditService.log(
+        {
+          actorId: adminActorId,
+          actorType: 'admin',
+          action: 'dispute.resolved',
+          entityType: 'dispute',
+          entityId: disputeId,
+          metadata: {
+            resolution: dto.resolution,
+            clawback_triggered: shouldClawback,
+          },
+        },
+        em,
+      );
 
       return (await em.findOne(Dispute, { where: { id: disputeId } }))!;
     });
@@ -232,32 +283,46 @@ export class DisputeService {
       const dispute = await em.findOne(Dispute, { where: { id: disputeId } });
       if (!dispute) throw new DisputeNotFoundException(disputeId);
 
-      if (![DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW].includes(dispute.status as DisputeStatus)) {
+      if (
+        ![DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW].includes(
+          dispute.status as DisputeStatus,
+        )
+      ) {
         throw new DisputeStatusTransitionException(dispute.status, 'escalated');
       }
 
       const fromStatus = dispute.status;
-      await em.update(Dispute, { id: disputeId }, {
-        status: DisputeStatus.ESCALATED,
-        escalated_at: new Date(),
-      });
+      await em.update(
+        Dispute,
+        { id: disputeId },
+        {
+          status: DisputeStatus.ESCALATED,
+          escalated_at: new Date(),
+        },
+      );
 
-      await em.save(DisputeStatusHistory, em.create(DisputeStatusHistory, {
-        dispute_id: disputeId,
-        from_status: fromStatus,
-        to_status: DisputeStatus.ESCALATED,
-        actor_id: adminActorId,
-        actor_type: 'admin',
-        note: note ?? null,
-      }));
+      await em.save(
+        DisputeStatusHistory,
+        em.create(DisputeStatusHistory, {
+          dispute_id: disputeId,
+          from_status: fromStatus,
+          to_status: DisputeStatus.ESCALATED,
+          actor_id: adminActorId,
+          actor_type: 'admin',
+          note: note ?? null,
+        }),
+      );
 
-      await this.auditService.log({
-        actorId: adminActorId,
-        actorType: 'admin',
-        action: 'dispute.escalated',
-        entityType: 'dispute',
-        entityId: disputeId,
-      }, em);
+      await this.auditService.log(
+        {
+          actorId: adminActorId,
+          actorType: 'admin',
+          action: 'dispute.escalated',
+          entityType: 'dispute',
+          entityId: disputeId,
+        },
+        em,
+      );
 
       return (await em.findOne(Dispute, { where: { id: disputeId } }))!;
     });
@@ -272,32 +337,46 @@ export class DisputeService {
       const dispute = await em.findOne(Dispute, { where: { id: disputeId } });
       if (!dispute) throw new DisputeNotFoundException(disputeId);
 
-      if (![DisputeStatus.RESOLVED, DisputeStatus.ESCALATED].includes(dispute.status as DisputeStatus)) {
+      if (
+        ![DisputeStatus.RESOLVED, DisputeStatus.ESCALATED].includes(
+          dispute.status as DisputeStatus,
+        )
+      ) {
         throw new DisputeStatusTransitionException(dispute.status, 'closed');
       }
 
       const fromStatus = dispute.status;
-      await em.update(Dispute, { id: disputeId }, {
-        status: DisputeStatus.CLOSED,
-        closed_at: new Date(),
-      });
+      await em.update(
+        Dispute,
+        { id: disputeId },
+        {
+          status: DisputeStatus.CLOSED,
+          closed_at: new Date(),
+        },
+      );
 
-      await em.save(DisputeStatusHistory, em.create(DisputeStatusHistory, {
-        dispute_id: disputeId,
-        from_status: fromStatus,
-        to_status: DisputeStatus.CLOSED,
-        actor_id: adminActorId,
-        actor_type: 'admin',
-        note: note ?? null,
-      }));
+      await em.save(
+        DisputeStatusHistory,
+        em.create(DisputeStatusHistory, {
+          dispute_id: disputeId,
+          from_status: fromStatus,
+          to_status: DisputeStatus.CLOSED,
+          actor_id: adminActorId,
+          actor_type: 'admin',
+          note: note ?? null,
+        }),
+      );
 
-      await this.auditService.log({
-        actorId: adminActorId,
-        actorType: 'admin',
-        action: 'dispute.closed',
-        entityType: 'dispute',
-        entityId: disputeId,
-      }, em);
+      await this.auditService.log(
+        {
+          actorId: adminActorId,
+          actorType: 'admin',
+          action: 'dispute.closed',
+          entityType: 'dispute',
+          entityId: disputeId,
+        },
+        em,
+      );
 
       return (await em.findOne(Dispute, { where: { id: disputeId } }))!;
     });
@@ -309,9 +388,11 @@ export class DisputeService {
   ): Promise<{ data: Dispute[]; total: number; page: number; limit: number }> {
     const page = query.page || 1;
     const limit = query.limit || 20;
-    const qb = this.disputeRepo.createQueryBuilder('d')
+    const qb = this.disputeRepo
+      .createQueryBuilder('d')
       .where('d.buyer_id = :buyerId', { buyerId });
-    if (query.status) qb.andWhere('d.status = :status', { status: query.status });
+    if (query.status)
+      qb.andWhere('d.status = :status', { status: query.status });
     qb.orderBy('d.created_at', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
@@ -320,7 +401,9 @@ export class DisputeService {
   }
 
   async getDispute(disputeId: string, requesterId?: string): Promise<Dispute> {
-    const dispute = await this.disputeRepo.findOne({ where: { id: disputeId } });
+    const dispute = await this.disputeRepo.findOne({
+      where: { id: disputeId },
+    });
     if (!dispute) throw new DisputeNotFoundException(disputeId);
     if (requesterId && dispute.buyer_id !== requesterId) {
       throw new DisputeNotFoundException(disputeId);
@@ -334,7 +417,8 @@ export class DisputeService {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const qb = this.disputeRepo.createQueryBuilder('d').where('1=1');
-    if (query.status) qb.andWhere('d.status = :status', { status: query.status });
+    if (query.status)
+      qb.andWhere('d.status = :status', { status: query.status });
     qb.orderBy('d.created_at', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
@@ -343,7 +427,9 @@ export class DisputeService {
   }
 
   async adminGetDispute(disputeId: string): Promise<Dispute> {
-    const dispute = await this.disputeRepo.findOne({ where: { id: disputeId } });
+    const dispute = await this.disputeRepo.findOne({
+      where: { id: disputeId },
+    });
     if (!dispute) throw new DisputeNotFoundException(disputeId);
     return dispute;
   }

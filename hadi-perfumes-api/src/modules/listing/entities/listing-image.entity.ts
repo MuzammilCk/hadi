@@ -1,4 +1,11 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { tstz } from '../../../common/utils/db-type.util';
 import { Listing } from './listing.entity';
 
@@ -10,7 +17,9 @@ export class ListingImage {
   @Column({ type: 'uuid' })
   listing_id: string;
 
-  @ManyToOne(() => Listing, listing => listing.images, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Listing, (listing) => listing.images, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'listing_id' })
   listing: Listing;
 

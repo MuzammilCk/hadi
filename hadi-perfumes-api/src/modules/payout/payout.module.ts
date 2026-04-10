@@ -20,9 +20,9 @@ import { PayoutHold } from '../trust/holds/entities/payout-hold.entity';
       QualificationState,
       PayoutHold,
     ]),
-    UserModule,    // exports TypeOrmModule → provides User repository
-    LedgerModule,  // provides LedgerService and WalletService
-    AuthModule,    // provides JwtAuthGuard
+    UserModule, // exports TypeOrmModule → provides User repository
+    LedgerModule, // provides LedgerService and WalletService
+    AuthModule, // provides JwtAuthGuard
   ],
   providers: [PayoutService],
   controllers: [PayoutController, AdminPayoutController],

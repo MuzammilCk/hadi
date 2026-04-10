@@ -87,7 +87,8 @@ export class QualificationEngineService {
       where: { user_id: userId },
     });
 
-    const stateChanged = !prevState ||
+    const stateChanged =
+      !prevState ||
       prevState.is_active !== isActive ||
       prevState.is_qualified !== isQualified;
 
@@ -130,22 +131,24 @@ export class QualificationEngineService {
         const event = manager.create(QualificationEvent, {
           user_id: userId,
           event_type: eventType,
-          previous_state: process.env.NODE_ENV === 'test'
-            ? (JSON.stringify(prevStateSnapshot) as any)
-            : prevStateSnapshot,
-          new_state: process.env.NODE_ENV === 'test'
-            ? (JSON.stringify({
-                is_active: isActive,
-                is_qualified: isQualified,
-                personal_volume: context.personalVolume,
-                downline_volume: context.downlineVolume,
-              }) as any)
-            : {
-                is_active: isActive,
-                is_qualified: isQualified,
-                personal_volume: context.personalVolume,
-                downline_volume: context.downlineVolume,
-              },
+          previous_state:
+            process.env.NODE_ENV === 'test'
+              ? (JSON.stringify(prevStateSnapshot) as any)
+              : prevStateSnapshot,
+          new_state:
+            process.env.NODE_ENV === 'test'
+              ? (JSON.stringify({
+                  is_active: isActive,
+                  is_qualified: isQualified,
+                  personal_volume: context.personalVolume,
+                  downline_volume: context.downlineVolume,
+                }) as any)
+              : {
+                  is_active: isActive,
+                  is_qualified: isQualified,
+                  personal_volume: context.personalVolume,
+                  downline_volume: context.downlineVolume,
+                },
           trigger_source: 'recalc_job',
           policy_version_id: policyVersionId,
           created_at: now,
@@ -181,7 +184,9 @@ export class QualificationEngineService {
       // Fix H7: read existing QualificationState volumes instead of hardcoding zeros.
       // Passing zeros permanently disqualifies every user any time a full recalc runs
       // after Phase 6 order data has been accumulated.
-      const existingState = await this.stateRepo.findOne({ where: { user_id: user.id } });
+      const existingState = await this.stateRepo.findOne({
+        where: { user_id: user.id },
+      });
       const context: QualificationContext = existingState
         ? {
             personalVolume: Number(existingState.personal_volume ?? 0),
@@ -193,11 +198,7 @@ export class QualificationEngineService {
       // Load previous state to determine if it changed
       const prevIsActive = existingState?.is_active ?? null;
 
-      const result = await this.evaluateUser(
-        user.id,
-        context,
-        policyVersionId,
-      );
+      const result = await this.evaluateUser(user.id, context, policyVersionId);
 
       if (prevIsActive !== result.isActive) {
         changed++;
@@ -242,9 +243,13 @@ export class QualificationEngineService {
     const event = this.eventRepo.create({
       user_id: userId,
       event_type: 'suspended',
-      new_state: process.env.NODE_ENV === 'test'
-        ? (JSON.stringify({ is_active: false, disqualified_reason: reason }) as any)
-        : { is_active: false, disqualified_reason: reason },
+      new_state:
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify({
+              is_active: false,
+              disqualified_reason: reason,
+            }) as any)
+          : { is_active: false, disqualified_reason: reason },
       trigger_source: 'admin_manual',
       actor_id: actorId,
       created_at: now,
@@ -276,9 +281,10 @@ export class QualificationEngineService {
     const event = this.eventRepo.create({
       user_id: userId,
       event_type: 'restored',
-      new_state: process.env.NODE_ENV === 'test'
-        ? (JSON.stringify({ is_active: true, is_qualified: true }) as any)
-        : { is_active: true, is_qualified: true },
+      new_state:
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify({ is_active: true, is_qualified: true }) as any)
+          : { is_active: true, is_qualified: true },
       trigger_source: 'admin_manual',
       actor_id: actorId,
       created_at: now,

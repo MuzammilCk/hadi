@@ -2,7 +2,11 @@ jest.setTimeout(30000);
 
 import { v4 as uuidv4 } from 'uuid';
 import { DisputeService } from '../../../src/modules/trust/disputes/services/dispute.service';
-import { DisputeStatus, DisputeResolution, DisputeReasonCode } from '../../../src/modules/trust/disputes/entities/dispute.entity';
+import {
+  DisputeStatus,
+  DisputeResolution,
+  DisputeReasonCode,
+} from '../../../src/modules/trust/disputes/entities/dispute.entity';
 
 describe('DisputeService', () => {
   let service: DisputeService;
@@ -38,7 +42,9 @@ describe('DisputeService', () => {
     };
     mockEvidenceRepo = {
       findOne: jest.fn(),
-      save: jest.fn().mockImplementation(async (d: any) => ({ id: uuidv4(), ...d })),
+      save: jest
+        .fn()
+        .mockImplementation(async (d: any) => ({ id: uuidv4(), ...d })),
       create: jest.fn().mockImplementation((d: any) => d),
     };
     mockStatusHistoryRepo = {};
@@ -72,11 +78,15 @@ describe('DisputeService', () => {
     mockDataSource = { transaction: jest.fn() };
     buildService();
 
-    const result = await service.openDispute(buyerId, {
-      order_id: orderId,
-      reason_code: DisputeReasonCode.ITEM_NOT_RECEIVED,
-      idempotency_key: 'dup-key',
-    }, 'dup-key');
+    const result = await service.openDispute(
+      buyerId,
+      {
+        order_id: orderId,
+        reason_code: DisputeReasonCode.ITEM_NOT_RECEIVED,
+        idempotency_key: 'dup-key',
+      },
+      'dup-key',
+    );
 
     expect(result).toBe(existing);
     expect(mockDataSource.transaction).not.toHaveBeenCalled();
@@ -95,11 +105,17 @@ describe('DisputeService', () => {
     };
     buildService();
 
-    await expect(service.openDispute(wrongBuyer, {
-      order_id: orderId,
-      reason_code: DisputeReasonCode.ITEM_NOT_RECEIVED,
-      idempotency_key: uuidv4(),
-    }, uuidv4())).rejects.toThrow('order does not belong to this buyer');
+    await expect(
+      service.openDispute(
+        wrongBuyer,
+        {
+          order_id: orderId,
+          reason_code: DisputeReasonCode.ITEM_NOT_RECEIVED,
+          idempotency_key: uuidv4(),
+        },
+        uuidv4(),
+      ),
+    ).rejects.toThrow('order does not belong to this buyer');
   });
 
   it('openDispute: rejects if duplicate open dispute exists', async () => {
@@ -107,7 +123,8 @@ describe('DisputeService', () => {
     mockDataSource = {
       transaction: jest.fn().mockImplementation(async (cb: any) => {
         const em = {
-          findOne: jest.fn()
+          findOne: jest
+            .fn()
             .mockResolvedValueOnce(makeOrder())
             .mockResolvedValueOnce(existingOpen),
           save: jest.fn(),
@@ -117,11 +134,17 @@ describe('DisputeService', () => {
     };
     buildService();
 
-    await expect(service.openDispute(buyerId, {
-      order_id: orderId,
-      reason_code: DisputeReasonCode.ITEM_NOT_RECEIVED,
-      idempotency_key: uuidv4(),
-    }, uuidv4())).rejects.toThrow('An open or under_review dispute already exists');
+    await expect(
+      service.openDispute(
+        buyerId,
+        {
+          order_id: orderId,
+          reason_code: DisputeReasonCode.ITEM_NOT_RECEIVED,
+          idempotency_key: uuidv4(),
+        },
+        uuidv4(),
+      ),
+    ).rejects.toThrow('An open or under_review dispute already exists');
   });
 
   it('resolveDispute: rejects if dispute is already closed', async () => {
@@ -134,9 +157,11 @@ describe('DisputeService', () => {
     };
     buildService();
 
-    await expect(service.resolveDispute(closedDispute.id, uuidv4(), {
-      resolution: DisputeResolution.REFUND_GRANTED,
-    })).rejects.toThrow("Dispute in status 'closed' cannot be resolved");
+    await expect(
+      service.resolveDispute(closedDispute.id, uuidv4(), {
+        resolution: DisputeResolution.REFUND_GRANTED,
+      }),
+    ).rejects.toThrow("Dispute in status 'closed' cannot be resolved");
   });
 
   it('escalateDispute: rejects if dispute is resolved', async () => {
@@ -149,8 +174,11 @@ describe('DisputeService', () => {
     };
     buildService();
 
-    await expect(service.escalateDispute(resolvedDispute.id, uuidv4()))
-      .rejects.toThrow("Cannot transition dispute from 'resolved' to 'escalated'");
+    await expect(
+      service.escalateDispute(resolvedDispute.id, uuidv4()),
+    ).rejects.toThrow(
+      "Cannot transition dispute from 'resolved' to 'escalated'",
+    );
   });
 
   it('submitEvidence: rejects if dispute is closed', async () => {
@@ -161,9 +189,11 @@ describe('DisputeService', () => {
     mockDataSource = {};
     buildService();
 
-    await expect(service.submitEvidence(uuidv4(), buyerId, {
-      file_key: 'test/file.jpg',
-    })).rejects.toThrow('Dispute is already closed');
+    await expect(
+      service.submitEvidence(uuidv4(), buyerId, {
+        file_key: 'test/file.jpg',
+      }),
+    ).rejects.toThrow('Dispute is already closed');
   });
 
   it('getDispute: throws if not found', async () => {

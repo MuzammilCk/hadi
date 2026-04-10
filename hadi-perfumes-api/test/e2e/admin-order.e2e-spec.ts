@@ -34,7 +34,10 @@ import { UserModule } from '../../src/modules/user/user.module';
 import { User } from '../../src/modules/user/entities/user.entity';
 import { Listing } from '../../src/modules/listing/entities/listing.entity';
 import { InventoryItem } from '../../src/modules/inventory/entities/inventory-item.entity';
-import { Order, OrderStatus } from '../../src/modules/order/entities/order.entity';
+import {
+  Order,
+  OrderStatus,
+} from '../../src/modules/order/entities/order.entity';
 import { OrderAuditLog } from '../../src/modules/order/entities/order-audit-log.entity';
 import { OrderStatusHistory } from '../../src/modules/order/entities/order-status-history.entity';
 
@@ -85,37 +88,45 @@ describe('Admin Order E2E', () => {
 
     // Create test user
     const userRepo = dataSource.getRepository(User);
-    testUser = await userRepo.save(userRepo.create({
-      phone: '+919000000010',
-      status: 'active',
-    }));
+    testUser = await userRepo.save(
+      userRepo.create({
+        phone: '+919000000010',
+        status: 'active',
+      }),
+    );
     buyerToken = jwtService.sign({ sub: testUser.id, phone: testUser.phone });
 
     // Create admin user for seller_id FK
-    await userRepo.save(userRepo.create({
-      id: process.env.ADMIN_ACTOR_ID!,
-      phone: '+910000000000',
-      status: 'active',
-    }));
+    await userRepo.save(
+      userRepo.create({
+        id: process.env.ADMIN_ACTOR_ID,
+        phone: '+910000000000',
+        status: 'active',
+      }),
+    );
 
     // Create test listing + inventory
     const listingRepo = dataSource.getRepository(Listing);
-    testListing = await listingRepo.save(listingRepo.create({
-      seller_id: process.env.ADMIN_ACTOR_ID!,
-      title: 'Admin Test Perfume',
-      sku: 'ADMIN-PERF-001',
-      price: 500.00,
-      quantity: 50,
-      condition: 'new',
-      status: 'active',
-    }));
+    testListing = await listingRepo.save(
+      listingRepo.create({
+        seller_id: process.env.ADMIN_ACTOR_ID,
+        title: 'Admin Test Perfume',
+        sku: 'ADMIN-PERF-001',
+        price: 500.0,
+        quantity: 50,
+        condition: 'new',
+        status: 'active',
+      }),
+    );
 
     const inventoryRepo = dataSource.getRepository(InventoryItem);
-    await inventoryRepo.save(inventoryRepo.create({
-      listing_id: testListing.id,
-      total_qty: 50,
-      available_qty: 50,
-    }));
+    await inventoryRepo.save(
+      inventoryRepo.create({
+        listing_id: testListing.id,
+        total_qty: 50,
+        available_qty: 50,
+      }),
+    );
 
     // Create a test order
     const orderRes = await request(app.getHttpServer())
@@ -125,8 +136,11 @@ describe('Admin Order E2E', () => {
       .send({
         items: [{ listing_id: testListing.id, qty: 1 }],
         shipping_address: {
-          line1: '789 Admin St', city: 'Chennai',
-          state: 'TN', postal_code: '600001', country: 'IN',
+          line1: '789 Admin St',
+          city: 'Chennai',
+          state: 'TN',
+          postal_code: '600001',
+          country: 'IN',
         },
         contact: { name: 'Admin Test', phone: '+919000000010' },
       });
@@ -138,8 +152,7 @@ describe('Admin Order E2E', () => {
   });
 
   it('1. GET /admin/orders without x-admin-token → 401', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/admin/orders');
+    const res = await request(app.getHttpServer()).get('/admin/orders');
 
     expect(res.status).toBe(401);
   });
@@ -175,8 +188,11 @@ describe('Admin Order E2E', () => {
       .send({
         items: [{ listing_id: testListing.id, qty: 1 }],
         shipping_address: {
-          line1: '100 Status St', city: 'Kolkata',
-          state: 'WB', postal_code: '700001', country: 'IN',
+          line1: '100 Status St',
+          city: 'Kolkata',
+          state: 'WB',
+          postal_code: '700001',
+          country: 'IN',
         },
         contact: { name: 'Status Test', phone: '+919000000010' },
       });
@@ -192,15 +208,19 @@ describe('Admin Order E2E', () => {
 
     // Verify audit log
     const auditRepo = dataSource.getRepository(OrderAuditLog);
-    const audits = await auditRepo.find({ where: { order_id: orderRes.body.id } });
+    const audits = await auditRepo.find({
+      where: { order_id: orderRes.body.id },
+    });
     expect(audits.length).toBeGreaterThanOrEqual(1);
     expect(audits[0].action).toBe('status_change');
     expect(audits[0].actor_type).toBe('admin');
 
     // Verify status history
     const historyRepo = dataSource.getRepository(OrderStatusHistory);
-    const history = await historyRepo.find({ where: { order_id: orderRes.body.id } });
-    const cancelledEntry = history.find(h => h.to_status === 'cancelled');
+    const history = await historyRepo.find({
+      where: { order_id: orderRes.body.id },
+    });
+    const cancelledEntry = history.find((h) => h.to_status === 'cancelled');
     expect(cancelledEntry).toBeDefined();
     expect(cancelledEntry!.actor_type).toBe('admin');
   });
@@ -224,8 +244,11 @@ describe('Admin Order E2E', () => {
       .send({
         items: [{ listing_id: testListing.id, qty: 1 }],
         shipping_address: {
-          line1: '200 Terminal St', city: 'Pune',
-          state: 'MH', postal_code: '411001', country: 'IN',
+          line1: '200 Terminal St',
+          city: 'Pune',
+          state: 'MH',
+          postal_code: '411001',
+          country: 'IN',
         },
         contact: { name: 'Terminal Test', phone: '+919000000010' },
       });

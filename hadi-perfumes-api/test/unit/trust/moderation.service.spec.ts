@@ -2,7 +2,10 @@ jest.setTimeout(30000);
 
 import { v4 as uuidv4 } from 'uuid';
 import { ModerationService } from '../../../src/modules/trust/moderation/services/moderation.service';
-import { ModerationTargetType, ModerationActionType } from '../../../src/modules/trust/moderation/entities/moderation-action.entity';
+import {
+  ModerationTargetType,
+  ModerationActionType,
+} from '../../../src/modules/trust/moderation/entities/moderation-action.entity';
 
 describe('ModerationService', () => {
   let service: ModerationService;
@@ -13,7 +16,9 @@ describe('ModerationService', () => {
   beforeEach(() => {
     mockModerationRepo = {
       findOne: jest.fn().mockResolvedValue(null),
-      save: jest.fn().mockImplementation(async (d: any) => ({ id: uuidv4(), ...d })),
+      save: jest
+        .fn()
+        .mockImplementation(async (d: any) => ({ id: uuidv4(), ...d })),
       create: jest.fn().mockImplementation((d: any) => d),
       update: jest.fn().mockResolvedValue({}),
       createQueryBuilder: jest.fn().mockReturnValue({
@@ -75,8 +80,9 @@ describe('ModerationService', () => {
 
   it('reverseModerationAction: throws if action not found', async () => {
     buildService();
-    await expect(service.reverseModerationAction(uuidv4(), uuidv4()))
-      .rejects.toThrow('Moderation action');
+    await expect(
+      service.reverseModerationAction(uuidv4(), uuidv4()),
+    ).rejects.toThrow('Moderation action');
   });
 
   it('reverseModerationAction: throws if already reversed', async () => {
@@ -87,13 +93,15 @@ describe('ModerationService', () => {
     mockModerationRepo.findOne.mockResolvedValue(reversedAction);
     buildService();
 
-    await expect(service.reverseModerationAction(reversedAction.id, uuidv4()))
-      .rejects.toThrow('already been reversed');
+    await expect(
+      service.reverseModerationAction(reversedAction.id, uuidv4()),
+    ).rejects.toThrow('already been reversed');
   });
 
   it('getModerationAction: throws if not found', async () => {
     buildService();
-    await expect(service.getModerationAction(uuidv4()))
-      .rejects.toThrow('Moderation action');
+    await expect(service.getModerationAction(uuidv4())).rejects.toThrow(
+      'Moderation action',
+    );
   });
 });

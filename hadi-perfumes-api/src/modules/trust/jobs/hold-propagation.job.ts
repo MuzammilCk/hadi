@@ -25,9 +25,9 @@ export class HoldPropagationJob {
   ) {}
 
   async run(): Promise<void> {
-    // Find clawback_triggered resolution events
+    // Fix H3: only process events not yet consumed
     const events = await this.resolutionEventRepo.find({
-      where: { resolution_type: 'clawback_triggered' },
+      where: { resolution_type: 'clawback_triggered', processed: false },
     });
 
     for (const event of events) {
@@ -36,15 +36,21 @@ export class HoldPropagationJob {
         let orderId: string | null = null;
 
         if (event.entity_type === 'return_request') {
-          const ret = await this.returnRequestRepo.findOne({ where: { id: event.entity_id } });
+          const ret = await this.returnRequestRepo.findOne({
+            where: { id: event.entity_id },
+          });
           if (ret) orderId = ret.order_id;
         } else if (event.entity_type === 'dispute') {
-          const dispute = await this.disputeRepo.findOne({ where: { id: event.entity_id } });
+          const dispute = await this.disputeRepo.findOne({
+            where: { id: event.entity_id },
+          });
           if (dispute) orderId = dispute.order_id;
         }
 
         if (!orderId) {
-          this.logger.warn(`HoldPropagationJob: Could not determine order_id for event ${event.id}`);
+          this.logger.warn(
+            `HoldPropagationJob: Could not determine order_id for event ${event.id}`,
+          );
           continue;
         }
 
@@ -52,7 +58,7 @@ export class HoldPropagationJob {
         const result = await this.clawbackJob.clawbackForOrder(orderId);
         this.logger.log(
           `HoldPropagationJob: Processed event ${event.id} for order ${orderId}: ` +
-          `clawedBack=${result.clawedBack}, skipped=${result.skipped}`,
+            `clawedBack=${result.clawedBack}, skipped=${result.skipped}`,
         );
 
         await this.auditService.log({
@@ -64,8 +70,16 @@ export class HoldPropagationJob {
           metadata: { order_id: orderId, ...result },
         });
 
+        // Fix H3: mark event as processed so it's not reprocessed next run
+        await this.resolutionEventRepo.update(
+          { id: event.id },
+          { processed: true },
+        );
       } catch (err) {
-        this.logger.error(`HoldPropagationJob: Failed to process event ${event.id}:`, err);
+        this.logger.error(
+          `HoldPropagationJob: Failed to process event ${event.id}:`,
+          err,
+        );
       }
     }
 

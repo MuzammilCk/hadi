@@ -1,4 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+} from 'typeorm';
 import { tstz } from '../../../common/utils/db-type.util';
 
 export enum LedgerEntryType {
@@ -27,12 +32,14 @@ export class LedgerEntry {
   // Positive = credit, Negative = debit
   @Column({ type: 'numeric', precision: 12, scale: 2 }) amount: number;
   @Column({ type: 'varchar', length: 3, default: 'INR' }) currency: string;
-  @Column({ type: 'varchar', length: 50, default: LedgerEntryStatus.PENDING }) status: string;
+  @Column({ type: 'varchar', length: 50, default: LedgerEntryStatus.PENDING })
+  status: string;
   @Column({ type: 'uuid' }) reference_id: string;
   @Column({ type: 'varchar', length: 50 }) reference_type: string;
   @Column({ type: 'uuid', nullable: true }) reversal_of_entry_id: string | null;
   @Column({ type: 'text', nullable: true }) note: string | null;
-  @Column({ type: 'varchar', length: 255, unique: true, nullable: true }) idempotency_key: string | null;
+  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
+  idempotency_key: string | null;
   // NO @UpdateDateColumn — WRITE-ONCE ONLY
   @CreateDateColumn({ type: tstz() as any }) created_at: Date;
 }

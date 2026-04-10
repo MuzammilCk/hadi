@@ -2,8 +2,18 @@ jest.setTimeout(30000);
 
 jest.mock('stripe', () => {
   return jest.fn().mockImplementation(() => ({
-    paymentIntents: { create: jest.fn().mockResolvedValue({ id: 'pi_test', client_secret: 'cs_test', status: 'requires_payment_method' }) },
-    webhooks: { constructEvent: jest.fn().mockImplementation(() => { throw new Error('Invalid signature'); }) },
+    paymentIntents: {
+      create: jest.fn().mockResolvedValue({
+        id: 'pi_test',
+        client_secret: 'cs_test',
+        status: 'requires_payment_method',
+      }),
+    },
+    webhooks: {
+      constructEvent: jest.fn().mockImplementation(() => {
+        throw new Error('Invalid signature');
+      }),
+    },
   }));
 });
 
@@ -59,22 +69,26 @@ describe('Admin Commission E2E', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication({ rawBody: true });
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
 
     dataSource = moduleFixture.get(DataSource);
 
     // Create admin user for FK
     const userRepo = dataSource.getRepository(User);
-    await userRepo.save(userRepo.create({
-      id: process.env.ADMIN_ACTOR_ID!,
-      phone: '+910000000000',
-      status: 'active',
-    }));
+    await userRepo.save(
+      userRepo.create({
+        id: process.env.ADMIN_ACTOR_ID,
+        phone: '+910000000000',
+        status: 'active',
+      }),
+    );
   }, 30000);
 
   afterAll(async () => {
@@ -82,8 +96,9 @@ describe('Admin Commission E2E', () => {
   });
 
   it('1. POST /admin/commission/process-outbox without x-admin-token → 401', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/admin/commission/process-outbox');
+    const res = await request(app.getHttpServer()).post(
+      '/admin/commission/process-outbox',
+    );
     expect(res.status).toBe(401);
   });
 
@@ -98,8 +113,9 @@ describe('Admin Commission E2E', () => {
   });
 
   it('3. POST /admin/commission/release without x-admin-token → 401', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/admin/commission/release');
+    const res = await request(app.getHttpServer()).post(
+      '/admin/commission/release',
+    );
     expect(res.status).toBe(401);
   });
 
@@ -113,8 +129,7 @@ describe('Admin Commission E2E', () => {
   });
 
   it('5. GET /admin/payouts without x-admin-token → 401', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/admin/payouts');
+    const res = await request(app.getHttpServer()).get('/admin/payouts');
     expect(res.status).toBe(401);
   });
 

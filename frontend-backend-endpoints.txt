@@ -1,0 +1,127 @@
+Frontend -> Backend Endpoint Requests
+=====================================
+
+Base URL:
+- Config: VITE_API_BASE_URL
+- Fallback: http://localhost:3000
+
+Notes:
+- All API requests go through src/api/client.ts via apiRequest(path, options)
+- Authorization: Bearer <access_token> is auto-attached when present
+- Auto-refresh flow retries once on 401 using POST /auth/refresh
+
+
+AUTH (src/api/auth.ts + src/api/client.ts)
+-------------------------------------------
+- POST /auth/otp/send
+  - function: sendOtp(payload)
+- POST /auth/otp/verify
+  - function: verifyOtp(payload)
+- POST /auth/signup
+  - function: signup(payload, sessionToken?)
+- POST /auth/refresh
+  - function: refreshToken(refreshTokenValue)
+  - also called internally by client retry logic (refreshAccessToken)
+- POST /auth/logout
+  - function: logout(refreshTokenValue)
+- GET /me/onboarding-status
+  - function: getOnboardingStatus()
+
+
+LISTINGS & CATEGORIES (src/api/listings.ts)
+--------------------------------------------
+- GET /listings
+  - function: getListings(params)
+  - query params (optional): q, category_id, min_price, max_price, page, limit
+- GET /listings/:id
+  - function: getListingById(id)
+- GET /categories
+  - function: getCategories()
+- GET /categories/:id
+  - function: getCategoryById(id)
+
+
+ORDERS & INVENTORY RESERVATION (src/api/orders.ts)
+---------------------------------------------------
+- POST /inventory/reserve
+  - function: reserveStock(payload)
+- POST /inventory/reserve/:reservationId/confirm
+  - function: confirmReservation(reservationId, orderId)
+- DELETE /inventory/reserve/:reservationId
+  - function: releaseReservation(reservationId)
+- POST /orders
+  - function: createOrder(payload, idempotencyKey)
+  - header: Idempotency-Key
+- GET /orders
+  - function: listOrders(params)
+  - query params (optional): status, from_date, to_date, page, limit
+- GET /orders/:orderId
+  - function: getOrder(orderId)
+- DELETE /orders/:orderId
+  - function: cancelOrder(orderId)
+
+
+PAYMENTS (src/api/payments.ts)
+------------------------------
+- POST /orders/:orderId/payment-intent
+  - function: createPaymentIntent(orderId, payload)
+
+
+NETWORK (src/api/network.ts)
+----------------------------
+- GET /network/upline
+  - function: getUplinePath()
+- GET /network/downline
+  - function: getDownline(params)
+  - query params (optional): maxDepth
+- GET /network/qualification
+  - function: getQualificationState()
+
+
+ADMIN (src/api/admin.ts)
+------------------------
+Admin routes send x-admin-token header when VITE_ADMIN_TOKEN is present.
+
+Listings:
+- POST /admin/listings
+  - function: adminCreateListing(payload)
+- PATCH /admin/listings/:id
+  - function: adminUpdateListing(id, payload)
+- POST /admin/listings/:listingId/images
+  - function: adminAddImage(listingId, payload)
+- DELETE /admin/listings/:listingId/images/:imageId
+  - function: adminRemoveImage(listingId, imageId)
+- PATCH /admin/listings/:listingId/images/reorder
+  - function: adminReorderImages(listingId, payload)
+- POST /admin/listings/:id/moderate
+  - function: adminModerateListing(id, payload)
+
+Categories:
+- POST /admin/categories
+  - function: adminCreateCategory(payload)
+- PATCH /admin/categories/:id
+  - function: adminUpdateCategory(id, payload)
+- DELETE /admin/categories/:id
+  - function: adminDeactivateCategory(id)
+
+Inventory:
+- POST /admin/inventory/:listingId/stock
+  - function: adminAddStock(listingId, payload)
+- PATCH /admin/inventory/:listingId/stock
+  - function: adminAdjustStock(listingId, payload)
+
+Orders:
+- GET /admin/orders
+  - function: adminListOrders(params)
+  - query params (optional): status, from_date, to_date, page, limit
+- GET /admin/orders/:orderId
+  - function: adminGetOrder(orderId)
+- PATCH /admin/orders/:orderId/status
+  - function: adminUpdateOrderStatus(orderId, payload)
+
+Network corrections:
+- POST /admin/network/corrections
+  - function: adminApplyGraphCorrection(payload)
+- GET /admin/network/corrections
+  - function: adminListGraphCorrections(params)
+  - query params (optional): userId, page, limit

@@ -1,10 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
-import { ReferralCode, ReferralCodeStatus } from '../entities/referral-code.entity';
+import {
+  ReferralCode,
+  ReferralCodeStatus,
+} from '../entities/referral-code.entity';
 import { ReferralRedemption } from '../entities/referral-redemption.entity';
 import { SponsorshipLink } from '../entities/sponsorship-link.entity';
-import { ReferralErrorCode, ReferralValidationException } from '../exceptions/referral-validation.exception';
+import {
+  ReferralErrorCode,
+  ReferralValidationException,
+} from '../exceptions/referral-validation.exception';
 
 @Injectable()
 export class ReferralValidationService {
@@ -23,19 +29,30 @@ export class ReferralValidationService {
     ipAddress?: string,
     deviceHash?: string,
     transactionalEntityManager?: EntityManager,
-  ): Promise<{ referralCode: ReferralCode; sponsorId: string; uplinePath: string[] }> {
+  ): Promise<{
+    referralCode: ReferralCode;
+    sponsorId: string;
+    uplinePath: string[];
+  }> {
     if (!codeStr) {
-      throw new ReferralValidationException(ReferralErrorCode.MISSING_CODE, 'Referral code is missing');
+      throw new ReferralValidationException(
+        ReferralErrorCode.MISSING_CODE,
+        'Referral code is missing',
+      );
     }
 
     if (!/^[A-Z0-9]{8}$/.test(codeStr)) {
-      throw new ReferralValidationException(ReferralErrorCode.INVALID_CODE_FORMAT, 'Invalid code format');
+      throw new ReferralValidationException(
+        ReferralErrorCode.INVALID_CODE_FORMAT,
+        'Invalid code format',
+      );
     }
 
     const em = transactionalEntityManager || this.codeRepo.manager;
 
     // Retrieve code with pessimistic read if transactional
-    const codeQuery = em.createQueryBuilder(ReferralCode, 'rc')
+    const codeQuery = em
+      .createQueryBuilder(ReferralCode, 'rc')
       .where('rc.code = :code', { code: codeStr });
 
     if (transactionalEntityManager && process.env.NODE_ENV !== 'test') {
@@ -45,23 +62,41 @@ export class ReferralValidationService {
     const code = await codeQuery.getOne();
 
     if (!code) {
-      throw new ReferralValidationException(ReferralErrorCode.CODE_NOT_FOUND, 'Referral code not found');
+      throw new ReferralValidationException(
+        ReferralErrorCode.CODE_NOT_FOUND,
+        'Referral code not found',
+      );
     }
 
     if (code.status === ReferralCodeStatus.DISABLED) {
-      throw new ReferralValidationException(ReferralErrorCode.CODE_DISABLED, 'Referral code is disabled');
+      throw new ReferralValidationException(
+        ReferralErrorCode.CODE_DISABLED,
+        'Referral code is disabled',
+      );
     }
 
-    if (code.status === ReferralCodeStatus.EXHAUSTED || (code.max_uses !== null && code.uses_count >= code.max_uses)) {
-      throw new ReferralValidationException(ReferralErrorCode.CODE_EXHAUSTED, 'Referral code usage limit reached');
+    if (
+      code.status === ReferralCodeStatus.EXHAUSTED ||
+      (code.max_uses !== null && code.uses_count >= code.max_uses)
+    ) {
+      throw new ReferralValidationException(
+        ReferralErrorCode.CODE_EXHAUSTED,
+        'Referral code usage limit reached',
+      );
     }
 
     if (code.expires_at && code.expires_at < new Date()) {
-      throw new ReferralValidationException(ReferralErrorCode.CODE_EXPIRED, 'Referral code has expired');
+      throw new ReferralValidationException(
+        ReferralErrorCode.CODE_EXPIRED,
+        'Referral code has expired',
+      );
     }
 
     if (code.owner_id === newUserId) {
-      throw new ReferralValidationException(ReferralErrorCode.SELF_REFERRAL, 'Cannot refer yourself');
+      throw new ReferralValidationException(
+        ReferralErrorCode.SELF_REFERRAL,
+        'Cannot refer yourself',
+      );
     }
 
     // Check duplicate redemption
@@ -69,15 +104,19 @@ export class ReferralValidationService {
       where: { redeemed_by_user_id: newUserId, code_id: code.id },
     });
     if (previousRedemption) {
-      throw new ReferralValidationException(ReferralErrorCode.DUPLICATE_REDEMPTION, 'Referral code already redeemed by this user');
+      throw new ReferralValidationException(
+        ReferralErrorCode.DUPLICATE_REDEMPTION,
+        'Referral code already redeemed by this user',
+      );
     }
 
     // Check circular sponsorship
     const sponsorId = code.owner_id;
-    const sponsorLinkQuery = em.createQueryBuilder(SponsorshipLink, 'sl')
+    const sponsorLinkQuery = em
+      .createQueryBuilder(SponsorshipLink, 'sl')
       .where('sl.user_id = :sponsorId', { sponsorId })
       .andWhere('sl.corrected_at IS NULL');
-    
+
     if (transactionalEntityManager && process.env.NODE_ENV !== 'test') {
       sponsorLinkQuery.setLock('pessimistic_read');
     }
@@ -87,19 +126,23 @@ export class ReferralValidationService {
 
     if (sponsorLink) {
       // Circular check
-      const currentUpline: string[] = typeof sponsorLink.upline_path === 'string' 
-        ? JSON.parse(sponsorLink.upline_path) 
-        : sponsorLink.upline_path;
+      const currentUpline: string[] =
+        typeof sponsorLink.upline_path === 'string'
+          ? JSON.parse(sponsorLink.upline_path)
+          : sponsorLink.upline_path;
 
       if (currentUpline.includes(newUserId) || sponsorId === newUserId) {
-         throw new ReferralValidationException(ReferralErrorCode.CIRCULAR_SPONSORSHIP, 'Circular sponsorship detected');
+        throw new ReferralValidationException(
+          ReferralErrorCode.CIRCULAR_SPONSORSHIP,
+          'Circular sponsorship detected',
+        );
       }
       parentUplinePath = currentUpline;
     }
 
     const newUplinePath = [sponsorId, ...parentUplinePath];
 
-    // If we're inside the transaction, proceed to create the redemption 
+    // If we're inside the transaction, proceed to create the redemption
     // Otherwise just validate
     if (transactionalEntityManager) {
       code.uses_count += 1;

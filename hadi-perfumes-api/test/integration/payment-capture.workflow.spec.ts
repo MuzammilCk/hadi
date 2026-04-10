@@ -4,11 +4,13 @@ jest.mock('stripe', () => {
   let piCounter = 0;
   return jest.fn().mockImplementation(() => ({
     paymentIntents: {
-      create: jest.fn().mockImplementation(() => Promise.resolve({
-        id: `pi_capture_test_${++piCounter}`,
-        client_secret: `cs_capture_test_${piCounter}`,
-        status: 'requires_payment_method',
-      })),
+      create: jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          id: `pi_capture_test_${++piCounter}`,
+          client_secret: `cs_capture_test_${piCounter}`,
+          status: 'requires_payment_method',
+        }),
+      ),
     },
     webhooks: {
       constructEvent: jest.fn().mockImplementation((body, sig, secret) => {
@@ -30,7 +32,10 @@ import { InventoryItem } from '../../src/modules/inventory/entities/inventory-it
 import { InventoryReservation } from '../../src/modules/inventory/entities/inventory-reservation.entity';
 import { InventoryEvent } from '../../src/modules/inventory/entities/inventory-event.entity';
 import { CheckoutSession } from '../../src/modules/order/entities/checkout-session.entity';
-import { Order, OrderStatus } from '../../src/modules/order/entities/order.entity';
+import {
+  Order,
+  OrderStatus,
+} from '../../src/modules/order/entities/order.entity';
 import { OrderItem } from '../../src/modules/order/entities/order-item.entity';
 import { OrderStatusHistory } from '../../src/modules/order/entities/order-status-history.entity';
 import { Payment } from '../../src/modules/order/entities/payment.entity';
@@ -74,10 +79,23 @@ describe('Payment Capture Workflow (Integration)', () => {
           entities: [__dirname + '/../../src/**/*.entity{.ts,.js}'],
         }),
         TypeOrmModule.forFeature([
-          User, Listing, InventoryItem, InventoryReservation, InventoryEvent,
-          CheckoutSession, Order, OrderItem, OrderStatusHistory,
-          Payment, PaymentWebhookEvent, OrderAuditLog, MoneyEventOutbox,
-          ProductCategory, ListingImage, ListingStatusHistory, ListingModerationAction,
+          User,
+          Listing,
+          InventoryItem,
+          InventoryReservation,
+          InventoryEvent,
+          CheckoutSession,
+          Order,
+          OrderItem,
+          OrderStatusHistory,
+          Payment,
+          PaymentWebhookEvent,
+          OrderAuditLog,
+          MoneyEventOutbox,
+          ProductCategory,
+          ListingImage,
+          ListingStatusHistory,
+          ListingModerationAction,
         ]),
       ],
       providers: [
@@ -93,46 +111,54 @@ describe('Payment Capture Workflow (Integration)', () => {
     checkoutService = module.get(CheckoutService);
     orderService = module.get(OrderService);
     paymentService = module.get(PaymentService);
-    
+
     // Manually inject the mocked stripe instance
     const StripeMock = require('stripe');
     (paymentService as any).stripe = new StripeMock();
-    
+
     orderRepo = dataSource.getRepository(Order);
     webhookRepo = dataSource.getRepository(PaymentWebhookEvent);
     outboxRepo = dataSource.getRepository(MoneyEventOutbox);
     reservationRepo = dataSource.getRepository(InventoryReservation);
 
     const userRepo = dataSource.getRepository(User);
-    testUser = await userRepo.save(userRepo.create({
-      phone: '+919999990003',
-      status: 'active',
-    }));
+    testUser = await userRepo.save(
+      userRepo.create({
+        phone: '+919999990003',
+        status: 'active',
+      }),
+    );
 
     // Create admin user for seller_id FK
-    await userRepo.save(userRepo.create({
-      id: adminId,
-      phone: '+910000000000',
-      status: 'active',
-    }));
+    await userRepo.save(
+      userRepo.create({
+        id: adminId,
+        phone: '+910000000000',
+        status: 'active',
+      }),
+    );
 
     const listingRepo = dataSource.getRepository(Listing);
-    testListing = await listingRepo.save(listingRepo.create({
-      seller_id: adminId,
-      title: 'Premium Oud',
-      sku: 'PERF-OUD',
-      price: 1000.00,
-      quantity: 10,
-      condition: 'new',
-      status: 'active',
-    }));
+    testListing = await listingRepo.save(
+      listingRepo.create({
+        seller_id: adminId,
+        title: 'Premium Oud',
+        sku: 'PERF-OUD',
+        price: 1000.0,
+        quantity: 10,
+        condition: 'new',
+        status: 'active',
+      }),
+    );
 
     const inventoryRepo = dataSource.getRepository(InventoryItem);
-    await inventoryRepo.save(inventoryRepo.create({
-      listing_id: testListing.id,
-      total_qty: 10,
-      available_qty: 10,
-    }));
+    await inventoryRepo.save(
+      inventoryRepo.create({
+        listing_id: testListing.id,
+        total_qty: 10,
+        available_qty: 10,
+      }),
+    );
   }, 30000);
 
   afterAll(async () => {
@@ -143,16 +169,23 @@ describe('Payment Capture Workflow (Integration)', () => {
     const dto = {
       items: [{ listing_id: testListing.id, qty: 1 }],
       shipping_address: {
-        line1: '456 Test Ave', city: 'Delhi',
-        state: 'DL', postal_code: '110001', country: 'IN',
+        line1: '456 Test Ave',
+        city: 'Delhi',
+        state: 'DL',
+        postal_code: '110001',
+        country: 'IN',
       },
       contact: { name: 'Test Buyer', phone: '+919999990003' },
     };
     const order = await checkoutService.initiateCheckout(
-      testUser.id, dto as any, uuidv4(),
+      testUser.id,
+      dto as any,
+      uuidv4(),
     );
     const payment = await paymentService.createPaymentIntent(
-      order.id, uuidv4(), testUser.id,
+      order.id,
+      uuidv4(),
+      testUser.id,
     );
     return { order, payment };
   };
@@ -176,16 +209,20 @@ describe('Payment Capture Workflow (Integration)', () => {
 
     // First call
     await paymentService.handleWebhook(
-      Buffer.from(JSON.stringify(webhookPayload)), 'valid_sig',
+      Buffer.from(JSON.stringify(webhookPayload)),
+      'valid_sig',
     );
 
     // Second call — should be silently ignored
     await paymentService.handleWebhook(
-      Buffer.from(JSON.stringify(webhookPayload)), 'valid_sig',
+      Buffer.from(JSON.stringify(webhookPayload)),
+      'valid_sig',
     );
 
     // Verify only one webhook record
-    const webhooks = await webhookRepo.find({ where: { provider_event_id: eventId } });
+    const webhooks = await webhookRepo.find({
+      where: { provider_event_id: eventId },
+    });
     expect(webhooks.length).toBe(1);
 
     // Verify only one outbox entry for this order
@@ -214,7 +251,8 @@ describe('Payment Capture Workflow (Integration)', () => {
     };
 
     await paymentService.handleWebhook(
-      Buffer.from(JSON.stringify(webhookPayload)), 'valid_sig',
+      Buffer.from(JSON.stringify(webhookPayload)),
+      'valid_sig',
     );
 
     const updatedOrder = await orderRepo.findOne({ where: { id: order.id } });
@@ -239,7 +277,8 @@ describe('Payment Capture Workflow (Integration)', () => {
     };
 
     await paymentService.handleWebhook(
-      Buffer.from(JSON.stringify(webhookPayload)), 'valid_sig',
+      Buffer.from(JSON.stringify(webhookPayload)),
+      'valid_sig',
     );
 
     const updatedOrder = await orderRepo.findOne({ where: { id: order.id } });
@@ -254,13 +293,18 @@ describe('Payment Capture Workflow (Integration)', () => {
     const dto = {
       items: [{ listing_id: testListing.id, qty: 1 }],
       shipping_address: {
-        line1: '789 Test Blvd', city: 'Bangalore',
-        state: 'KA', postal_code: '560001', country: 'IN',
+        line1: '789 Test Blvd',
+        city: 'Bangalore',
+        state: 'KA',
+        postal_code: '560001',
+        country: 'IN',
       },
       contact: { name: 'Test Buyer', phone: '+919999990003' },
     };
     const order = await checkoutService.initiateCheckout(
-      testUser.id, dto as any, uuidv4(),
+      testUser.id,
+      dto as any,
+      uuidv4(),
     );
 
     await orderService.cancelOrder(order.id, testUser.id);

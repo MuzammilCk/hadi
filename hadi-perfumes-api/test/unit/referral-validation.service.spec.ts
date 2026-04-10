@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReferralValidationService } from '../../src/modules/referral/services/referral-validation.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ReferralCode, ReferralCodeStatus } from '../../src/modules/referral/entities/referral-code.entity';
+import {
+  ReferralCode,
+  ReferralCodeStatus,
+} from '../../src/modules/referral/entities/referral-code.entity';
 import { ReferralRedemption } from '../../src/modules/referral/entities/referral-redemption.entity';
 import { SponsorshipLink } from '../../src/modules/referral/entities/sponsorship-link.entity';
 import {
@@ -102,7 +105,10 @@ describe('ReferralValidationService', () => {
   });
 
   describe('DB-level validation (mocked QueryBuilder)', () => {
-    function setupQueryBuilder(code: ReferralCode | null, sponsorLink: SponsorshipLink | null = null) {
+    function setupQueryBuilder(
+      code: ReferralCode | null,
+      sponsorLink: SponsorshipLink | null = null,
+    ) {
       const qb: any = {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
@@ -113,7 +119,7 @@ describe('ReferralValidationService', () => {
       let callCount = 0;
       qb.getOne.mockImplementation(() => {
         callCount++;
-        if (callCount === 1) return Promise.resolve(code);   // ReferralCode lookup
+        if (callCount === 1) return Promise.resolve(code); // ReferralCode lookup
         if (callCount === 2) return Promise.resolve(sponsorLink); // SponsorshipLink lookup
         return Promise.resolve(null);
       });

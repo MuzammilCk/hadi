@@ -7,8 +7,15 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { CommissionReleaseJob } from '../../src/jobs/commission-release.job';
 import { LedgerService } from '../../src/modules/ledger/services/ledger.service';
-import { CommissionEvent, CommissionEventStatus } from '../../src/modules/commission/entities/commission-event.entity';
-import { LedgerEntry, LedgerEntryType, LedgerEntryStatus } from '../../src/modules/ledger/entities/ledger-entry.entity';
+import {
+  CommissionEvent,
+  CommissionEventStatus,
+} from '../../src/modules/commission/entities/commission-event.entity';
+import {
+  LedgerEntry,
+  LedgerEntryType,
+  LedgerEntryStatus,
+} from '../../src/modules/ledger/entities/ledger-entry.entity';
 
 describe('Ledger Release Workflow (Integration)', () => {
   let releaseJob: CommissionReleaseJob;
@@ -40,20 +47,22 @@ describe('Ledger Release Workflow (Integration)', () => {
   it('CommissionReleaseJob.run() releases pending → available and writes ledger entry', async () => {
     const ceRepo = dataSource.getRepository(CommissionEvent);
     const eventId = uuidv4();
-    await ceRepo.save(ceRepo.create({
-      id: eventId,
-      order_id: uuidv4(),
-      beneficiary_id: beneficiaryId,
-      commission_level: 1,
-      policy_version_id: uuidv4(),
-      rule_id: uuidv4(),
-      calculated_amount: 100,
-      currency: 'INR',
-      status: CommissionEventStatus.PENDING,
-      available_after: new Date(Date.now() - 86400000), // Past
-      clawback_before: new Date(Date.now() + 30 * 86400000),
-      idempotency_key: `test:release:${eventId}`,
-    }));
+    await ceRepo.save(
+      ceRepo.create({
+        id: eventId,
+        order_id: uuidv4(),
+        beneficiary_id: beneficiaryId,
+        commission_level: 1,
+        policy_version_id: uuidv4(),
+        rule_id: uuidv4(),
+        calculated_amount: 100,
+        currency: 'INR',
+        status: CommissionEventStatus.PENDING,
+        available_after: new Date(Date.now() - 86400000), // Past
+        clawback_before: new Date(Date.now() + 30 * 86400000),
+        idempotency_key: `test:release:${eventId}`,
+      }),
+    );
 
     // Write pending ledger entry first (matches real flow)
     await ledgerService.writeEntry({
@@ -77,7 +86,10 @@ describe('Ledger Release Workflow (Integration)', () => {
     // Verify COMMISSION_AVAILABLE ledger entry written
     const leRepo = dataSource.getRepository(LedgerEntry);
     const entries = await leRepo.find({
-      where: { reference_id: eventId, entry_type: LedgerEntryType.COMMISSION_AVAILABLE },
+      where: {
+        reference_id: eventId,
+        entry_type: LedgerEntryType.COMMISSION_AVAILABLE,
+      },
     });
     expect(entries.length).toBe(1);
     expect(entries[0].status).toBe(LedgerEntryStatus.SETTLED);
@@ -87,20 +99,22 @@ describe('Ledger Release Workflow (Integration)', () => {
   it('CommissionReleaseJob.run() with available_after in the future: no change', async () => {
     const ceRepo = dataSource.getRepository(CommissionEvent);
     const eventId = uuidv4();
-    await ceRepo.save(ceRepo.create({
-      id: eventId,
-      order_id: uuidv4(),
-      beneficiary_id: beneficiaryId,
-      commission_level: 1,
-      policy_version_id: uuidv4(),
-      rule_id: uuidv4(),
-      calculated_amount: 200,
-      currency: 'INR',
-      status: CommissionEventStatus.PENDING,
-      available_after: new Date(Date.now() + 30 * 86400000), // Future
-      clawback_before: new Date(Date.now() + 60 * 86400000),
-      idempotency_key: `test:future:${eventId}`,
-    }));
+    await ceRepo.save(
+      ceRepo.create({
+        id: eventId,
+        order_id: uuidv4(),
+        beneficiary_id: beneficiaryId,
+        commission_level: 1,
+        policy_version_id: uuidv4(),
+        rule_id: uuidv4(),
+        calculated_amount: 200,
+        currency: 'INR',
+        status: CommissionEventStatus.PENDING,
+        available_after: new Date(Date.now() + 30 * 86400000), // Future
+        clawback_before: new Date(Date.now() + 60 * 86400000),
+        idempotency_key: `test:future:${eventId}`,
+      }),
+    );
 
     const result = await releaseJob.run();
     // The future event should not be released

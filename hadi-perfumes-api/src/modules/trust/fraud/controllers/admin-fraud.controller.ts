@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Param, Query, Req, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Query,
+  Req,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { AdminGuard } from '../../../admin/guards/admin.guard';
 import { FraudSignalService } from '../services/fraud-signal.service';
 import { FraudSignalQueryDto } from '../dto/fraud-signal-query.dto';

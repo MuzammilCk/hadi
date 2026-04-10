@@ -13,47 +13,75 @@ describe('OrderStateMachine', () => {
 
   describe('canTransition()', () => {
     it('created → payment_pending is valid', () => {
-      expect(sm.canTransition(OrderStatus.CREATED, OrderStatus.PAYMENT_PENDING)).toBe(true);
+      expect(
+        sm.canTransition(OrderStatus.CREATED, OrderStatus.PAYMENT_PENDING),
+      ).toBe(true);
     });
 
     it('created → cancelled is valid', () => {
-      expect(sm.canTransition(OrderStatus.CREATED, OrderStatus.CANCELLED)).toBe(true);
+      expect(sm.canTransition(OrderStatus.CREATED, OrderStatus.CANCELLED)).toBe(
+        true,
+      );
     });
 
     it('created → paid is INVALID (must go through payment_pending)', () => {
-      expect(sm.canTransition(OrderStatus.CREATED, OrderStatus.PAID)).toBe(false);
+      expect(sm.canTransition(OrderStatus.CREATED, OrderStatus.PAID)).toBe(
+        false,
+      );
     });
 
     it('payment_pending → paid is valid', () => {
-      expect(sm.canTransition(OrderStatus.PAYMENT_PENDING, OrderStatus.PAID)).toBe(true);
+      expect(
+        sm.canTransition(OrderStatus.PAYMENT_PENDING, OrderStatus.PAID),
+      ).toBe(true);
     });
 
     it('payment_pending → payment_failed is valid', () => {
-      expect(sm.canTransition(OrderStatus.PAYMENT_PENDING, OrderStatus.PAYMENT_FAILED)).toBe(true);
+      expect(
+        sm.canTransition(
+          OrderStatus.PAYMENT_PENDING,
+          OrderStatus.PAYMENT_FAILED,
+        ),
+      ).toBe(true);
     });
 
     it('paid → packing is valid', () => {
-      expect(sm.canTransition(OrderStatus.PAID, OrderStatus.PACKING)).toBe(true);
+      expect(sm.canTransition(OrderStatus.PAID, OrderStatus.PACKING)).toBe(
+        true,
+      );
     });
 
     it('paid → refunded is valid', () => {
-      expect(sm.canTransition(OrderStatus.PAID, OrderStatus.REFUNDED)).toBe(true);
+      expect(sm.canTransition(OrderStatus.PAID, OrderStatus.REFUNDED)).toBe(
+        true,
+      );
     });
 
     it('shipped → delivered is valid', () => {
-      expect(sm.canTransition(OrderStatus.SHIPPED, OrderStatus.DELIVERED)).toBe(true);
+      expect(sm.canTransition(OrderStatus.SHIPPED, OrderStatus.DELIVERED)).toBe(
+        true,
+      );
     });
 
     it('delivered → completed is valid', () => {
-      expect(sm.canTransition(OrderStatus.DELIVERED, OrderStatus.COMPLETED)).toBe(true);
+      expect(
+        sm.canTransition(OrderStatus.DELIVERED, OrderStatus.COMPLETED),
+      ).toBe(true);
     });
 
     it('payment_failed → payment_pending is valid (retry)', () => {
-      expect(sm.canTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.PAYMENT_PENDING)).toBe(true);
+      expect(
+        sm.canTransition(
+          OrderStatus.PAYMENT_FAILED,
+          OrderStatus.PAYMENT_PENDING,
+        ),
+      ).toBe(true);
     });
 
     it('payment_failed → cancelled is valid', () => {
-      expect(sm.canTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.CANCELLED)).toBe(true);
+      expect(
+        sm.canTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.CANCELLED),
+      ).toBe(true);
     });
 
     // Terminal states
@@ -79,23 +107,33 @@ describe('OrderStateMachine', () => {
     });
 
     it('completed → packing is INVALID', () => {
-      expect(sm.canTransition(OrderStatus.COMPLETED, OrderStatus.PACKING)).toBe(false);
+      expect(sm.canTransition(OrderStatus.COMPLETED, OrderStatus.PACKING)).toBe(
+        false,
+      );
     });
 
     it('completed → refunded is valid', () => {
-      expect(sm.canTransition(OrderStatus.COMPLETED, OrderStatus.REFUNDED)).toBe(true);
+      expect(
+        sm.canTransition(OrderStatus.COMPLETED, OrderStatus.REFUNDED),
+      ).toBe(true);
     });
 
     it('completed → disputed is valid', () => {
-      expect(sm.canTransition(OrderStatus.COMPLETED, OrderStatus.DISPUTED)).toBe(true);
+      expect(
+        sm.canTransition(OrderStatus.COMPLETED, OrderStatus.DISPUTED),
+      ).toBe(true);
     });
 
     it('disputed → refunded is valid', () => {
-      expect(sm.canTransition(OrderStatus.DISPUTED, OrderStatus.REFUNDED)).toBe(true);
+      expect(sm.canTransition(OrderStatus.DISPUTED, OrderStatus.REFUNDED)).toBe(
+        true,
+      );
     });
 
     it('disputed → completed is valid (dispute resolved in merchant favor)', () => {
-      expect(sm.canTransition(OrderStatus.DISPUTED, OrderStatus.COMPLETED)).toBe(true);
+      expect(
+        sm.canTransition(OrderStatus.DISPUTED, OrderStatus.COMPLETED),
+      ).toBe(true);
     });
   });
 

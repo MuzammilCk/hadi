@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { CheckoutSession, CheckoutSessionStatus } from '../entities/checkout-session.entity';
+import {
+  CheckoutSession,
+  CheckoutSessionStatus,
+} from '../entities/checkout-session.entity';
 import { Order, OrderStatus } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-item.entity';
 import { OrderStatusHistory } from '../entities/order-status-history.entity';
@@ -64,7 +67,7 @@ export class CheckoutService {
           .catch(() => {});
       }
       throw new InsufficientInventoryForOrderException(
-        (err as any).message || 'listing',
+        err.message || 'listing',
       );
     }
 
@@ -95,8 +98,9 @@ export class CheckoutService {
           buyer_id: buyerId,
           status: OrderStatus.CREATED,
           ...totals,
+          // Fix M4: platform revenue = product sales minus discounts (tax and shipping are pass-through)
           platform_revenue: parseFloat(
-            (totals.total_amount - totals.shipping_fee).toFixed(2),
+            (totals.subtotal - totals.discount_amount).toFixed(2),
           ),
           shipping_address: dto.shipping_address,
           billing_address: dto.billing_address || dto.shipping_address,
@@ -138,18 +142,27 @@ export class CheckoutService {
     } catch (err: any) {
       // Fix H1: unique constraint on idempotency_key means a concurrent request just won.
       // Return the existing order and release OUR reservations — the winner owns theirs.
-      if (err?.code === '23505' || err?.message?.includes('UNIQUE constraint failed')) {
-        const deduped = await this.orderRepo.findOne({ where: { idempotency_key: idempotencyKey } });
+      if (
+        err?.code === '23505' ||
+        err?.message?.includes('UNIQUE constraint failed')
+      ) {
+        const deduped = await this.orderRepo.findOne({
+          where: { idempotency_key: idempotencyKey },
+        });
         if (deduped) {
           for (const resId of reservationIds) {
-            await this.inventoryService.releaseReservation(resId, buyerId).catch(() => {});
+            await this.inventoryService
+              .releaseReservation(resId, buyerId)
+              .catch(() => {});
           }
           return deduped;
         }
       }
       // Any other error: release all our reservations, then rethrow
       for (const resId of reservationIds) {
-        await this.inventoryService.releaseReservation(resId, buyerId).catch(() => {});
+        await this.inventoryService
+          .releaseReservation(resId, buyerId)
+          .catch(() => {});
       }
       throw err;
     }

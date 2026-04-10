@@ -61,14 +61,20 @@ export class ModerationService {
     adminActorId: string,
     note?: string,
   ): Promise<ModerationAction> {
-    const action = await this.moderationRepo.findOne({ where: { id: actionId } });
-    if (!action) throw new ModerationActionNotFoundException(actionId);
-    if (action.reversed_at) throw new ModerationActionAlreadyReversedException();
-
-    await this.moderationRepo.update({ id: actionId }, {
-      reversed_at: new Date(),
-      reversed_by: adminActorId,
+    const action = await this.moderationRepo.findOne({
+      where: { id: actionId },
     });
+    if (!action) throw new ModerationActionNotFoundException(actionId);
+    if (action.reversed_at)
+      throw new ModerationActionAlreadyReversedException();
+
+    await this.moderationRepo.update(
+      { id: actionId },
+      {
+        reversed_at: new Date(),
+        reversed_by: adminActorId,
+      },
+    );
 
     await this.auditService.log({
       actorId: adminActorId,
@@ -82,14 +88,21 @@ export class ModerationService {
     return (await this.moderationRepo.findOne({ where: { id: actionId } }))!;
   }
 
-  async listModerationActions(
-    query: ModerationQueryDto,
-  ): Promise<{ data: ModerationAction[]; total: number; page: number; limit: number }> {
+  async listModerationActions(query: ModerationQueryDto): Promise<{
+    data: ModerationAction[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const qb = this.moderationRepo.createQueryBuilder('ma').where('1=1');
-    if (query.target_type) qb.andWhere('ma.target_type = :targetType', { targetType: query.target_type });
-    if (query.target_id) qb.andWhere('ma.target_id = :targetId', { targetId: query.target_id });
+    if (query.target_type)
+      qb.andWhere('ma.target_type = :targetType', {
+        targetType: query.target_type,
+      });
+    if (query.target_id)
+      qb.andWhere('ma.target_id = :targetId', { targetId: query.target_id });
     qb.orderBy('ma.created_at', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);

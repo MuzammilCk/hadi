@@ -2,7 +2,11 @@ jest.setTimeout(30000);
 
 import { Repository } from 'typeorm';
 import { LedgerService } from '../../../src/modules/ledger/services/ledger.service';
-import { LedgerEntry, LedgerEntryType, LedgerEntryStatus } from '../../../src/modules/ledger/entities/ledger-entry.entity';
+import {
+  LedgerEntry,
+  LedgerEntryType,
+  LedgerEntryStatus,
+} from '../../../src/modules/ledger/entities/ledger-entry.entity';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
@@ -67,15 +71,18 @@ describe('LedgerService', () => {
     let usedEm = false;
     await dataSource.transaction(async (em) => {
       usedEm = true;
-      const entry = await service.writeEntry({
-        userId,
-        entryType: LedgerEntryType.COMMISSION_PENDING,
-        amount: 50,
-        currency: 'INR',
-        status: LedgerEntryStatus.PENDING,
-        referenceId: refId,
-        referenceType: 'commission_event',
-      }, em);
+      const entry = await service.writeEntry(
+        {
+          userId,
+          entryType: LedgerEntryType.COMMISSION_PENDING,
+          amount: 50,
+          currency: 'INR',
+          status: LedgerEntryStatus.PENDING,
+          referenceId: refId,
+          referenceType: 'commission_event',
+        },
+        em,
+      );
       expect(entry.id).toBeDefined();
     });
     expect(usedEm).toBe(true);
@@ -194,7 +201,10 @@ describe('LedgerService', () => {
       });
     }
 
-    const result = await service.getLedgerHistory(testUserId, { page: 1, limit: 3 });
+    const result = await service.getLedgerHistory(testUserId, {
+      page: 1,
+      limit: 3,
+    });
     expect(result.data.length).toBe(3);
     expect(result.total).toBe(5);
     expect(result.page).toBe(1);
@@ -228,7 +238,7 @@ describe('LedgerService', () => {
 
   it('LedgerEntry entity has NO updated_at property', () => {
     const metadata = dataSource.getMetadata(LedgerEntry);
-    const columns = metadata.columns.map(c => c.propertyName);
+    const columns = metadata.columns.map((c) => c.propertyName);
     expect(columns).not.toContain('updated_at');
   });
 });

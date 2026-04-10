@@ -3,7 +3,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class Phase4CatalogInit1711400000000 implements MigrationInterface {
   name = 'Phase4CatalogInit1711400000000';
 
-  public async up(queryRunner:QueryRunner): Promise<void> {
+  public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. product_categories
     await queryRunner.query(`
       CREATE TABLE "product_categories" (
@@ -210,26 +210,50 @@ export class Phase4CatalogInit1711400000000 implements MigrationInterface {
     `);
   }
 
-  public async down(queryRunner:QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "inventory_events" DROP CONSTRAINT "FK_inventory_events_listing"`);
-    await queryRunner.query(`ALTER TABLE "inventory_events" DROP CONSTRAINT "FK_inventory_events_inventory_item"`);
-    
-    await queryRunner.query(`ALTER TABLE "inventory_reservations" DROP CONSTRAINT "FK_inventory_reservations_inventory_item"`);
-    await queryRunner.query(`ALTER TABLE "inventory_reservations" DROP CONSTRAINT "FK_inventory_reservations_listing"`);
-    
-    await queryRunner.query(`ALTER TABLE "inventory_items" DROP CONSTRAINT "FK_inventory_items_listing"`);
-    
-    await queryRunner.query(`ALTER TABLE "listing_moderation_actions" DROP CONSTRAINT "FK_listing_moderation_actions_admin"`);
-    await queryRunner.query(`ALTER TABLE "listing_moderation_actions" DROP CONSTRAINT "FK_listing_moderation_actions_listing"`);
-    
-    await queryRunner.query(`ALTER TABLE "listing_status_history" DROP CONSTRAINT "FK_listing_status_history_listing"`);
-    
-    await queryRunner.query(`ALTER TABLE "listing_images" DROP CONSTRAINT "FK_listing_images_listing"`);
-    
-    await queryRunner.query(`ALTER TABLE "listings" DROP CONSTRAINT "FK_listings_category"`);
-    await queryRunner.query(`ALTER TABLE "listings" DROP CONSTRAINT "FK_listings_seller"`);
-    
-    await queryRunner.query(`ALTER TABLE "product_categories" DROP CONSTRAINT "FK_product_categories_parent"`);
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "inventory_events" DROP CONSTRAINT "FK_inventory_events_listing"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "inventory_events" DROP CONSTRAINT "FK_inventory_events_inventory_item"`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "inventory_reservations" DROP CONSTRAINT "FK_inventory_reservations_inventory_item"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "inventory_reservations" DROP CONSTRAINT "FK_inventory_reservations_listing"`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "inventory_items" DROP CONSTRAINT "FK_inventory_items_listing"`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "listing_moderation_actions" DROP CONSTRAINT "FK_listing_moderation_actions_admin"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "listing_moderation_actions" DROP CONSTRAINT "FK_listing_moderation_actions_listing"`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "listing_status_history" DROP CONSTRAINT "FK_listing_status_history_listing"`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "listing_images" DROP CONSTRAINT "FK_listing_images_listing"`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "listings" DROP CONSTRAINT "FK_listings_category"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "listings" DROP CONSTRAINT "FK_listings_seller"`,
+    );
+
+    await queryRunner.query(
+      `ALTER TABLE "product_categories" DROP CONSTRAINT "FK_product_categories_parent"`,
+    );
 
     await queryRunner.query(`DROP TABLE "inventory_events"`);
     await queryRunner.query(`DROP TABLE "inventory_reservations"`);

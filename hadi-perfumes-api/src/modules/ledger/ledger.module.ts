@@ -7,10 +7,7 @@ import { WalletController } from './controllers/wallet.controller';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([LedgerEntry]),
-    AuthModule,
-  ],
+  imports: [TypeOrmModule.forFeature([LedgerEntry]), AuthModule],
   providers: [LedgerService, WalletService],
   controllers: [WalletController],
   exports: [LedgerService, WalletService, TypeOrmModule],

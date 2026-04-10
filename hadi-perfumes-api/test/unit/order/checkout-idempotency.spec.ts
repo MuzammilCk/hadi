@@ -24,7 +24,13 @@ describe('CheckoutIdempotency', () => {
 
   const validDto = {
     items: [{ listing_id: 'listing-uuid', qty: 1 }],
-    shipping_address: { line1: '123 Main', city: 'City', state: 'ST', postal_code: '12345', country: 'IN' },
+    shipping_address: {
+      line1: '123 Main',
+      city: 'City',
+      state: 'ST',
+      postal_code: '12345',
+      country: 'IN',
+    },
     contact: { name: 'Test', phone: '+919999999999' },
   };
 
@@ -50,12 +56,14 @@ describe('CheckoutIdempotency', () => {
       releaseReservation: jest.fn(),
     };
     mockDataSource = {
-      transaction: jest.fn((cb: any) => cb({
-        findOne: jest.fn(),
-        save: jest.fn(),
-        create: jest.fn((E: any, d: any) => d),
-        find: jest.fn().mockResolvedValue([]),
-      })),
+      transaction: jest.fn((cb: any) =>
+        cb({
+          findOne: jest.fn(),
+          save: jest.fn(),
+          create: jest.fn((E: any, d: any) => d),
+          find: jest.fn().mockResolvedValue([]),
+        }),
+      ),
     };
 
     orderService = new OrderService(
@@ -89,7 +97,11 @@ describe('CheckoutIdempotency', () => {
   });
 
   it('different idempotency key creates new checkout', async () => {
-    const mockOrder2 = { ...mockOrder, id: 'order-uuid-2', idempotency_key: 'ffffffff-1111-2222-3333-444444444444' };
+    const mockOrder2 = {
+      ...mockOrder,
+      id: 'order-uuid-2',
+      idempotency_key: 'ffffffff-1111-2222-3333-444444444444',
+    };
     mockCheckoutService.initiateCheckout
       .mockResolvedValueOnce(mockOrder)
       .mockResolvedValueOnce(mockOrder2);

@@ -1,4 +1,11 @@
-import { IsUUID, IsEnum, IsString, IsOptional, MaxLength, Length } from 'class-validator';
+import {
+  IsUUID,
+  IsEnum,
+  IsString,
+  IsOptional,
+  MaxLength,
+  Length,
+} from 'class-validator';
 import { DisputeReasonCode } from '../entities/dispute.entity';
 
 export class CreateDisputeDto {

@@ -2,10 +2,22 @@ jest.setTimeout(30000);
 
 import { v4 as uuidv4 } from 'uuid';
 import { ReturnRequestStatus } from '../../../src/modules/trust/returns/entities/return-request.entity';
-import { DisputeStatus, DisputeResolution } from '../../../src/modules/trust/disputes/entities/dispute.entity';
-import { HoldStatus, HoldReasonType } from '../../../src/modules/trust/holds/entities/payout-hold.entity';
-import { FraudSignalSeverity, FraudSignalStatus } from '../../../src/modules/trust/fraud/entities/fraud-signal.entity';
-import { ModerationActionType, ModerationTargetType } from '../../../src/modules/trust/moderation/entities/moderation-action.entity';
+import {
+  DisputeStatus,
+  DisputeResolution,
+} from '../../../src/modules/trust/disputes/entities/dispute.entity';
+import {
+  HoldStatus,
+  HoldReasonType,
+} from '../../../src/modules/trust/holds/entities/payout-hold.entity';
+import {
+  FraudSignalSeverity,
+  FraudSignalStatus,
+} from '../../../src/modules/trust/fraud/entities/fraud-signal.entity';
+import {
+  ModerationActionType,
+  ModerationTargetType,
+} from '../../../src/modules/trust/moderation/entities/moderation-action.entity';
 
 /**
  * Trust-layer invariant tests — verifying the RULES of the domain,
@@ -15,7 +27,11 @@ describe('Trust Layer Invariants', () => {
   // ─── RETURN STATUS MACHINE ───────────────────────────────────
   describe('Return status transitions', () => {
     const VALID_TRANSITIONS: Record<string, string[]> = {
-      [ReturnRequestStatus.PENDING_REVIEW]: ['approved', 'rejected', 'escalated'],
+      [ReturnRequestStatus.PENDING_REVIEW]: [
+        'approved',
+        'rejected',
+        'escalated',
+      ],
       [ReturnRequestStatus.APPROVED]: ['completed'],
       [ReturnRequestStatus.ESCALATED]: ['approved', 'rejected'],
       [ReturnRequestStatus.REJECTED]: [],
@@ -29,7 +45,9 @@ describe('Trust Layer Invariants', () => {
     });
 
     it('approved can only transition to completed', () => {
-      expect(VALID_TRANSITIONS[ReturnRequestStatus.APPROVED]).toEqual(['completed']);
+      expect(VALID_TRANSITIONS[ReturnRequestStatus.APPROVED]).toEqual([
+        'completed',
+      ]);
     });
 
     it('rejected and completed are terminal statuses', () => {
@@ -40,7 +58,11 @@ describe('Trust Layer Invariants', () => {
 
   // ─── DISPUTE STATUS MACHINE ──────────────────────────────────
   describe('Dispute status transitions', () => {
-    const RESOLVABLE_STATUSES = [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW, DisputeStatus.ESCALATED];
+    const RESOLVABLE_STATUSES = [
+      DisputeStatus.OPEN,
+      DisputeStatus.UNDER_REVIEW,
+      DisputeStatus.ESCALATED,
+    ];
     const CLOSABLE_STATUSES = [DisputeStatus.RESOLVED, DisputeStatus.ESCALATED];
 
     it('disputes can only be resolved from open, under_review, or escalated', () => {

@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { LedgerEntry, LedgerEntryStatus, LedgerEntryType } from '../entities/ledger-entry.entity';
+import {
+  LedgerEntry,
+  LedgerEntryStatus,
+  LedgerEntryType,
+} from '../entities/ledger-entry.entity';
 import { LedgerQueryDto } from '../dto/ledger-query.dto';
 
 @Injectable()
@@ -21,7 +25,7 @@ export class LedgerService {
     params: {
       userId: string;
       entryType: LedgerEntryType;
-      amount: number;          // positive = credit, negative = debit
+      amount: number; // positive = credit, negative = debit
       currency: string;
       status: LedgerEntryStatus;
       referenceId: string;
@@ -33,8 +37,9 @@ export class LedgerService {
     em?: EntityManager,
   ): Promise<LedgerEntry> {
     const manager = em ?? this.entryRepo.manager;
-    const idempotency_key = params.idempotencyKey ?? `${params.referenceId}:${params.entryType}`;
-    
+    const idempotency_key =
+      params.idempotencyKey ?? `${params.referenceId}:${params.entryType}`;
+
     const entry = manager.create(LedgerEntry, {
       user_id: params.userId,
       entry_type: params.entryType,
@@ -47,12 +52,17 @@ export class LedgerService {
       note: params.note ?? null,
       idempotency_key,
     });
-    
+
     try {
       return await manager.save(LedgerEntry, entry);
     } catch (err: any) {
-      if (err?.code === '23505' || err?.message?.includes('UNIQUE constraint failed')) {
-        const existing = await manager.findOne(LedgerEntry, { where: { idempotency_key } });
+      if (
+        err?.code === '23505' ||
+        err?.message?.includes('UNIQUE constraint failed')
+      ) {
+        const existing = await manager.findOne(LedgerEntry, {
+          where: { idempotency_key },
+        });
         if (existing) return existing;
       }
       throw err;
@@ -64,7 +74,9 @@ export class LedgerService {
       .createQueryBuilder('le')
       .select('COALESCE(SUM(CAST(le.amount AS DECIMAL)), 0)', 'total')
       .where('le.user_id = :userId', { userId })
-      .andWhere('le.entry_type = :type', { type: LedgerEntryType.COMMISSION_PENDING })
+      .andWhere('le.entry_type = :type', {
+        type: LedgerEntryType.COMMISSION_PENDING,
+      })
       .andWhere('le.status = :status', { status: LedgerEntryStatus.PENDING })
       .getRawOne<{ total: string }>();
     return parseFloat(result?.total ?? '0');
@@ -107,7 +119,10 @@ export class LedgerService {
    * Fix #2 & M4: Same single-SELECT logic as getAvailableBalance but scoped to
    * the caller's EntityManager for TOCTOU-safe payout creation and approval.
    */
-  async getAvailableBalanceForManager(userId: string, em: EntityManager): Promise<number> {
+  async getAvailableBalanceForManager(
+    userId: string,
+    em: EntityManager,
+  ): Promise<number> {
     const result = await em
       .createQueryBuilder(LedgerEntry, 'le')
       .select(
@@ -129,14 +144,26 @@ export class LedgerService {
 
   async getLedgerHistory(
     userId: string,
-    query: { page: number; limit: number; entry_type?: string; status?: string },
-  ): Promise<{ data: LedgerEntry[]; total: number; page: number; limit: number }> {
+    query: {
+      page: number;
+      limit: number;
+      entry_type?: string;
+      status?: string;
+    },
+  ): Promise<{
+    data: LedgerEntry[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const qb = this.entryRepo
       .createQueryBuilder('le')
       .where('le.user_id = :userId', { userId });
 
-    if (query.entry_type) qb.andWhere('le.entry_type = :type', { type: query.entry_type });
-    if (query.status) qb.andWhere('le.status = :status', { status: query.status });
+    if (query.entry_type)
+      qb.andWhere('le.entry_type = :type', { type: query.entry_type });
+    if (query.status)
+      qb.andWhere('le.status = :status', { status: query.status });
 
     qb.orderBy('le.created_at', 'DESC')
       .skip((query.page - 1) * query.limit)
@@ -147,11 +174,21 @@ export class LedgerService {
   }
 
   async adminGetLedgerEntries(query: {
-    page: number; limit: number; user_id?: string; entry_type?: string;
-  }): Promise<{ data: LedgerEntry[]; total: number; page: number; limit: number }> {
+    page: number;
+    limit: number;
+    user_id?: string;
+    entry_type?: string;
+  }): Promise<{
+    data: LedgerEntry[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const qb = this.entryRepo.createQueryBuilder('le').where('1=1');
-    if (query.user_id) qb.andWhere('le.user_id = :userId', { userId: query.user_id });
-    if (query.entry_type) qb.andWhere('le.entry_type = :type', { type: query.entry_type });
+    if (query.user_id)
+      qb.andWhere('le.user_id = :userId', { userId: query.user_id });
+    if (query.entry_type)
+      qb.andWhere('le.entry_type = :type', { type: query.entry_type });
     qb.orderBy('le.created_at', 'DESC')
       .skip((query.page - 1) * query.limit)
       .take(query.limit);

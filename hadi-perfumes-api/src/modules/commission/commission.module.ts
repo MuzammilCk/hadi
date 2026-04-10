@@ -48,26 +48,26 @@ import { LedgerModule } from '../ledger/ledger.module';
       Order,
       MoneyEventOutbox,
     ]),
-    LedgerModule,  // Phase 6 — provides LedgerService
+    LedgerModule, // Phase 6 — provides LedgerService
   ],
   controllers: [
-    AdminCompensationController,          // Phase 1 — keep
-    AdminCommissionTriggerController,     // Phase 6 — new
+    AdminCompensationController, // Phase 1 — keep
+    AdminCommissionTriggerController, // Phase 6 — new
   ],
   providers: [
-    PolicyEvaluationService,              // Phase 1 — keep
-    AdminPolicyService,                   // Phase 1 — keep
-    CommissionCalculationService,         // Phase 6 — new
-    CommissionReleaseJob,                 // Phase 6 — new
-    ClawbackJob,                          // Phase 6 — new (in CommissionModule, needs CommissionEvent repo)
+    PolicyEvaluationService, // Phase 1 — keep
+    AdminPolicyService, // Phase 1 — keep
+    CommissionCalculationService, // Phase 6 — new
+    CommissionReleaseJob, // Phase 6 — new
+    ClawbackJob, // Phase 6 — new (in CommissionModule, needs CommissionEvent repo)
   ],
   exports: [
-    PolicyEvaluationService,              // Phase 1 — keep
-    AdminPolicyService,                   // Phase 1 — keep
-    TypeOrmModule,                        // Phase 1 — keep
-    CommissionCalculationService,         // Phase 6 — new
-    CommissionReleaseJob,                 // Phase 6 — new
-    ClawbackJob,                          // Phase 6 — new (exported so PayoutModule can use if needed)
+    PolicyEvaluationService, // Phase 1 — keep
+    AdminPolicyService, // Phase 1 — keep
+    TypeOrmModule, // Phase 1 — keep
+    CommissionCalculationService, // Phase 6 — new
+    CommissionReleaseJob, // Phase 6 — new
+    ClawbackJob, // Phase 6 — new (exported so PayoutModule can use if needed)
   ],
 })
 export class CommissionModule {}

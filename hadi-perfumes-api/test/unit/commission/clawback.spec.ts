@@ -2,8 +2,14 @@ jest.setTimeout(30000);
 
 import { v4 as uuidv4 } from 'uuid';
 import { ClawbackJob } from '../../../src/jobs/clawback.job';
-import { CommissionEvent, CommissionEventStatus } from '../../../src/modules/commission/entities/commission-event.entity';
-import { LedgerEntryType, LedgerEntryStatus } from '../../../src/modules/ledger/entities/ledger-entry.entity';
+import {
+  CommissionEvent,
+  CommissionEventStatus,
+} from '../../../src/modules/commission/entities/commission-event.entity';
+import {
+  LedgerEntryType,
+  LedgerEntryStatus,
+} from '../../../src/modules/ledger/entities/ledger-entry.entity';
 
 describe('ClawbackJob', () => {
   let job: ClawbackJob;
@@ -15,7 +21,10 @@ describe('ClawbackJob', () => {
   const orderId = uuidv4();
   const beneficiaryId = uuidv4();
 
-  const makeEvent = (status: string, clawbackBefore: Date): CommissionEvent => ({
+  const makeEvent = (
+    status: string,
+    clawbackBefore: Date,
+  ): CommissionEvent => ({
     id: uuidv4(),
     order_id: orderId,
     beneficiary_id: beneficiaryId,
@@ -44,7 +53,10 @@ describe('ClawbackJob', () => {
   });
 
   it('pending event → status=clawed_back, COMMISSION_REVERSED entry (negative, REVERSED)', async () => {
-    const pendingEvent = makeEvent('pending', new Date(Date.now() + 30 * 86400000));
+    const pendingEvent = makeEvent(
+      'pending',
+      new Date(Date.now() + 30 * 86400000),
+    );
     mockRepo = { find: jest.fn().mockResolvedValue([pendingEvent]) };
     mockDataSource = {
       transaction: jest.fn().mockImplementation(async (cb: any) => {
@@ -71,7 +83,10 @@ describe('ClawbackJob', () => {
   });
 
   it('available event (within window) → status=clawed_back, CLAWBACK entry (negative, REVERSED)', async () => {
-    const availableEvent = makeEvent('available', new Date(Date.now() + 30 * 86400000));
+    const availableEvent = makeEvent(
+      'available',
+      new Date(Date.now() + 30 * 86400000),
+    );
     mockRepo = { find: jest.fn().mockResolvedValue([availableEvent]) };
     mockDataSource = {
       transaction: jest.fn().mockImplementation(async (cb: any) => {
@@ -110,7 +125,10 @@ describe('ClawbackJob', () => {
   });
 
   it('clawed_back event → skipped', async () => {
-    const clawedBackEvent = makeEvent('clawed_back', new Date(Date.now() + 30 * 86400000));
+    const clawedBackEvent = makeEvent(
+      'clawed_back',
+      new Date(Date.now() + 30 * 86400000),
+    );
     mockRepo = { find: jest.fn().mockResolvedValue([clawedBackEvent]) };
     mockDataSource = { transaction: jest.fn() };
 
@@ -122,7 +140,10 @@ describe('ClawbackJob', () => {
   });
 
   it('voided event → skipped', async () => {
-    const voidedEvent = makeEvent('voided', new Date(Date.now() + 30 * 86400000));
+    const voidedEvent = makeEvent(
+      'voided',
+      new Date(Date.now() + 30 * 86400000),
+    );
     mockRepo = { find: jest.fn().mockResolvedValue([voidedEvent]) };
     mockDataSource = { transaction: jest.fn() };
 
@@ -134,7 +155,10 @@ describe('ClawbackJob', () => {
   });
 
   it('available event past clawback_before → skipped with warning', async () => {
-    const pastWindowEvent = makeEvent('available', new Date(Date.now() - 86400000));
+    const pastWindowEvent = makeEvent(
+      'available',
+      new Date(Date.now() - 86400000),
+    );
     mockRepo = { find: jest.fn().mockResolvedValue([pastWindowEvent]) };
     mockDataSource = { transaction: jest.fn() };
 
@@ -146,7 +170,10 @@ describe('ClawbackJob', () => {
   });
 
   it('clawback amounts are negative numbers', async () => {
-    const pendingEvent = makeEvent('pending', new Date(Date.now() + 30 * 86400000));
+    const pendingEvent = makeEvent(
+      'pending',
+      new Date(Date.now() + 30 * 86400000),
+    );
     mockRepo = { find: jest.fn().mockResolvedValue([pendingEvent]) };
     mockDataSource = {
       transaction: jest.fn().mockImplementation(async (cb: any) => {
@@ -201,4 +228,3 @@ describe('ClawbackJob', () => {
     expect(mockLedgerService.writeEntry).toHaveBeenCalledTimes(1);
   });
 });
-

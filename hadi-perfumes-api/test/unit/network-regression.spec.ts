@@ -10,7 +10,6 @@
 // ─── Graph Regression Scenarios ────────────────────────────────────────────────
 
 describe('Regression: graph corruption scenarios', () => {
-
   /**
    * Simulates detectCycle() from NetworkGraphService
    */
@@ -31,7 +30,11 @@ describe('Regression: graph corruption scenarios', () => {
   function parsePath(raw: string | string[] | null | undefined): string[] {
     if (!raw) return [];
     if (typeof raw === 'string') {
-      try { return JSON.parse(raw); } catch { return []; }
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return [];
+      }
     }
     return raw;
   }
@@ -116,7 +119,11 @@ describe('Regression: graph corruption scenarios', () => {
     const childOldPath = [root, oldSponsor, user];
     const userNewUplinePath = [newSponsor]; // newSponsor has no ancestors
 
-    const updatedPath = cascadeUpdatePath(childOldPath, user, userNewUplinePath);
+    const updatedPath = cascadeUpdatePath(
+      childOldPath,
+      user,
+      userNewUplinePath,
+    );
     expect(updatedPath).not.toBeNull();
     expect(updatedPath).toContain(newSponsor);
     expect(updatedPath).toContain(user);
@@ -143,7 +150,11 @@ describe('Regression: graph corruption scenarios', () => {
     const grandchildOldPath = [root, oldSponsor, user, child];
     const userNewUplinePath = [newSponsor];
 
-    const updatedPath = cascadeUpdatePath(grandchildOldPath, user, userNewUplinePath);
+    const updatedPath = cascadeUpdatePath(
+      grandchildOldPath,
+      user,
+      userNewUplinePath,
+    );
     expect(updatedPath).toEqual([newSponsor, user, child]);
     expect(updatedPath).not.toContain(root);
     expect(updatedPath).not.toContain(oldSponsor);
@@ -155,7 +166,9 @@ describe('Regression: graph corruption scenarios', () => {
     const unrelatedPath = ['root-aaa', 'other-user-bbb'];
     const correctedUser = 'user-ddd'; // not in the path
 
-    const result = cascadeUpdatePath(unrelatedPath, correctedUser, ['new-sponsor-ccc']);
+    const result = cascadeUpdatePath(unrelatedPath, correctedUser, [
+      'new-sponsor-ccc',
+    ]);
     expect(result).toBeNull();
   });
 
@@ -165,11 +178,20 @@ describe('Regression: graph corruption scenarios', () => {
 
     function determineRank(
       context: { pv: number; dv: number; legs: number },
-      rules: Array<{ level: number; pvReq: number; dvReq: number; legsReq: number }>,
+      rules: Array<{
+        level: number;
+        pvReq: number;
+        dvReq: number;
+        legsReq: number;
+      }>,
     ): number | null {
       const sorted = [...rules].sort((a, b) => b.level - a.level);
       for (const r of sorted) {
-        if (context.pv >= r.pvReq && context.dv >= r.dvReq && context.legs >= r.legsReq) {
+        if (
+          context.pv >= r.pvReq &&
+          context.dv >= r.dvReq &&
+          context.legs >= r.legsReq
+        ) {
           return r.level;
         }
       }

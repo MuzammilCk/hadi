@@ -1,10 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, In } from 'typeorm';
-import { PayoutHold, HoldStatus, HoldReasonType } from '../entities/payout-hold.entity';
+import {
+  PayoutHold,
+  HoldStatus,
+  HoldReasonType,
+} from '../entities/payout-hold.entity';
 import { CommissionHold } from '../entities/commission-hold.entity';
 import { TrustAuditService } from '../../audit/services/trust-audit.service';
-import { HoldNotFoundException, HoldAlreadyReleasedException } from '../exceptions/hold.exceptions';
+import {
+  HoldNotFoundException,
+  HoldAlreadyReleasedException,
+} from '../exceptions/hold.exceptions';
 import { EntityManager } from 'typeorm';
 
 @Injectable()
@@ -56,14 +63,20 @@ export class HoldService {
       }),
     );
 
-    await this.auditService.log({
-      actorId: params.heldBy ?? null,
-      actorType: params.heldBy ? 'admin' : 'system',
-      action: 'payout_hold.placed',
-      entityType: 'payout_hold',
-      entityId: hold.id,
-      metadata: { reason_type: params.reasonType, reason_ref_id: params.reasonRefId },
-    }, em);
+    await this.auditService.log(
+      {
+        actorId: params.heldBy ?? null,
+        actorType: params.heldBy ? 'admin' : 'system',
+        action: 'payout_hold.placed',
+        entityType: 'payout_hold',
+        entityId: hold.id,
+        metadata: {
+          reason_type: params.reasonType,
+          reason_ref_id: params.reasonRefId,
+        },
+      },
+      em,
+    );
 
     return hold;
   }
@@ -78,25 +91,35 @@ export class HoldService {
 
     const hold = await manager.findOne(PayoutHold, { where: { id: holdId } });
     if (!hold) throw new HoldNotFoundException(holdId);
-    if (hold.status !== HoldStatus.ACTIVE) throw new HoldAlreadyReleasedException();
+    if (hold.status !== HoldStatus.ACTIVE)
+      throw new HoldAlreadyReleasedException();
 
-    await manager.update(PayoutHold, { id: holdId }, {
-      status: HoldStatus.RELEASED,
-      released_by: adminActorId,
-      released_at: new Date(),
-      release_note: note ?? null,
+    await manager.update(
+      PayoutHold,
+      { id: holdId },
+      {
+        status: HoldStatus.RELEASED,
+        released_by: adminActorId,
+        released_at: new Date(),
+        release_note: note ?? null,
+      },
+    );
+
+    await this.auditService.log(
+      {
+        actorId: adminActorId,
+        actorType: 'admin',
+        action: 'payout_hold.released',
+        entityType: 'payout_hold',
+        entityId: holdId,
+        metadata: { note },
+      },
+      em,
+    );
+
+    const updated = await manager.findOne(PayoutHold, {
+      where: { id: holdId },
     });
-
-    await this.auditService.log({
-      actorId: adminActorId,
-      actorType: 'admin',
-      action: 'payout_hold.released',
-      entityType: 'payout_hold',
-      entityId: holdId,
-      metadata: { note },
-    }, em);
-
-    const updated = await manager.findOne(PayoutHold, { where: { id: holdId } });
     return updated!;
   }
 
@@ -158,14 +181,20 @@ export class HoldService {
       }),
     );
 
-    await this.auditService.log({
-      actorId: params.heldBy ?? null,
-      actorType: params.heldBy ? 'admin' : 'system',
-      action: 'commission_hold.placed',
-      entityType: 'commission_hold',
-      entityId: hold.id,
-      metadata: { reason_type: params.reasonType, reason_ref_id: params.reasonRefId },
-    }, em);
+    await this.auditService.log(
+      {
+        actorId: params.heldBy ?? null,
+        actorType: params.heldBy ? 'admin' : 'system',
+        action: 'commission_hold.placed',
+        entityType: 'commission_hold',
+        entityId: hold.id,
+        metadata: {
+          reason_type: params.reasonType,
+          reason_ref_id: params.reasonRefId,
+        },
+      },
+      em,
+    );
 
     return hold;
   }
@@ -178,27 +207,39 @@ export class HoldService {
   ): Promise<CommissionHold> {
     const manager = em ?? this.dataSource.manager;
 
-    const hold = await manager.findOne(CommissionHold, { where: { id: holdId } });
-    if (!hold) throw new HoldNotFoundException(holdId);
-    if (hold.status !== HoldStatus.ACTIVE) throw new HoldAlreadyReleasedException();
-
-    await manager.update(CommissionHold, { id: holdId }, {
-      status: HoldStatus.RELEASED,
-      released_by: adminActorId,
-      released_at: new Date(),
-      release_note: note ?? null,
+    const hold = await manager.findOne(CommissionHold, {
+      where: { id: holdId },
     });
+    if (!hold) throw new HoldNotFoundException(holdId);
+    if (hold.status !== HoldStatus.ACTIVE)
+      throw new HoldAlreadyReleasedException();
 
-    await this.auditService.log({
-      actorId: adminActorId,
-      actorType: 'admin',
-      action: 'commission_hold.released',
-      entityType: 'commission_hold',
-      entityId: holdId,
-      metadata: { note },
-    }, em);
+    await manager.update(
+      CommissionHold,
+      { id: holdId },
+      {
+        status: HoldStatus.RELEASED,
+        released_by: adminActorId,
+        released_at: new Date(),
+        release_note: note ?? null,
+      },
+    );
 
-    const updated = await manager.findOne(CommissionHold, { where: { id: holdId } });
+    await this.auditService.log(
+      {
+        actorId: adminActorId,
+        actorType: 'admin',
+        action: 'commission_hold.released',
+        entityType: 'commission_hold',
+        entityId: holdId,
+        metadata: { note },
+      },
+      em,
+    );
+
+    const updated = await manager.findOne(CommissionHold, {
+      where: { id: holdId },
+    });
     return updated!;
   }
 }

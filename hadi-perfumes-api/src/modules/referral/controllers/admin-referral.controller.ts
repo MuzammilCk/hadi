@@ -58,7 +58,9 @@ export class AdminReferralController {
     @Req() req: any,
   ) {
     if (!reason || reason.length < 10) {
-      throw new BadRequestException('Reason must be at least 10 characters long');
+      throw new BadRequestException(
+        'Reason must be at least 10 characters long',
+      );
     }
 
     if (!newSponsorId || newSponsorId === userId) {

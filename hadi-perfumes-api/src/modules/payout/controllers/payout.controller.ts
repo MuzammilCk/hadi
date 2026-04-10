@@ -1,4 +1,15 @@
-import { Controller, Post, Get, Req, Body, Query, Headers, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Req,
+  Body,
+  Query,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PayoutService } from '../services/payout.service';
 import { CreatePayoutRequestDto } from '../dto/create-payout-request.dto';
@@ -20,7 +31,11 @@ export class PayoutController {
     if (!idempotencyKey || !/^[0-9a-f-]{36}$/i.test(idempotencyKey)) {
       throw new IdempotencyKeyRequiredException();
     }
-    return this.payoutService.createPayoutRequest(req.user.sub, dto, idempotencyKey);
+    return this.payoutService.createPayoutRequest(
+      req.user.sub,
+      dto,
+      idempotencyKey,
+    );
   }
 
   @Get('wallet/payout-requests')

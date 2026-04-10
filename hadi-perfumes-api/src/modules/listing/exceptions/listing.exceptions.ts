@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 
 export class ListingNotFoundException extends NotFoundException {
   constructor(message: string = 'Listing not found') {

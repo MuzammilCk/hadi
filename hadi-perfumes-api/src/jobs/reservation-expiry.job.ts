@@ -11,7 +11,9 @@ export class ReservationExpiryJob {
     this.logger.log('Starting reservation expiry job...');
     try {
       const result = await this.inventoryService.expireStaleReservations();
-      this.logger.log(`Completed reservation expiry job. Expired: ${result.expired}`);
+      this.logger.log(
+        `Completed reservation expiry job. Expired: ${result.expired}`,
+      );
       return result;
     } catch (error) {
       this.logger.error('Failed to run reservation expiry job', error);

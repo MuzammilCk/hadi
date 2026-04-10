@@ -21,9 +21,16 @@ describe('NetworkGraphService (Integration)', () => {
   let em: EntityManager;
 
   const allEntities = [
-    User, SponsorshipLink, ReferralCode, ReferralRedemption,
-    OnboardingAuditLog, NetworkNode, GraphRebuildJob,
-    GraphCorrectionLog, NetworkSnapshot, QualificationEvent,
+    User,
+    SponsorshipLink,
+    ReferralCode,
+    ReferralRedemption,
+    OnboardingAuditLog,
+    NetworkNode,
+    GraphRebuildJob,
+    GraphCorrectionLog,
+    NetworkSnapshot,
+    QualificationEvent,
   ];
 
   beforeAll(async () => {
@@ -70,7 +77,12 @@ describe('NetworkGraphService (Integration)', () => {
   }
 
   // Helper: create a sponsorship link
-  async function createLink(userId: string, sponsorId: string, uplinePath: string[], codeId: string): Promise<SponsorshipLink> {
+  async function createLink(
+    userId: string,
+    sponsorId: string,
+    uplinePath: string[],
+    codeId: string,
+  ): Promise<SponsorshipLink> {
     const link = em.create(SponsorshipLink, {
       user_id: userId,
       sponsor_id: sponsorId,
@@ -88,7 +100,10 @@ describe('NetworkGraphService (Integration)', () => {
 
     expect(node.depth).toBe(0);
     expect(node.sponsor_id).toBeNull();
-    const path = typeof node.upline_path === 'string' ? JSON.parse(node.upline_path) : node.upline_path;
+    const path =
+      typeof node.upline_path === 'string'
+        ? JSON.parse(node.upline_path)
+        : node.upline_path;
     expect(path).toEqual([]);
   });
 
@@ -115,14 +130,22 @@ describe('NetworkGraphService (Integration)', () => {
     const codeSponsor = await createReferralCode(sponsor.id);
 
     await createLink(sponsor.id, root.id, [root.id], codeRoot.id);
-    await createLink(user.id, sponsor.id, [root.id, sponsor.id], codeSponsor.id);
+    await createLink(
+      user.id,
+      sponsor.id,
+      [root.id, sponsor.id],
+      codeSponsor.id,
+    );
 
     await service.buildNodeForUser(root.id, em);
     await service.buildNodeForUser(sponsor.id, em);
     const userNode = await service.buildNodeForUser(user.id, em);
 
     expect(userNode.depth).toBe(2);
-    const path = typeof userNode.upline_path === 'string' ? JSON.parse(userNode.upline_path) : userNode.upline_path;
+    const path =
+      typeof userNode.upline_path === 'string'
+        ? JSON.parse(userNode.upline_path)
+        : userNode.upline_path;
     expect(path).toEqual([root.id, sponsor.id]);
   });
 
@@ -147,7 +170,11 @@ describe('NetworkGraphService (Integration)', () => {
     await service.buildNodeForUser(newSponsor.id, em);
     await service.buildNodeForUser(user.id, em);
 
-    const dto = { userId: user.id, newSponsorId: newSponsor.id, reason: 'Integration test correction reason' };
+    const dto = {
+      userId: user.id,
+      newSponsorId: newSponsor.id,
+      reason: 'Integration test correction reason',
+    };
 
     await em.transaction(async (txEm) => {
       const log = await service.applyGraphCorrection(dto, 'admin-1', txEm);
@@ -156,7 +183,9 @@ describe('NetworkGraphService (Integration)', () => {
     });
 
     // Verify log exists
-    const logs = await em.find(GraphCorrectionLog, { where: { user_id: user.id } });
+    const logs = await em.find(GraphCorrectionLog, {
+      where: { user_id: user.id },
+    });
     expect(logs.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -172,7 +201,11 @@ describe('NetworkGraphService (Integration)', () => {
     await service.buildNodeForUser(child.id, em);
 
     // Try to make parent's sponsor = child (creates cycle: child → parent → child)
-    const dto = { userId: parent.id, newSponsorId: child.id, reason: 'Cycle test correction reason' };
+    const dto = {
+      userId: parent.id,
+      newSponsorId: child.id,
+      reason: 'Cycle test correction reason',
+    };
 
     await expect(
       em.transaction(async (txEm) => {
@@ -194,7 +227,11 @@ describe('NetworkGraphService (Integration)', () => {
     await service.buildNodeForUser(sponsor2.id, em);
     await service.buildNodeForUser(user.id, em);
 
-    const dto = { userId: user.id, newSponsorId: sponsor2.id, reason: 'Audit log test correction' };
+    const dto = {
+      userId: user.id,
+      newSponsorId: sponsor2.id,
+      reason: 'Audit log test correction',
+    };
 
     await em.transaction(async (txEm) => {
       await service.applyGraphCorrection(dto, 'admin-1', txEm);
@@ -217,9 +254,24 @@ describe('NetworkGraphService (Integration)', () => {
     const codeOld = await createReferralCode(oldSponsor.id);
     const codeUser = await createReferralCode(user.id);
 
-    await createLink(oldSponsor.id, root.id, [root.id], await createReferralCode(root.id).then(c => c.id));
-    await createLink(user.id, oldSponsor.id, [root.id, oldSponsor.id], codeOld.id);
-    await createLink(child.id, user.id, [root.id, oldSponsor.id, user.id], codeUser.id);
+    await createLink(
+      oldSponsor.id,
+      root.id,
+      [root.id],
+      await createReferralCode(root.id).then((c) => c.id),
+    );
+    await createLink(
+      user.id,
+      oldSponsor.id,
+      [root.id, oldSponsor.id],
+      codeOld.id,
+    );
+    await createLink(
+      child.id,
+      user.id,
+      [root.id, oldSponsor.id, user.id],
+      codeUser.id,
+    );
 
     await service.buildNodeForUser(root.id, em);
     await service.buildNodeForUser(oldSponsor.id, em);
@@ -227,16 +279,23 @@ describe('NetworkGraphService (Integration)', () => {
     await service.buildNodeForUser(user.id, em);
     await service.buildNodeForUser(child.id, em);
 
-    const dto = { userId: user.id, newSponsorId: newSponsor.id, reason: 'Descendant update test reason' };
+    const dto = {
+      userId: user.id,
+      newSponsorId: newSponsor.id,
+      reason: 'Descendant update test reason',
+    };
 
     await em.transaction(async (txEm) => {
       await service.applyGraphCorrection(dto, 'admin-1', txEm);
     });
 
-    const childNode = await em.findOne(NetworkNode, { where: { user_id: child.id } });
-    const childPath = typeof childNode!.upline_path === 'string'
-      ? JSON.parse(childNode!.upline_path)
-      : childNode!.upline_path;
+    const childNode = await em.findOne(NetworkNode, {
+      where: { user_id: child.id },
+    });
+    const childPath =
+      typeof childNode!.upline_path === 'string'
+        ? JSON.parse(childNode!.upline_path)
+        : childNode!.upline_path;
 
     // Child's path should now include newSponsor instead of oldSponsor
     expect(childPath).toContain(newSponsor.id);
@@ -255,7 +314,9 @@ describe('NetworkGraphService (Integration)', () => {
 
     await service.rebuildAllNodes('test-admin');
 
-    const parentNode = await em.findOne(NetworkNode, { where: { user_id: parent.id } });
+    const parentNode = await em.findOne(NetworkNode, {
+      where: { user_id: parent.id },
+    });
     expect(parentNode!.direct_count).toBe(2);
   });
 
@@ -273,7 +334,9 @@ describe('NetworkGraphService (Integration)', () => {
 
     await service.rebuildAllNodes('test-admin');
 
-    const rootNode = await em.findOne(NetworkNode, { where: { user_id: root.id } });
+    const rootNode = await em.findOne(NetworkNode, {
+      where: { user_id: root.id },
+    });
     expect(rootNode!.total_downline).toBeGreaterThanOrEqual(2); // mid + leaf
   });
 });

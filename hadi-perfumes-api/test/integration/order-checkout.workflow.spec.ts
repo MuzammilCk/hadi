@@ -30,7 +30,10 @@ import { InventoryItem } from '../../src/modules/inventory/entities/inventory-it
 import { InventoryReservation } from '../../src/modules/inventory/entities/inventory-reservation.entity';
 import { InventoryEvent } from '../../src/modules/inventory/entities/inventory-event.entity';
 import { CheckoutSession } from '../../src/modules/order/entities/checkout-session.entity';
-import { Order, OrderStatus } from '../../src/modules/order/entities/order.entity';
+import {
+  Order,
+  OrderStatus,
+} from '../../src/modules/order/entities/order.entity';
 import { OrderItem } from '../../src/modules/order/entities/order-item.entity';
 import { OrderStatusHistory } from '../../src/modules/order/entities/order-status-history.entity';
 import { Payment } from '../../src/modules/order/entities/payment.entity';
@@ -78,10 +81,23 @@ describe('Order Checkout Workflow (Integration)', () => {
           entities: [__dirname + '/../../src/**/*.entity{.ts,.js}'],
         }),
         TypeOrmModule.forFeature([
-          User, Listing, InventoryItem, InventoryReservation, InventoryEvent,
-          CheckoutSession, Order, OrderItem, OrderStatusHistory,
-          Payment, PaymentWebhookEvent, OrderAuditLog, MoneyEventOutbox,
-          ProductCategory, ListingImage, ListingStatusHistory, ListingModerationAction,
+          User,
+          Listing,
+          InventoryItem,
+          InventoryReservation,
+          InventoryEvent,
+          CheckoutSession,
+          Order,
+          OrderItem,
+          OrderStatusHistory,
+          Payment,
+          PaymentWebhookEvent,
+          OrderAuditLog,
+          MoneyEventOutbox,
+          ProductCategory,
+          ListingImage,
+          ListingStatusHistory,
+          ListingModerationAction,
         ]),
       ],
       providers: [
@@ -97,11 +113,11 @@ describe('Order Checkout Workflow (Integration)', () => {
     checkoutService = module.get(CheckoutService);
     orderService = module.get(OrderService);
     paymentService = module.get(PaymentService);
-    
+
     // Manually inject the mocked stripe instance
     const StripeMock = require('stripe');
     (paymentService as any).stripe = new StripeMock();
-    
+
     userRepo = dataSource.getRepository(User);
     listingRepo = dataSource.getRepository(Listing);
     inventoryRepo = dataSource.getRepository(InventoryItem);
@@ -111,34 +127,42 @@ describe('Order Checkout Workflow (Integration)', () => {
     outboxRepo = dataSource.getRepository(MoneyEventOutbox);
 
     // Create test user
-    testUser = await userRepo.save(userRepo.create({
-      phone: '+919999990001',
-      status: 'active',
-    }));
+    testUser = await userRepo.save(
+      userRepo.create({
+        phone: '+919999990001',
+        status: 'active',
+      }),
+    );
 
     // Create admin user for seller_id FK
-    const adminUser = await userRepo.save(userRepo.create({
-      id: adminId,
-      phone: '+910000000000',
-      status: 'active',
-    }));
+    const adminUser = await userRepo.save(
+      userRepo.create({
+        id: adminId,
+        phone: '+910000000000',
+        status: 'active',
+      }),
+    );
 
     // Create test listing with inventory
-    testListing = await listingRepo.save(listingRepo.create({
-      seller_id: adminUser.id,
-      title: 'Test Perfume',
-      sku: 'PERF-001',
-      price: 250.00,
-      quantity: 10,
-      condition: 'new',
-      status: 'active',
-    }));
+    testListing = await listingRepo.save(
+      listingRepo.create({
+        seller_id: adminUser.id,
+        title: 'Test Perfume',
+        sku: 'PERF-001',
+        price: 250.0,
+        quantity: 10,
+        condition: 'new',
+        status: 'active',
+      }),
+    );
 
-    await inventoryRepo.save(inventoryRepo.create({
-      listing_id: testListing.id,
-      total_qty: 5,
-      available_qty: 5,
-    }));
+    await inventoryRepo.save(
+      inventoryRepo.create({
+        listing_id: testListing.id,
+        total_qty: 5,
+        available_qty: 5,
+      }),
+    );
   }, 30000);
 
   afterAll(async () => {
@@ -161,7 +185,9 @@ describe('Order Checkout Workflow (Integration)', () => {
     const dto = createValidDto();
     const idempotencyKey = uuidv4();
     const order = await checkoutService.initiateCheckout(
-      testUser.id, dto as any, idempotencyKey,
+      testUser.id,
+      dto as any,
+      idempotencyKey,
     );
 
     expect(order).toBeDefined();
@@ -170,13 +196,17 @@ describe('Order Checkout Workflow (Integration)', () => {
     expect(order.idempotency_key).toBe(idempotencyKey);
 
     // Verify reservation exists
-    const reservations = await reservationRepo.find({ where: { reserved_by_user_id: testUser.id } });
+    const reservations = await reservationRepo.find({
+      where: { reserved_by_user_id: testUser.id },
+    });
     expect(reservations.length).toBeGreaterThanOrEqual(1);
     const lastRes = reservations[reservations.length - 1];
     expect(lastRes.status).toBe('reserved');
 
     // Verify inventory decreased
-    const item = await inventoryRepo.findOne({ where: { listing_id: testListing.id } });
+    const item = await inventoryRepo.findOne({
+      where: { listing_id: testListing.id },
+    });
     expect(item).toBeDefined();
     expect(Number(item!.available_qty)).toBeLessThan(5);
 
@@ -191,10 +221,14 @@ describe('Order Checkout Workflow (Integration)', () => {
     const dto = createValidDto();
     const idempotencyKey = uuidv4();
     const first = await checkoutService.initiateCheckout(
-      testUser.id, dto as any, idempotencyKey,
+      testUser.id,
+      dto as any,
+      idempotencyKey,
     );
     const second = await checkoutService.initiateCheckout(
-      testUser.id, dto as any, idempotencyKey,
+      testUser.id,
+      dto as any,
+      idempotencyKey,
     );
     expect(first.id).toBe(second.id);
   });
@@ -203,22 +237,30 @@ describe('Order Checkout Workflow (Integration)', () => {
     const dto = createValidDto();
     const idempotencyKey = uuidv4();
     const order = await checkoutService.initiateCheckout(
-      testUser.id, dto as any, idempotencyKey,
+      testUser.id,
+      dto as any,
+      idempotencyKey,
     );
 
-    const inventoryBefore = await inventoryRepo.findOne({ where: { listing_id: testListing.id } });
+    const inventoryBefore = await inventoryRepo.findOne({
+      where: { listing_id: testListing.id },
+    });
     const availableBefore = Number(inventoryBefore!.available_qty);
 
     const cancelled = await orderService.cancelOrder(order.id, testUser.id);
     expect(cancelled.status).toBe(OrderStatus.CANCELLED);
 
     // Verify inventory restored
-    const inventoryAfter = await inventoryRepo.findOne({ where: { listing_id: testListing.id } });
+    const inventoryAfter = await inventoryRepo.findOne({
+      where: { listing_id: testListing.id },
+    });
     expect(Number(inventoryAfter!.available_qty)).toBe(availableBefore + 1);
 
     // Verify history has cancelled row
     const history = await historyRepo.find({ where: { order_id: order.id } });
-    const cancelledEntry = history.find(h => h.to_status === OrderStatus.CANCELLED);
+    const cancelledEntry = history.find(
+      (h) => h.to_status === OrderStatus.CANCELLED,
+    );
     expect(cancelledEntry).toBeDefined();
   });
 
@@ -226,13 +268,17 @@ describe('Order Checkout Workflow (Integration)', () => {
     const dto = createValidDto();
     const idempotencyKey = uuidv4();
     const order = await checkoutService.initiateCheckout(
-      testUser.id, dto as any, idempotencyKey,
+      testUser.id,
+      dto as any,
+      idempotencyKey,
     );
 
     // Create payment intent
     const paymentIdempotencyKey = uuidv4();
     const payment = await paymentService.createPaymentIntent(
-      order.id, paymentIdempotencyKey, testUser.id,
+      order.id,
+      paymentIdempotencyKey,
+      testUser.id,
     );
     expect(payment.provider_payment_intent_id).toBe('pi_test_123');
 
@@ -260,13 +306,15 @@ describe('Order Checkout Workflow (Integration)', () => {
     expect(updatedOrder!.status).toBe(OrderStatus.PAID);
 
     // Verify outbox
-    const outboxEntries = await outboxRepo.find({ where: { aggregate_id: order.id } });
+    const outboxEntries = await outboxRepo.find({
+      where: { aggregate_id: order.id },
+    });
     expect(outboxEntries.length).toBe(1);
     expect(outboxEntries[0].event_type).toBe('order.paid');
 
     // Verify history has paid row
     const history = await historyRepo.find({ where: { order_id: order.id } });
-    const paidEntry = history.find(h => h.to_status === OrderStatus.PAID);
+    const paidEntry = history.find((h) => h.to_status === OrderStatus.PAID);
     expect(paidEntry).toBeDefined();
   });
 });

@@ -47,7 +47,9 @@ export class PaymentService {
 
   private get stripeClient(): Stripe {
     if (!this.stripe) {
-      throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY in production.');
+      throw new Error(
+        'Stripe is not configured. Set STRIPE_SECRET_KEY in production.',
+      );
     }
     return this.stripe;
   }
@@ -112,8 +114,14 @@ export class PaymentService {
       return await this.paymentRepo.save(payment);
     } catch (err: any) {
       // Handle unique constraint violation from concurrent request (PSQL code 23505)
-      if (err?.code === '23505' || err?.message?.includes('UNIQUE constraint failed') || err?.message?.includes('unique constraint')) {
-        const duplicate = await this.paymentRepo.findOne({ where: { order_id: orderId } });
+      if (
+        err?.code === '23505' ||
+        err?.message?.includes('UNIQUE constraint failed') ||
+        err?.message?.includes('unique constraint')
+      ) {
+        const duplicate = await this.paymentRepo.findOne({
+          where: { order_id: orderId },
+        });
         if (duplicate) return duplicate;
       }
       throw err;
@@ -160,11 +168,11 @@ export class PaymentService {
       const existingRecord = await this.webhookRepo.findOne({
         where: { provider_event_id: event.id, provider: 'stripe' },
       });
-      if (!existingRecord) return;        // lost race, other worker handled it
+      if (!existingRecord) return; // lost race, other worker handled it
       if (existingRecord.processed) return; // already succeeded — idempotent
       // Prior attempt errored — retry it
       webhookRecord = existingRecord;
-      webhookRecord.error = null;          // clear previous error before retry
+      webhookRecord.error = null; // clear previous error before retry
     }
 
     // 3. Process event
@@ -173,8 +181,7 @@ export class PaymentService {
       webhookRecord.processed = true;
       webhookRecord.processed_at = new Date();
     } catch (err) {
-      webhookRecord.error =
-        err instanceof Error ? err.message : String(err);
+      webhookRecord.error = err instanceof Error ? err.message : String(err);
     }
     await this.webhookRepo.save(webhookRecord);
   }
@@ -183,7 +190,7 @@ export class PaymentService {
     event: Stripe.Event,
     record: PaymentWebhookEvent,
   ): Promise<void> {
-    const obj = (event.data as any).object as any;
+    const obj = (event.data as any).object;
 
     if (event.type === 'payment_intent.succeeded') {
       const orderId = obj.metadata?.order_id;
@@ -319,10 +326,7 @@ export class PaymentService {
         for (const item of items) {
           if (item.inventory_reservation_id) {
             await this.inventoryService
-              .releaseReservation(
-                item.inventory_reservation_id,
-                'system',
-              )
+              .releaseReservation(item.inventory_reservation_id, 'system')
               .catch((err) => {
                 this.logger.warn(
                   `Failed to release reservation ${item.inventory_reservation_id}: ${err.message}`,

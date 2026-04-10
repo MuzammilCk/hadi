@@ -53,7 +53,10 @@ describe('OTP Flow Workflow (Integration)', () => {
     await otpService.sendOtp(phone); // second send
 
     const otpRepo = dataSource.getRepository(OtpVerification);
-    const records = await otpRepo.find({ where: { phone }, order: { created_at: 'ASC' } });
+    const records = await otpRepo.find({
+      where: { phone },
+      order: { created_at: 'ASC' },
+    });
 
     expect(records.length).toBe(2);
     // First OTP should be expired (expires_at <= now)

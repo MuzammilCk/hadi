@@ -17,7 +17,10 @@ export class DisputeEscalationJob {
   ) {}
 
   async run(): Promise<{ escalated: number }> {
-    const escalateHours = parseInt(process.env.DISPUTE_AUTO_ESCALATE_HOURS || '72', 10);
+    const escalateHours = parseInt(
+      process.env.DISPUTE_AUTO_ESCALATE_HOURS || '72',
+      10,
+    );
     const cutoff = new Date(Date.now() - escalateHours * 60 * 60 * 1000);
 
     const overdueDisputes = await this.disputeRepo
@@ -31,31 +34,43 @@ export class DisputeEscalationJob {
     for (const dispute of overdueDisputes) {
       try {
         await this.dataSource.transaction(async (em) => {
-          const fresh = await em.findOne(Dispute, { where: { id: dispute.id } });
+          const fresh = await em.findOne(Dispute, {
+            where: { id: dispute.id },
+          });
           if (!fresh || fresh.status !== DisputeStatus.OPEN) return;
 
-          await em.update(Dispute, { id: dispute.id }, {
-            status: DisputeStatus.ESCALATED,
-            escalated_at: new Date(),
-          });
+          await em.update(
+            Dispute,
+            { id: dispute.id },
+            {
+              status: DisputeStatus.ESCALATED,
+              escalated_at: new Date(),
+            },
+          );
 
-          await em.save(DisputeStatusHistory, em.create(DisputeStatusHistory, {
-            dispute_id: dispute.id,
-            from_status: DisputeStatus.OPEN,
-            to_status: DisputeStatus.ESCALATED,
-            actor_id: null,
-            actor_type: 'system',
-            note: `Auto-escalated after ${escalateHours} hours`,
-          }));
+          await em.save(
+            DisputeStatusHistory,
+            em.create(DisputeStatusHistory, {
+              dispute_id: dispute.id,
+              from_status: DisputeStatus.OPEN,
+              to_status: DisputeStatus.ESCALATED,
+              actor_id: null,
+              actor_type: 'system',
+              note: `Auto-escalated after ${escalateHours} hours`,
+            }),
+          );
 
-          await this.auditService.log({
-            actorId: null,
-            actorType: 'system',
-            action: 'dispute.auto_escalated',
-            entityType: 'dispute',
-            entityId: dispute.id,
-            metadata: { hours: escalateHours },
-          }, em);
+          await this.auditService.log(
+            {
+              actorId: null,
+              actorType: 'system',
+              action: 'dispute.auto_escalated',
+              entityType: 'dispute',
+              entityId: dispute.id,
+              metadata: { hours: escalateHours },
+            },
+            em,
+          );
         });
         escalated++;
       } catch (err) {

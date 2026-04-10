@@ -78,7 +78,9 @@ export class AdminNetworkController {
   @Post('corrections')
   async applyCorrection(@Body() dto: GraphCorrectionDto, @Req() req: any) {
     if (dto.userId === dto.newSponsorId) {
-      throw new BadRequestException('Cannot assign a user as their own sponsor');
+      throw new BadRequestException(
+        'Cannot assign a user as their own sponsor',
+      );
     }
 
     const actorId = req.adminActorId;
@@ -92,16 +94,9 @@ export class AdminNetworkController {
    * POST /admin/network/recalculate — trigger rebuild job.
    */
   @Post('recalculate')
-  async recalculate(
-    @Body() dto: RecalculateQualificationDto,
-    @Req() req: any,
-  ) {
+  async recalculate(@Body() dto: RecalculateQualificationDto, @Req() req: any) {
     const actorId = req.adminActorId;
-    return this.recalcJob.run(
-      dto.policyVersionId,
-      dto.targetUserId,
-      actorId,
-    );
+    return this.recalcJob.run(dto.policyVersionId, dto.targetUserId, actorId);
   }
 
   /**

@@ -1,4 +1,11 @@
-import { IsNumber, IsPositive, IsOptional, IsString, ValidateNested, IsIn } from 'class-validator';
+import {
+  IsNumber,
+  IsPositive,
+  IsOptional,
+  IsString,
+  ValidateNested,
+  IsIn,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PayoutMethodDto {
@@ -11,5 +18,8 @@ export class PayoutMethodDto {
 
 export class CreatePayoutRequestDto {
   @IsNumber({ maxDecimalPlaces: 2 }) @IsPositive() amount: number;
-  @ValidateNested() @IsOptional() @Type(() => PayoutMethodDto) payout_method?: PayoutMethodDto;
+  @ValidateNested()
+  @IsOptional()
+  @Type(() => PayoutMethodDto)
+  payout_method?: PayoutMethodDto;
 }

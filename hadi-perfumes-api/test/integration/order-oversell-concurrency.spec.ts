@@ -65,10 +65,23 @@ describe('Order Oversell Concurrency (Integration)', () => {
           entities: [__dirname + '/../../src/**/*.entity{.ts,.js}'],
         }),
         TypeOrmModule.forFeature([
-          User, Listing, InventoryItem, InventoryReservation, InventoryEvent,
-          CheckoutSession, Order, OrderItem, OrderStatusHistory,
-          Payment, PaymentWebhookEvent, OrderAuditLog, MoneyEventOutbox,
-          ProductCategory, ListingImage, ListingStatusHistory, ListingModerationAction,
+          User,
+          Listing,
+          InventoryItem,
+          InventoryReservation,
+          InventoryEvent,
+          CheckoutSession,
+          Order,
+          OrderItem,
+          OrderStatusHistory,
+          Payment,
+          PaymentWebhookEvent,
+          OrderAuditLog,
+          MoneyEventOutbox,
+          ProductCategory,
+          ListingImage,
+          ListingStatusHistory,
+          ListingModerationAction,
         ]),
       ],
       providers: [
@@ -85,34 +98,42 @@ describe('Order Oversell Concurrency (Integration)', () => {
     inventoryRepo = dataSource.getRepository(InventoryItem);
 
     const userRepo = dataSource.getRepository(User);
-    testUser = await userRepo.save(userRepo.create({
-      phone: '+919999990002',
-      status: 'active',
-    }));
+    testUser = await userRepo.save(
+      userRepo.create({
+        phone: '+919999990002',
+        status: 'active',
+      }),
+    );
 
     // Create admin user for seller_id FK
-    await userRepo.save(userRepo.create({
-      id: adminId,
-      phone: '+910000000000',
-      status: 'active',
-    }));
+    await userRepo.save(
+      userRepo.create({
+        id: adminId,
+        phone: '+910000000000',
+        status: 'active',
+      }),
+    );
 
     const listingRepo = dataSource.getRepository(Listing);
-    testListing = await listingRepo.save(listingRepo.create({
-      seller_id: adminId,
-      title: 'Limited Perfume',
-      sku: 'PERF-LIMITED',
-      price: 500.00,
-      quantity: 1,
-      condition: 'new',
-      status: 'active',
-    }));
+    testListing = await listingRepo.save(
+      listingRepo.create({
+        seller_id: adminId,
+        title: 'Limited Perfume',
+        sku: 'PERF-LIMITED',
+        price: 500.0,
+        quantity: 1,
+        condition: 'new',
+        status: 'active',
+      }),
+    );
 
-    await inventoryRepo.save(inventoryRepo.create({
-      listing_id: testListing.id,
-      total_qty: 1,
-      available_qty: 1,
-    }));
+    await inventoryRepo.save(
+      inventoryRepo.create({
+        listing_id: testListing.id,
+        total_qty: 1,
+        available_qty: 1,
+      }),
+    );
   }, 30000);
 
   afterAll(async () => {
@@ -132,8 +153,11 @@ describe('Order Oversell Concurrency (Integration)', () => {
           {
             items: [{ listing_id: testListing.id, qty: 1 }],
             shipping_address: {
-              line1: '123 Test', city: 'Mumbai',
-              state: 'MH', postal_code: '400001', country: 'IN',
+              line1: '123 Test',
+              city: 'Mumbai',
+              state: 'MH',
+              postal_code: '400001',
+              country: 'IN',
             },
             contact: { name: 'Test', phone: '+919999990002' },
           } as any,
@@ -156,6 +180,8 @@ describe('Order Oversell Concurrency (Integration)', () => {
       where: { listing_id: testListing.id },
     });
     expect(Number(item!.available_qty)).toBeGreaterThanOrEqual(0);
-    expect(Number(item!.reserved_qty)).toBeLessThanOrEqual(Number(item!.total_qty));
+    expect(Number(item!.reserved_qty)).toBeLessThanOrEqual(
+      Number(item!.total_qty),
+    );
   });
 });

@@ -6,7 +6,10 @@ import { DataSource, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 
 import { User } from '../../../src/modules/user/entities/user.entity';
-import { PayoutRequest, PayoutRequestStatus } from '../../../src/modules/payout/entities/payout-request.entity';
+import {
+  PayoutRequest,
+  PayoutRequestStatus,
+} from '../../../src/modules/payout/entities/payout-request.entity';
 import { PayoutBatch } from '../../../src/modules/payout/entities/payout-batch.entity';
 import { LedgerEntry } from '../../../src/modules/ledger/entities/ledger-entry.entity';
 import { QualificationState } from '../../../src/modules/network/entities/qualification-state.entity';
@@ -27,12 +30,12 @@ describe('Hold Release Workflow (Integration)', () => {
   let payoutService: PayoutService;
   let holdService: HoldService;
   let ledgerService: LedgerService;
-  
+
   let userRepo: Repository<User>;
   let payoutRepo: Repository<PayoutRequest>;
 
   let testUser: User;
-  let adminId = '00000000-0000-0000-0000-000000000000';
+  const adminId = '00000000-0000-0000-0000-000000000000';
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
@@ -45,7 +48,15 @@ describe('Hold Release Workflow (Integration)', () => {
           entities: [__dirname + '/../../../src/**/*.entity{.ts,.js}'],
         }),
         TypeOrmModule.forFeature([
-          User, PayoutRequest, PayoutBatch, LedgerEntry, QualificationState, PayoutHold, CommissionHold, ResolutionEvent, TrustAuditLog
+          User,
+          PayoutRequest,
+          PayoutBatch,
+          LedgerEntry,
+          QualificationState,
+          PayoutHold,
+          CommissionHold,
+          ResolutionEvent,
+          TrustAuditLog,
         ]),
       ],
       providers: [
@@ -61,14 +72,25 @@ describe('Hold Release Workflow (Integration)', () => {
     payoutService = module.get(PayoutService);
     holdService = module.get(HoldService);
     ledgerService = module.get(LedgerService);
-    
+
     userRepo = dataSource.getRepository(User);
     payoutRepo = dataSource.getRepository(PayoutRequest);
 
-    testUser = await userRepo.save(userRepo.create({ phone: '+919999990006', status: 'active' }));
-    
+    testUser = await userRepo.save(
+      userRepo.create({ phone: '+919999990006', status: 'active' }),
+    );
+
     const qualRepo = dataSource.getRepository(QualificationState);
-    await qualRepo.save(qualRepo.create({ user_id: testUser.id, is_active: true, is_qualified: true, evaluated_at: new Date(), created_at: new Date(), updated_at: new Date() }));
+    await qualRepo.save(
+      qualRepo.create({
+        user_id: testUser.id,
+        is_active: true,
+        is_qualified: true,
+        evaluated_at: new Date(),
+        created_at: new Date(),
+        updated_at: new Date(),
+      }),
+    );
 
     // Fund the user ledger
     await ledgerService.writeEntry({
@@ -87,12 +109,19 @@ describe('Hold Release Workflow (Integration)', () => {
     await module?.close();
   });
 
-  it('active payout hold → executeBatch skips that user\'s payout', async () => {
+  it("active payout hold → executeBatch skips that user's payout", async () => {
     // 1. Create a payout request
-    const request = await payoutService.createPayoutRequest(testUser.id, { amount: 100, bank_account_id: 'bk_123'} , uuidv4());
-    
+    const request = await payoutService.createPayoutRequest(
+      testUser.id,
+      { amount: 100 },
+      uuidv4(),
+    );
+
     // 2. Approve it
-    const approved = await payoutService.approvePayoutRequest(request.id, adminId, 'approved');
+    const approved = await payoutService.approvePayoutRequest(
+      request.id,
+      adminId,
+    );
     expect(approved.status).toBe(PayoutRequestStatus.APPROVED);
 
     // 3. Place hold
@@ -107,19 +136,25 @@ describe('Hold Release Workflow (Integration)', () => {
 
     // 5. Verify the payout was skipped and marked HELD or BATCHED
     const updated = await payoutRepo.findOne({ where: { id: request.id } });
-    expect(updated!.status).not.toBe(PayoutRequestStatus.COMPLETED);
+    expect(updated!.status).not.toBe(PayoutRequestStatus.SENT);
     // Based on hook logic it should be BATCHED or HELD, we'll just test that it's not completed.
   });
 
-  it('hold released → executeBatch processes user\'s payout on next run', async () => {
+  it("hold released → executeBatch processes user's payout on next run", async () => {
     // Release the hold
     const holdRepo = dataSource.getRepository(PayoutHold);
-    const hold = await holdRepo.findOne({ where: { user_id: testUser.id, status: 'active'} });
+    const hold = await holdRepo.findOne({
+      where: { user_id: testUser.id, status: 'active' },
+    });
     if (hold) await holdService.releasePayoutHold(hold.id, adminId);
 
     const result = await payoutService.executeBatch(adminId);
-    
-    const updated = await payoutRepo.findOne({ where: { user_id: testUser.id } });
-    expect(['completed', 'processing', 'payout_sent', 'sent']).toContain(updated!.status.toLowerCase()); // Usually it becomes completed/processing based on batch logic
+
+    const updated = await payoutRepo.findOne({
+      where: { user_id: testUser.id },
+    });
+    expect(['completed', 'processing', 'payout_sent', 'sent']).toContain(
+      updated!.status.toLowerCase(),
+    ); // Usually it becomes completed/processing based on batch logic
   });
 });

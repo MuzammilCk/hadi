@@ -1,4 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+} from 'typeorm';
 import { tstz } from '../../../../common/utils/db-type.util';
 
 @Entity('trust_audit_logs')
@@ -9,6 +14,9 @@ export class TrustAuditLog {
   @Column({ type: 'varchar', length: 100 }) action: string;
   @Column({ type: 'varchar', length: 50 }) entity_type: string;
   @Column({ type: 'uuid' }) entity_id: string;
-  @Column({ type: 'simple-json', nullable: true }) metadata: Record<string, any> | null;
+  @Column({ type: 'simple-json', nullable: true }) metadata: Record<
+    string,
+    any
+  > | null;
   @CreateDateColumn({ type: tstz() as any }) created_at: Date;
 }

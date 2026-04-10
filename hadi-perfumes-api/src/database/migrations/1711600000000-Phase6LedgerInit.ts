@@ -35,10 +35,18 @@ export class Phase6LedgerInit1711600000000 implements MigrationInterface {
           FOREIGN KEY ("rule_id") REFERENCES "commission_rules"("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_commission_events_status" ON "commission_events" ("status")`);
-    await queryRunner.query(`CREATE INDEX "IDX_commission_events_available_after" ON "commission_events" ("available_after")`);
-    await queryRunner.query(`CREATE INDEX "IDX_commission_events_beneficiary_id" ON "commission_events" ("beneficiary_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_commission_events_order_id" ON "commission_events" ("order_id")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_commission_events_status" ON "commission_events" ("status")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_commission_events_available_after" ON "commission_events" ("available_after")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_commission_events_beneficiary_id" ON "commission_events" ("beneficiary_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_commission_events_order_id" ON "commission_events" ("order_id")`,
+    );
 
     // 2. commission_event_sources
     await queryRunner.query(`
@@ -81,10 +89,18 @@ export class Phase6LedgerInit1711600000000 implements MigrationInterface {
           FOREIGN KEY ("reversal_of_entry_id") REFERENCES "ledger_entries"("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_ledger_entries_user_id" ON "ledger_entries" ("user_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_ledger_entries_reference_id" ON "ledger_entries" ("reference_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_ledger_entries_entry_type" ON "ledger_entries" ("entry_type")`);
-    await queryRunner.query(`CREATE INDEX "IDX_ledger_entries_status" ON "ledger_entries" ("status")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ledger_entries_user_id" ON "ledger_entries" ("user_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ledger_entries_reference_id" ON "ledger_entries" ("reference_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ledger_entries_entry_type" ON "ledger_entries" ("entry_type")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ledger_entries_status" ON "ledger_entries" ("status")`,
+    );
 
     // 4. payout_batches (before payout_requests — FK dependency)
     await queryRunner.query(`
@@ -137,25 +153,47 @@ export class Phase6LedgerInit1711600000000 implements MigrationInterface {
           FOREIGN KEY ("rejected_by") REFERENCES "users"("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_payout_requests_user_id" ON "payout_requests" ("user_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_payout_requests_status" ON "payout_requests" ("status")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_payout_requests_user_id" ON "payout_requests" ("user_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_payout_requests_status" ON "payout_requests" ("status")`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_payout_requests_status"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_payout_requests_user_id"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_payout_requests_status"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_payout_requests_user_id"`,
+    );
     await queryRunner.query(`DROP TABLE "payout_requests"`);
     await queryRunner.query(`DROP TABLE "payout_batches"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_ledger_entries_status"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_ledger_entries_entry_type"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_ledger_entries_reference_id"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_ledger_entries_user_id"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_ledger_entries_entry_type"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_ledger_entries_reference_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_ledger_entries_user_id"`,
+    );
     await queryRunner.query(`DROP TABLE "ledger_entries"`);
     await queryRunner.query(`DROP TABLE "commission_event_sources"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_commission_events_order_id"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_commission_events_beneficiary_id"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_commission_events_available_after"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_commission_events_status"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_commission_events_order_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_commission_events_beneficiary_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_commission_events_available_after"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_commission_events_status"`,
+    );
     await queryRunner.query(`DROP TABLE "commission_events"`);
   }
 }

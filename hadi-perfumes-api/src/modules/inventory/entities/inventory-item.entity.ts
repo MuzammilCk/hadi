@@ -1,4 +1,11 @@
-import { Column, Entity, PrimaryGeneratedColumn, UpdateDateColumn, OneToOne, JoinColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+  OneToOne,
+  JoinColumn,
+} from 'typeorm';
 import { tstz } from '../../../common/utils/db-type.util';
 import { Listing } from '../../listing/entities/listing.entity';
 

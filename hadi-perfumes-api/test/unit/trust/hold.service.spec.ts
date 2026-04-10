@@ -2,7 +2,10 @@ jest.setTimeout(30000);
 
 import { v4 as uuidv4 } from 'uuid';
 import { HoldService } from '../../../src/modules/trust/holds/services/hold.service';
-import { HoldStatus, HoldReasonType } from '../../../src/modules/trust/holds/entities/payout-hold.entity';
+import {
+  HoldStatus,
+  HoldReasonType,
+} from '../../../src/modules/trust/holds/entities/payout-hold.entity';
 
 describe('HoldService', () => {
   let service: HoldService;
@@ -14,11 +17,19 @@ describe('HoldService', () => {
   beforeEach(() => {
     mockPayoutHoldRepo = {
       findOne: jest.fn().mockResolvedValue(null),
-      manager: { save: jest.fn(), create: jest.fn((_, d: any) => d), findOne: jest.fn() },
+      manager: {
+        save: jest.fn(),
+        create: jest.fn((_, d: any) => d),
+        findOne: jest.fn(),
+      },
     };
     mockCommissionHoldRepo = {
       findOne: jest.fn().mockResolvedValue(null),
-      manager: { save: jest.fn(), create: jest.fn((_, d: any) => d), findOne: jest.fn() },
+      manager: {
+        save: jest.fn(),
+        create: jest.fn((_, d: any) => d),
+        findOne: jest.fn(),
+      },
     };
     mockAuditService = {
       log: jest.fn().mockResolvedValue(undefined),
@@ -26,7 +37,10 @@ describe('HoldService', () => {
     mockDataSource = {
       manager: {
         findOne: jest.fn().mockResolvedValue(null),
-        save: jest.fn().mockImplementation(async (_: any, d: any) => ({ id: uuidv4(), ...d })),
+        save: jest.fn().mockImplementation(async (_: any, d: any) => ({
+          id: uuidv4(),
+          ...d,
+        })),
         create: jest.fn().mockImplementation((_: any, d: any) => d),
         update: jest.fn().mockResolvedValue({}),
       },
@@ -61,7 +75,10 @@ describe('HoldService', () => {
   it('placePayoutHold: creates new hold when no existing key', async () => {
     mockDataSource.manager.findOne.mockResolvedValue(null);
     const holdId = uuidv4();
-    mockDataSource.manager.save.mockResolvedValue({ id: holdId, status: HoldStatus.ACTIVE });
+    mockDataSource.manager.save.mockResolvedValue({
+      id: holdId,
+      status: HoldStatus.ACTIVE,
+    });
     buildService();
 
     const result = await service.placePayoutHold({
@@ -82,8 +99,9 @@ describe('HoldService', () => {
     mockDataSource.manager.findOne.mockResolvedValue(null);
     buildService();
 
-    await expect(service.releasePayoutHold(uuidv4(), uuidv4()))
-      .rejects.toThrow('Hold');
+    await expect(service.releasePayoutHold(uuidv4(), uuidv4())).rejects.toThrow(
+      'Hold',
+    );
   });
 
   it('releasePayoutHold: throws if hold already released', async () => {
@@ -93,8 +111,9 @@ describe('HoldService', () => {
     });
     buildService();
 
-    await expect(service.releasePayoutHold(uuidv4(), uuidv4()))
-      .rejects.toThrow('already been released');
+    await expect(service.releasePayoutHold(uuidv4(), uuidv4())).rejects.toThrow(
+      'already been released',
+    );
   });
 
   it('placeCommissionHold: idempotency — returns existing if key already exists', async () => {

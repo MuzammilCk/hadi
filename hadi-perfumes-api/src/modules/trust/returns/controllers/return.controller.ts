@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Param, Query, Req, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Query,
+  Req,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { ReturnService } from '../services/return.service';
 import { CreateReturnDto } from '../dto/create-return.dto';
@@ -11,7 +20,11 @@ export class ReturnController {
 
   @Post()
   async createReturn(@Req() req: any, @Body() dto: CreateReturnDto) {
-    return this.returnService.createReturn(req.user.sub, dto, dto.idempotency_key);
+    return this.returnService.createReturn(
+      req.user.sub,
+      dto,
+      dto.idempotency_key,
+    );
   }
 
   @Get('my')

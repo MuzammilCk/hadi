@@ -24,8 +24,12 @@ export class Phase7TrustInit1711700001000 implements MigrationInterface {
         CONSTRAINT "PK_trust_audit_logs" PRIMARY KEY ("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_trust_audit_entity" ON "trust_audit_logs" ("entity_type", "entity_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_trust_audit_actor" ON "trust_audit_logs" ("actor_id")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_trust_audit_entity" ON "trust_audit_logs" ("entity_type", "entity_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_trust_audit_actor" ON "trust_audit_logs" ("actor_id")`,
+    );
 
     // 2. return_requests
     await queryRunner.query(`
@@ -50,9 +54,15 @@ export class Phase7TrustInit1711700001000 implements MigrationInterface {
         CONSTRAINT "FK_return_requests_buyer" FOREIGN KEY ("buyer_id") REFERENCES "users"("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_return_requests_order_id" ON "return_requests" ("order_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_return_requests_buyer_id" ON "return_requests" ("buyer_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_return_requests_status" ON "return_requests" ("status")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_return_requests_order_id" ON "return_requests" ("order_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_return_requests_buyer_id" ON "return_requests" ("buyer_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_return_requests_status" ON "return_requests" ("status")`,
+    );
 
     // 3. return_items
     await queryRunner.query(`
@@ -133,9 +143,15 @@ export class Phase7TrustInit1711700001000 implements MigrationInterface {
         CONSTRAINT "FK_disputes_return_request" FOREIGN KEY ("return_request_id") REFERENCES "return_requests"("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_disputes_order_id" ON "disputes" ("order_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_disputes_buyer_id" ON "disputes" ("buyer_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_disputes_status" ON "disputes" ("status")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_disputes_order_id" ON "disputes" ("order_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_disputes_buyer_id" ON "disputes" ("buyer_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_disputes_status" ON "disputes" ("status")`,
+    );
 
     // 7. dispute_evidence
     await queryRunner.query(`
@@ -195,10 +211,18 @@ export class Phase7TrustInit1711700001000 implements MigrationInterface {
         CONSTRAINT "FK_fraud_signals_order" FOREIGN KEY ("order_id") REFERENCES "orders"("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_fraud_signals_user_id" ON "fraud_signals" ("user_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_fraud_signals_order_id" ON "fraud_signals" ("order_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_fraud_signals_status" ON "fraud_signals" ("status")`);
-    await queryRunner.query(`CREATE INDEX "IDX_fraud_signals_signal_type" ON "fraud_signals" ("signal_type")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_fraud_signals_user_id" ON "fraud_signals" ("user_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_fraud_signals_order_id" ON "fraud_signals" ("order_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_fraud_signals_status" ON "fraud_signals" ("status")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_fraud_signals_signal_type" ON "fraud_signals" ("signal_type")`,
+    );
 
     // 10. risk_assessments
     await queryRunner.query(`
@@ -234,8 +258,12 @@ export class Phase7TrustInit1711700001000 implements MigrationInterface {
         CONSTRAINT "FK_abuse_watchlist_user" FOREIGN KEY ("user_id") REFERENCES "users"("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_abuse_watchlist_user_id" ON "abuse_watchlist_entries" ("user_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_abuse_watchlist_is_active" ON "abuse_watchlist_entries" ("is_active")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_abuse_watchlist_user_id" ON "abuse_watchlist_entries" ("user_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_abuse_watchlist_is_active" ON "abuse_watchlist_entries" ("is_active")`,
+    );
 
     // 12. payout_holds
     await queryRunner.query(`
@@ -260,8 +288,12 @@ export class Phase7TrustInit1711700001000 implements MigrationInterface {
         CONSTRAINT "FK_payout_holds_request" FOREIGN KEY ("payout_request_id") REFERENCES "payout_requests"("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_payout_holds_user_id" ON "payout_holds" ("user_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_payout_holds_status" ON "payout_holds" ("status")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_payout_holds_user_id" ON "payout_holds" ("user_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_payout_holds_status" ON "payout_holds" ("status")`,
+    );
 
     // 13. commission_holds
     await queryRunner.query(`
@@ -286,8 +318,12 @@ export class Phase7TrustInit1711700001000 implements MigrationInterface {
         CONSTRAINT "FK_commission_holds_event" FOREIGN KEY ("commission_event_id") REFERENCES "commission_events"("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_commission_holds_user_id" ON "commission_holds" ("user_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_commission_holds_status" ON "commission_holds" ("status")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_commission_holds_user_id" ON "commission_holds" ("user_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_commission_holds_status" ON "commission_holds" ("status")`,
+    );
 
     // 14. resolution_events
     await queryRunner.query(`
@@ -305,7 +341,9 @@ export class Phase7TrustInit1711700001000 implements MigrationInterface {
         CONSTRAINT "PK_resolution_events" PRIMARY KEY ("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_resolution_events_entity" ON "resolution_events" ("entity_type", "entity_id")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_resolution_events_entity" ON "resolution_events" ("entity_type", "entity_id")`,
+    );
 
     // 15. moderation_actions
     await queryRunner.query(`
@@ -328,23 +366,35 @@ export class Phase7TrustInit1711700001000 implements MigrationInterface {
         CONSTRAINT "PK_moderation_actions" PRIMARY KEY ("id")
       )
     `);
-    await queryRunner.query(`CREATE INDEX "IDX_moderation_actions_target" ON "moderation_actions" ("target_type", "target_id")`);
-    await queryRunner.query(`CREATE INDEX "IDX_moderation_actions_actor" ON "moderation_actions" ("actor_id")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_moderation_actions_target" ON "moderation_actions" ("target_type", "target_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_moderation_actions_actor" ON "moderation_actions" ("actor_id")`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop in reverse FK order
-    await queryRunner.query(`DROP TABLE IF EXISTS "moderation_actions" CASCADE`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "moderation_actions" CASCADE`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "resolution_events" CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS "commission_holds" CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS "payout_holds" CASCADE`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "abuse_watchlist_entries" CASCADE`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "abuse_watchlist_entries" CASCADE`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "risk_assessments" CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS "fraud_signals" CASCADE`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "dispute_status_history" CASCADE`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "dispute_status_history" CASCADE`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "dispute_evidence" CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS "disputes" CASCADE`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "return_status_history" CASCADE`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "return_status_history" CASCADE`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "return_evidence" CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS "return_items" CASCADE`);
     await queryRunner.query(`DROP TABLE IF EXISTS "return_requests" CASCADE`);

@@ -14,8 +14,7 @@ const dbUrl =
  *
  * Supabase pooler requires SSL — without it the connection is refused.
  */
-const isLocalDb =
-  dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
+const isLocalDb = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
 
 const sslConfig =
   process.env.DATABASE_SSL === 'false' || isLocalDb
@@ -33,6 +32,8 @@ export const dataSourceOptions: DataSourceOptions = {
   // Disables server-side prepared statements which are not supported in transaction mode.
   extra: {
     options: '-c statement_timeout=30000',
+    // Fix L1: disable prepared statements for Supabase transaction-mode pooler
+    ...(sslConfig ? { prepare: false } : {}),
   },
 };
 

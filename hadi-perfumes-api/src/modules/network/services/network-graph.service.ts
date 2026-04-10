@@ -10,7 +10,10 @@ import { SponsorshipLink } from '../../referral/entities/sponsorship-link.entity
 import { User } from '../../user/entities/user.entity';
 import { OnboardingAuditLog } from '../../auth/entities/onboarding-audit-log.entity';
 import { GraphCorrectionDto } from '../dto/graph-correction.dto';
-import { NetworkCycleException, NetworkNodeNotFoundException } from '../exceptions/network.exceptions';
+import {
+  NetworkCycleException,
+  NetworkNodeNotFoundException,
+} from '../exceptions/network.exceptions';
 
 @Injectable()
 export class NetworkGraphService {
@@ -60,7 +63,10 @@ export class NetworkGraphService {
   /**
    * Build or rebuild a NetworkNode for a single user from their active SponsorshipLink.
    */
-  async buildNodeForUser(userId: string, em?: EntityManager): Promise<NetworkNode> {
+  async buildNodeForUser(
+    userId: string,
+    em?: EntityManager,
+  ): Promise<NetworkNode> {
     const manager = em || this.defaultEm;
 
     // Load active SponsorshipLink (corrected_at IS NULL, latest by created_at)
@@ -88,13 +94,16 @@ export class NetworkGraphService {
     const now = new Date();
 
     // Upsert: find existing or create new
-    let node = await manager.findOne(NetworkNode, { where: { user_id: userId } });
+    let node = await manager.findOne(NetworkNode, {
+      where: { user_id: userId },
+    });
 
     if (node) {
       node.sponsor_id = sponsorId;
-      node.upline_path = process.env.NODE_ENV === 'test'
-        ? (JSON.stringify(uplinePath) as any)
-        : uplinePath;
+      node.upline_path =
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify(uplinePath) as any)
+          : uplinePath;
       node.depth = depth;
       node.last_rebuilt_at = now;
       node.updated_at = now;
@@ -102,9 +111,10 @@ export class NetworkGraphService {
       node = manager.create(NetworkNode, {
         user_id: userId,
         sponsor_id: sponsorId,
-        upline_path: process.env.NODE_ENV === 'test'
-          ? (JSON.stringify(uplinePath) as any)
-          : uplinePath,
+        upline_path:
+          process.env.NODE_ENV === 'test'
+            ? (JSON.stringify(uplinePath) as any)
+            : uplinePath,
         depth,
         direct_count: 0,
         total_downline: 0,
@@ -153,7 +163,8 @@ export class NetworkGraphService {
       return job;
     } catch (error) {
       job.status = 'failed';
-      job.error_message = error instanceof Error ? error.message : String(error);
+      job.error_message =
+        error instanceof Error ? error.message : String(error);
       job.completed_at = new Date();
       await this.jobRepo.save(job);
       throw error;
@@ -169,10 +180,12 @@ export class NetworkGraphService {
 
     for (const node of allNodes) {
       // Direct count: nodes whose sponsor_id === this node's user_id
-      const directCount = allNodes.filter(n => n.sponsor_id === node.user_id).length;
+      const directCount = allNodes.filter(
+        (n) => n.sponsor_id === node.user_id,
+      ).length;
 
       // Total downline: all nodes whose upline_path contains this node's user_id
-      const totalDownline = allNodes.filter(n => {
+      const totalDownline = allNodes.filter((n) => {
         const path = this.parsePath(n.upline_path);
         return path.includes(node.user_id);
       }).length;
@@ -206,12 +219,15 @@ export class NetworkGraphService {
 
     const nodes = await qb.getMany();
 
-    const limitDepth = maxDepth || parseInt(process.env.MAX_NETWORK_DEPTH || '5', 10);
+    const limitDepth =
+      maxDepth || parseInt(process.env.MAX_NETWORK_DEPTH || '5', 10);
 
     // Filter by relative depth from the user
-    const userNode = await this.nodeRepo.findOne({ where: { user_id: userId } });
+    const userNode = await this.nodeRepo.findOne({
+      where: { user_id: userId },
+    });
     const userDepth = userNode ? userNode.depth : 0;
-    return nodes.filter(n => n.depth <= userDepth + limitDepth);
+    return nodes.filter((n) => n.depth <= userDepth + limitDepth);
   }
 
   /**
@@ -226,7 +242,9 @@ export class NetworkGraphService {
    * Required by QualificationRecalcJob to load real volumes for targeted recalc.
    */
   async getNodeForUser(userId: string): Promise<NetworkNode | null> {
-    return (await this.nodeRepo.findOne({ where: { user_id: userId } })) ?? null;
+    return (
+      (await this.nodeRepo.findOne({ where: { user_id: userId } })) ?? null
+    );
   }
 
   /**
@@ -246,17 +264,23 @@ export class NetworkGraphService {
   ): Promise<GraphCorrectionLog> {
     // Validate userId !== newSponsorId
     if (dto.userId === dto.newSponsorId) {
-      throw new BadRequestException('Cannot assign a user as their own sponsor');
+      throw new BadRequestException(
+        'Cannot assign a user as their own sponsor',
+      );
     }
 
     // Load current node
-    const currentNode = await em.findOne(NetworkNode, { where: { user_id: dto.userId } });
+    const currentNode = await em.findOne(NetworkNode, {
+      where: { user_id: dto.userId },
+    });
     if (!currentNode) {
       throw new NetworkNodeNotFoundException(dto.userId);
     }
 
     // Load new sponsor's node to get its upline path
-    const newSponsorNode = await em.findOne(NetworkNode, { where: { user_id: dto.newSponsorId } });
+    const newSponsorNode = await em.findOne(NetworkNode, {
+      where: { user_id: dto.newSponsorId },
+    });
     const newSponsorUplinePath = newSponsorNode
       ? this.parsePath(newSponsorNode.upline_path)
       : [];
@@ -274,9 +298,10 @@ export class NetworkGraphService {
 
     // Update user's node
     currentNode.sponsor_id = dto.newSponsorId;
-    currentNode.upline_path = process.env.NODE_ENV === 'test'
-      ? (JSON.stringify(newUplinePath) as any)
-      : newUplinePath;
+    currentNode.upline_path =
+      process.env.NODE_ENV === 'test'
+        ? (JSON.stringify(newUplinePath) as any)
+        : newUplinePath;
     currentNode.depth = newUplinePath.length;
     currentNode.updated_at = new Date();
     await em.save(NetworkNode, currentNode);
@@ -287,7 +312,7 @@ export class NetworkGraphService {
     // Entities loaded via em.find() are properly tracked by txEm, making
     // subsequent em.save() calls work correctly within the same transaction.
     const allNodes = await em.find(NetworkNode);
-    const descendants = allNodes.filter(n => {
+    const descendants = allNodes.filter((n) => {
       if (n.user_id === dto.userId) return false; // exclude the corrected user itself
       const path = this.parsePath(n.upline_path);
       return path.includes(dto.userId);
@@ -301,9 +326,10 @@ export class NetworkGraphService {
         // Replace everything before (and including) userId with new path
         const suffixAfterUser = descPath.slice(idx + 1);
         const updatedPath = [...newUplinePath, dto.userId, ...suffixAfterUser];
-        desc.upline_path = process.env.NODE_ENV === 'test'
-          ? (JSON.stringify(updatedPath) as any)
-          : updatedPath;
+        desc.upline_path =
+          process.env.NODE_ENV === 'test'
+            ? (JSON.stringify(updatedPath) as any)
+            : updatedPath;
         desc.depth = updatedPath.length;
         desc.updated_at = new Date();
         await em.save(NetworkNode, desc);
@@ -319,12 +345,14 @@ export class NetworkGraphService {
       correction_type: 'sponsor_reassignment',
       old_sponsor_id: oldSponsorId,
       new_sponsor_id: dto.newSponsorId,
-      old_upline_path: process.env.NODE_ENV === 'test'
-        ? (JSON.stringify(oldUplinePath) as any)
-        : oldUplinePath,
-      new_upline_path: process.env.NODE_ENV === 'test'
-        ? (JSON.stringify(newUplinePath) as any)
-        : newUplinePath,
+      old_upline_path:
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify(oldUplinePath) as any)
+          : oldUplinePath,
+      new_upline_path:
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify(newUplinePath) as any)
+          : newUplinePath,
       reason: dto.reason,
       actor_id: actorId,
       created_at: new Date(),
@@ -335,12 +363,14 @@ export class NetworkGraphService {
     const qualEvent = em.create(QualificationEvent, {
       user_id: dto.userId,
       event_type: 'disqualified',
-      previous_state: process.env.NODE_ENV === 'test'
-        ? (JSON.stringify({ sponsor_id: oldSponsorId }) as any)
-        : { sponsor_id: oldSponsorId },
-      new_state: process.env.NODE_ENV === 'test'
-        ? (JSON.stringify({ sponsor_id: dto.newSponsorId }) as any)
-        : { sponsor_id: dto.newSponsorId },
+      previous_state:
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify({ sponsor_id: oldSponsorId }) as any)
+          : { sponsor_id: oldSponsorId },
+      new_state:
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify({ sponsor_id: dto.newSponsorId }) as any)
+          : { sponsor_id: dto.newSponsorId },
       trigger_source: 'correction_flow',
       actor_id: actorId,
       created_at: new Date(),
@@ -353,17 +383,18 @@ export class NetworkGraphService {
       action: 'admin_network_correction',
       target_type: 'network_node',
       target_id: dto.userId,
-      metadata: process.env.NODE_ENV === 'test'
-        ? (JSON.stringify({
-            old_sponsor_id: oldSponsorId,
-            new_sponsor_id: dto.newSponsorId,
-            reason: dto.reason,
-          }) as any)
-        : {
-            old_sponsor_id: oldSponsorId,
-            new_sponsor_id: dto.newSponsorId,
-            reason: dto.reason,
-          },
+      metadata:
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify({
+              old_sponsor_id: oldSponsorId,
+              new_sponsor_id: dto.newSponsorId,
+              reason: dto.reason,
+            }) as any)
+          : {
+              old_sponsor_id: oldSponsorId,
+              new_sponsor_id: dto.newSponsorId,
+              reason: dto.reason,
+            },
     });
     await em.save(OnboardingAuditLog, auditLog);
 

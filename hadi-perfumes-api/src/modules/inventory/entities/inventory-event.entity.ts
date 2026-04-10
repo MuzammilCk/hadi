@@ -1,4 +1,11 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { enumType, tstz } from '../../../common/utils/db-type.util';
 import { InventoryItem } from './inventory-item.entity';
 import { Listing } from '../../listing/entities/listing.entity';

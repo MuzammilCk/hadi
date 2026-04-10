@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { tstz } from '../../../common/utils/db-type.util';
 
 export enum CheckoutSessionStatus {
@@ -23,7 +29,13 @@ export class CheckoutSession {
   status: string;
 
   @Column({ type: 'simple-json' })
-  items: Array<{ listing_id: string; qty: number; unit_price: number; title: string; sku: string }>;
+  items: Array<{
+    listing_id: string;
+    qty: number;
+    unit_price: number;
+    title: string;
+    sku: string;
+  }>;
 
   @Column({ type: 'numeric', precision: 12, scale: 2 })
   subtotal: number;

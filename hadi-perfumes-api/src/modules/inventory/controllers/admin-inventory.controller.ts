@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Patch, Param, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Patch,
+  Param,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { InventoryService } from '../services/inventory.service';
 import { AdminGuard } from '../../admin/guards/admin.guard';
 import { AddStockDto } from '../dto/add-stock.dto';
@@ -14,12 +22,20 @@ export class AdminInventoryController {
   ) {}
 
   @Post(':listingId/stock')
-  async addStock(@Req() req: any, @Param('listingId') listingId: string, @Body() dto: AddStockDto) {
+  async addStock(
+    @Req() req: any,
+    @Param('listingId') listingId: string,
+    @Body() dto: AddStockDto,
+  ) {
     return this.inventoryService.addStock(listingId, dto, req.adminActorId);
   }
 
   @Patch(':listingId/stock')
-  async adjustStock(@Req() req: any, @Param('listingId') listingId: string, @Body() dto: AdjustStockDto) {
+  async adjustStock(
+    @Req() req: any,
+    @Param('listingId') listingId: string,
+    @Body() dto: AdjustStockDto,
+  ) {
     return this.inventoryService.adjustStock(listingId, dto, req.adminActorId);
   }
 

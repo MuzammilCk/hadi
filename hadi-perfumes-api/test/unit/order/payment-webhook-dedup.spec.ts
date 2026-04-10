@@ -61,12 +61,14 @@ describe('PaymentWebhookDeduplication', () => {
       releaseReservation: jest.fn(),
     };
     mockDataSource = {
-      transaction: jest.fn((cb: any) => cb({
-        findOne: jest.fn(),
-        find: jest.fn().mockResolvedValue([]),
-        save: jest.fn(),
-        create: jest.fn((Entity: any, data: any) => data),
-      })),
+      transaction: jest.fn((cb: any) =>
+        cb({
+          findOne: jest.fn(),
+          find: jest.fn().mockResolvedValue([]),
+          save: jest.fn(),
+          create: jest.fn((Entity: any, data: any) => data),
+        }),
+      ),
     };
 
     paymentService = new PaymentService(
@@ -94,15 +96,20 @@ describe('PaymentWebhookDeduplication', () => {
     };
 
     mockStripeInstance.webhooks.constructEvent.mockReturnValue(fakeEvent);
-    mockWebhookRepo.save.mockImplementation((record: any) => Promise.resolve({
-      ...record,
-      id: 'webhook-uuid-1',
-    }));
+    mockWebhookRepo.save.mockImplementation((record: any) =>
+      Promise.resolve({
+        ...record,
+        id: 'webhook-uuid-1',
+      }),
+    );
 
     await paymentService.handleWebhook(Buffer.from('raw'), 'sig_valid');
 
     expect(mockWebhookRepo.save).toHaveBeenCalled();
-    const savedRecord = mockWebhookRepo.save.mock.calls[mockWebhookRepo.save.mock.calls.length - 1][0];
+    const savedRecord =
+      mockWebhookRepo.save.mock.calls[
+        mockWebhookRepo.save.mock.calls.length - 1
+      ][0];
     expect(savedRecord.processed).toBe(true);
     expect(savedRecord.processed_at).toBeInstanceOf(Date);
   });
@@ -120,9 +127,17 @@ describe('PaymentWebhookDeduplication', () => {
     //   2nd save = update webhook record after processing
     // So the 3rd save call (2nd invocation's insert) should throw unique constraint
     mockWebhookRepo.save
-      .mockResolvedValueOnce({ id: 'webhook-1', provider_event_id: 'evt_1', processed: false }) // 1st call: insert
-      .mockResolvedValueOnce({ id: 'webhook-1', provider_event_id: 'evt_1', processed: true })  // 1st call: update
-      .mockRejectedValueOnce(new Error('UNIQUE constraint failed'));                              // 2nd call: insert (blocked)
+      .mockResolvedValueOnce({
+        id: 'webhook-1',
+        provider_event_id: 'evt_1',
+        processed: false,
+      }) // 1st call: insert
+      .mockResolvedValueOnce({
+        id: 'webhook-1',
+        provider_event_id: 'evt_1',
+        processed: true,
+      }) // 1st call: update
+      .mockRejectedValueOnce(new Error('UNIQUE constraint failed')); // 2nd call: insert (blocked)
 
     // First call — processes successfully
     await paymentService.handleWebhook(Buffer.from('raw'), 'sig_valid');
@@ -150,14 +165,19 @@ describe('PaymentWebhookDeduplication', () => {
     };
 
     mockStripeInstance.webhooks.constructEvent.mockReturnValue(fakeEvent);
-    mockWebhookRepo.save.mockImplementation((record: any) => Promise.resolve({
-      ...record,
-      id: 'webhook-uuid-2',
-    }));
+    mockWebhookRepo.save.mockImplementation((record: any) =>
+      Promise.resolve({
+        ...record,
+        id: 'webhook-uuid-2',
+      }),
+    );
 
     await paymentService.handleWebhook(Buffer.from('raw'), 'sig_valid');
 
-    const lastSave = mockWebhookRepo.save.mock.calls[mockWebhookRepo.save.mock.calls.length - 1][0];
+    const lastSave =
+      mockWebhookRepo.save.mock.calls[
+        mockWebhookRepo.save.mock.calls.length - 1
+      ][0];
     expect(lastSave.processed).toBe(true);
     // No transaction should have been called for unknown event types
   });

@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Param, Query, Req, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Query,
+  Req,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { AdminGuard } from '../../../admin/guards/admin.guard';
 import { ModerationService } from '../services/moderation.service';
 import { CreateModerationActionDto } from '../dto/create-moderation-action.dto';
@@ -25,6 +34,10 @@ export class AdminModerationController {
     @Body() body: { note?: string },
     @Req() req: any,
   ) {
-    return this.moderationService.reverseModerationAction(id, req.adminActorId, body.note);
+    return this.moderationService.reverseModerationAction(
+      id,
+      req.adminActorId,
+      body.note,
+    );
   }
 }

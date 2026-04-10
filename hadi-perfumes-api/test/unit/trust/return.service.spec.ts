@@ -2,7 +2,10 @@ jest.setTimeout(30000);
 
 import { v4 as uuidv4 } from 'uuid';
 import { ReturnService } from '../../../src/modules/trust/returns/services/return.service';
-import { ReturnRequestStatus, ReturnReasonCode } from '../../../src/modules/trust/returns/entities/return-request.entity';
+import {
+  ReturnRequestStatus,
+  ReturnReasonCode,
+} from '../../../src/modules/trust/returns/entities/return-request.entity';
 
 describe('ReturnService', () => {
   let service: ReturnService;
@@ -67,11 +70,15 @@ describe('ReturnService', () => {
     mockDataSource = { transaction: jest.fn() };
     buildService();
 
-    const result = await service.createReturn(buyerId, {
-      order_id: orderId,
-      reason_code: ReturnReasonCode.DEFECTIVE,
-      idempotency_key: 'test-key-1',
-    }, 'test-key-1');
+    const result = await service.createReturn(
+      buyerId,
+      {
+        order_id: orderId,
+        reason_code: ReturnReasonCode.DEFECTIVE,
+        idempotency_key: 'test-key-1',
+      },
+      'test-key-1',
+    );
 
     expect(result).toBe(existingReturn);
     expect(mockDataSource.transaction).not.toHaveBeenCalled();
@@ -81,21 +88,31 @@ describe('ReturnService', () => {
     mockDataSource = {
       transaction: jest.fn().mockImplementation(async (cb: any) => {
         const em = {
-          findOne: jest.fn()
-            .mockResolvedValueOnce(makeOrder('paid'))  // order lookup
-            .mockResolvedValueOnce(null),              // no existing return
-          save: jest.fn().mockImplementation(async (_: any, data: any) => ({ id: uuidv4(), ...data })),
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(makeOrder('paid')) // order lookup
+            .mockResolvedValueOnce(null), // no existing return
+          save: jest.fn().mockImplementation(async (_: any, data: any) => ({
+            id: uuidv4(),
+            ...data,
+          })),
         };
         return cb(em);
       }),
     };
     buildService();
 
-    await expect(service.createReturn(buyerId, {
-      order_id: orderId,
-      reason_code: ReturnReasonCode.DEFECTIVE,
-      idempotency_key: uuidv4(),
-    }, uuidv4())).rejects.toThrow("order status 'paid' is not eligible for return");
+    await expect(
+      service.createReturn(
+        buyerId,
+        {
+          order_id: orderId,
+          reason_code: ReturnReasonCode.DEFECTIVE,
+          idempotency_key: uuidv4(),
+        },
+        uuidv4(),
+      ),
+    ).rejects.toThrow("order status 'paid' is not eligible for return");
   });
 
   it('createReturn: rejects if buyer does not own the order', async () => {
@@ -111,11 +128,17 @@ describe('ReturnService', () => {
     };
     buildService();
 
-    await expect(service.createReturn(otherBuyer, {
-      order_id: orderId,
-      reason_code: ReturnReasonCode.DEFECTIVE,
-      idempotency_key: uuidv4(),
-    }, uuidv4())).rejects.toThrow('order does not belong to this buyer');
+    await expect(
+      service.createReturn(
+        otherBuyer,
+        {
+          order_id: orderId,
+          reason_code: ReturnReasonCode.DEFECTIVE,
+          idempotency_key: uuidv4(),
+        },
+        uuidv4(),
+      ),
+    ).rejects.toThrow('order does not belong to this buyer');
   });
 
   it('createReturn: rejects if return window has expired', async () => {
@@ -123,7 +146,8 @@ describe('ReturnService', () => {
     mockDataSource = {
       transaction: jest.fn().mockImplementation(async (cb: any) => {
         const em = {
-          findOne: jest.fn()
+          findOne: jest
+            .fn()
             .mockResolvedValueOnce(makeOrder('completed', pastDate))
             .mockResolvedValueOnce(null),
           save: jest.fn(),
@@ -133,11 +157,17 @@ describe('ReturnService', () => {
     };
     buildService();
 
-    await expect(service.createReturn(buyerId, {
-      order_id: orderId,
-      reason_code: ReturnReasonCode.DEFECTIVE,
-      idempotency_key: uuidv4(),
-    }, uuidv4())).rejects.toThrow('Return window has expired');
+    await expect(
+      service.createReturn(
+        buyerId,
+        {
+          order_id: orderId,
+          reason_code: ReturnReasonCode.DEFECTIVE,
+          idempotency_key: uuidv4(),
+        },
+        uuidv4(),
+      ),
+    ).rejects.toThrow('Return window has expired');
   });
 
   it('createReturn: rejects if an open return already exists for the order', async () => {
@@ -150,9 +180,10 @@ describe('ReturnService', () => {
     mockDataSource = {
       transaction: jest.fn().mockImplementation(async (cb: any) => {
         const em = {
-          findOne: jest.fn()
-            .mockResolvedValueOnce(makeOrder('delivered'))     // order
-            .mockResolvedValueOnce(existingOpenReturn),        // open return
+          findOne: jest
+            .fn()
+            .mockResolvedValueOnce(makeOrder('delivered')) // order
+            .mockResolvedValueOnce(existingOpenReturn), // open return
           save: jest.fn(),
         };
         return cb(em);
@@ -160,11 +191,17 @@ describe('ReturnService', () => {
     };
     buildService();
 
-    await expect(service.createReturn(buyerId, {
-      order_id: orderId,
-      reason_code: ReturnReasonCode.DEFECTIVE,
-      idempotency_key: uuidv4(),
-    }, uuidv4())).rejects.toThrow('An open or approved return already exists');
+    await expect(
+      service.createReturn(
+        buyerId,
+        {
+          order_id: orderId,
+          reason_code: ReturnReasonCode.DEFECTIVE,
+          idempotency_key: uuidv4(),
+        },
+        uuidv4(),
+      ),
+    ).rejects.toThrow('An open or approved return already exists');
   });
 
   it('approveReturn: rejects if return is not in pending_review/escalated', async () => {
@@ -182,8 +219,11 @@ describe('ReturnService', () => {
     };
     buildService();
 
-    await expect(service.approveReturn(completedReturn.id, uuidv4(), 'ok'))
-      .rejects.toThrow("Cannot transition return from 'completed' to 'approved'");
+    await expect(
+      service.approveReturn(completedReturn.id, uuidv4(), 'ok'),
+    ).rejects.toThrow(
+      "Cannot transition return from 'completed' to 'approved'",
+    );
   });
 
   it('completeReturn: rejects if return is not in approved status', async () => {
@@ -201,8 +241,11 @@ describe('ReturnService', () => {
     };
     buildService();
 
-    await expect(service.completeReturn(pendingReturn.id, uuidv4()))
-      .rejects.toThrow("Cannot transition return from 'pending_review' to 'completed'");
+    await expect(
+      service.completeReturn(pendingReturn.id, uuidv4()),
+    ).rejects.toThrow(
+      "Cannot transition return from 'pending_review' to 'completed'",
+    );
   });
 
   it('listMyReturns: returns paginated results', async () => {

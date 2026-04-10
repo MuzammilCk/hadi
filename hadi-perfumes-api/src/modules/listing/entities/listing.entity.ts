@@ -1,4 +1,14 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany, OneToOne } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+} from 'typeorm';
 import { enumType, tstz } from '../../../common/utils/db-type.util';
 import { User } from '../../user/entities/user.entity';
 import { ProductCategory } from './product-category.entity';
@@ -43,7 +53,9 @@ export class Listing {
   @Column({ type: 'uuid', nullable: true })
   category_id: string;
 
-  @ManyToOne(() => ProductCategory, category => category.listings, { nullable: true })
+  @ManyToOne(() => ProductCategory, (category) => category.listings, {
+    nullable: true,
+  })
   @JoinColumn({ name: 'category_id' })
   category: ProductCategory;
 
@@ -83,12 +95,12 @@ export class Listing {
   @UpdateDateColumn({ type: tstz() as any })
   updated_at: Date;
 
-  @OneToMany(() => ListingImage, image => image.listing)
+  @OneToMany(() => ListingImage, (image) => image.listing)
   images: ListingImage[];
 
-  @OneToMany(() => ListingStatusHistory, history => history.listing)
+  @OneToMany(() => ListingStatusHistory, (history) => history.listing)
   status_history: ListingStatusHistory[];
 
-  @OneToMany(() => ListingModerationAction, action => action.listing)
+  @OneToMany(() => ListingModerationAction, (action) => action.listing)
   moderation_actions: ListingModerationAction[];
 }

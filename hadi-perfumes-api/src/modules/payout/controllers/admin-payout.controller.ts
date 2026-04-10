@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Param, Body, Req, Query, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Req,
+  Query,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
 import { AdminGuard } from '../../admin/guards/admin.guard';
 import { PayoutService } from '../services/payout.service';
 import { RejectPayoutDto } from '../dto/reject-payout.dto';
@@ -22,7 +33,10 @@ export class AdminPayoutController {
   }
 
   @Get('batches')
-  async listBatches(@Query('page') page?: string, @Query('limit') limit?: string) {
+  async listBatches(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
     return this.payoutService.listBatches({
       page: parseInt(page || '1', 10),
       limit: parseInt(limit || '20', 10),
@@ -43,7 +57,15 @@ export class AdminPayoutController {
 
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
-  async reject(@Req() req: any, @Param('id') id: string, @Body() dto: RejectPayoutDto) {
-    return this.payoutService.rejectPayoutRequest(id, req.adminActorId, dto.reason);
+  async reject(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: RejectPayoutDto,
+  ) {
+    return this.payoutService.rejectPayoutRequest(
+      id,
+      req.adminActorId,
+      dto.reason,
+    );
   }
 }

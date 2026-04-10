@@ -33,10 +33,10 @@ import { OnboardingAuditLog } from '../auth/entities/onboarding-audit-log.entity
       NetworkSnapshot,
       OnboardingAuditLog,
     ]),
-    UserModule,       // for User entity access
-    ReferralModule,   // for SponsorshipLink and ReferralValidationService
+    UserModule, // for User entity access
+    ReferralModule, // for SponsorshipLink and ReferralValidationService
     CommissionModule, // for PolicyEvaluationService, RankRule, CompensationPolicyVersion
-    AuthModule,       // for JwtModule and JwtAuthGuard
+    AuthModule, // for JwtModule and JwtAuthGuard
   ],
   providers: [
     NetworkGraphService,
@@ -44,14 +44,7 @@ import { OnboardingAuditLog } from '../auth/entities/onboarding-audit-log.entity
     RankAssignmentService,
     QualificationRecalcJob,
   ],
-  controllers: [
-    NetworkController,
-    AdminNetworkController,
-  ],
-  exports: [
-    NetworkGraphService,
-    QualificationEngineService,
-    TypeOrmModule,
-  ],
+  controllers: [NetworkController, AdminNetworkController],
+  exports: [NetworkGraphService, QualificationEngineService, TypeOrmModule],
 })
 export class NetworkModule {}

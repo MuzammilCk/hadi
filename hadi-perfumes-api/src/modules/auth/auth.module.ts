@@ -23,14 +23,17 @@ import { ReferralModule } from '../referral/referral.module';
       RefreshToken,
       OnboardingAuditLog,
     ]),
-    ThrottlerModule.forRoot([{
-      ttl: parseInt(process.env.OTP_SEND_TTL_SECONDS || '60', 10) * 1000,
-      limit: parseInt(process.env.OTP_SEND_LIMIT || '5', 10),
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: parseInt(process.env.OTP_SEND_TTL_SECONDS || '60', 10) * 1000,
+        limit: parseInt(process.env.OTP_SEND_LIMIT || '5', 10),
+      },
+    ]),
     JwtModule.register({
       secret: (() => {
         if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
-        if (process.env.NODE_ENV === 'test') return 'test-secret-not-for-production';
+        if (process.env.NODE_ENV === 'test')
+          return 'test-secret-not-for-production';
         throw new Error('FATAL: JWT_SECRET environment variable is required');
       })(),
       signOptions: { expiresIn: '15m' },

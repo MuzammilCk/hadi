@@ -2,8 +2,18 @@ jest.setTimeout(30000);
 
 jest.mock('stripe', () => {
   return jest.fn().mockImplementation(() => ({
-    paymentIntents: { create: jest.fn().mockResolvedValue({ id: 'pi_test', client_secret: 'cs_test', status: 'requires_payment_method' }) },
-    webhooks: { constructEvent: jest.fn().mockImplementation(() => { throw new Error('Invalid signature'); }) },
+    paymentIntents: {
+      create: jest.fn().mockResolvedValue({
+        id: 'pi_test',
+        client_secret: 'cs_test',
+        status: 'requires_payment_method',
+      }),
+    },
+    webhooks: {
+      constructEvent: jest.fn().mockImplementation(() => {
+        throw new Error('Invalid signature');
+      }),
+    },
   }));
 });
 
@@ -26,7 +36,11 @@ import { ListingModule } from '../../src/modules/listing/listing.module';
 import { InventoryModule } from '../../src/modules/inventory/inventory.module';
 
 import { User } from '../../src/modules/user/entities/user.entity';
-import { LedgerEntry, LedgerEntryType, LedgerEntryStatus } from '../../src/modules/ledger/entities/ledger-entry.entity';
+import {
+  LedgerEntry,
+  LedgerEntryType,
+  LedgerEntryStatus,
+} from '../../src/modules/ledger/entities/ledger-entry.entity';
 import { QualificationState } from '../../src/modules/network/entities/qualification-state.entity';
 import { NetworkNode } from '../../src/modules/network/entities/network-node.entity';
 
@@ -62,11 +76,13 @@ describe('Wallet E2E', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication({ rawBody: true });
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
 
     dataSource = moduleFixture.get(DataSource);
@@ -74,43 +90,51 @@ describe('Wallet E2E', () => {
 
     // Create test user
     const userRepo = dataSource.getRepository(User);
-    testUser = await userRepo.save(userRepo.create({
-      phone: '+919000000001',
-      status: 'active',
-    }));
+    testUser = await userRepo.save(
+      userRepo.create({
+        phone: '+919000000001',
+        status: 'active',
+      }),
+    );
 
     // Create admin user for FK
-    await userRepo.save(userRepo.create({
-      id: process.env.ADMIN_ACTOR_ID!,
-      phone: '+910000000000',
-      status: 'active',
-    }));
+    await userRepo.save(
+      userRepo.create({
+        id: process.env.ADMIN_ACTOR_ID,
+        phone: '+910000000000',
+        status: 'active',
+      }),
+    );
 
     userToken = jwtService.sign({ sub: testUser.id, phone: testUser.phone });
 
     // Create network node and qualification state for the test user
     const nodeRepo = dataSource.getRepository(NetworkNode);
-    await nodeRepo.save(nodeRepo.create({
-      user_id: testUser.id,
-      sponsor_id: null,
-      upline_path: [],
-      depth: 0,
-      direct_count: 0,
-      total_downline: 0,
-      last_rebuilt_at: new Date(),
-      created_at: new Date(),
-      updated_at: new Date(),
-    }));
+    await nodeRepo.save(
+      nodeRepo.create({
+        user_id: testUser.id,
+        sponsor_id: null,
+        upline_path: [],
+        depth: 0,
+        direct_count: 0,
+        total_downline: 0,
+        last_rebuilt_at: new Date(),
+        created_at: new Date(),
+        updated_at: new Date(),
+      }),
+    );
 
     const qualRepo = dataSource.getRepository(QualificationState);
-    await qualRepo.save(qualRepo.create({
-      user_id: testUser.id,
-      is_active: true,
-      is_qualified: true,
-      evaluated_at: new Date(),
-      created_at: new Date(),
-      updated_at: new Date(),
-    }));
+    await qualRepo.save(
+      qualRepo.create({
+        user_id: testUser.id,
+        is_active: true,
+        is_qualified: true,
+        evaluated_at: new Date(),
+        created_at: new Date(),
+        updated_at: new Date(),
+      }),
+    );
   }, 30000);
 
   afterAll(async () => {
@@ -118,8 +142,7 @@ describe('Wallet E2E', () => {
   });
 
   it('1. GET /wallet/balance without JWT → 401', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/wallet/balance');
+    const res = await request(app.getHttpServer()).get('/wallet/balance');
     expect(res.status).toBe(401);
   });
 
@@ -135,8 +158,7 @@ describe('Wallet E2E', () => {
   });
 
   it('3. GET /wallet/ledger without JWT → 401', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/wallet/ledger');
+    const res = await request(app.getHttpServer()).get('/wallet/ledger');
     expect(res.status).toBe(401);
   });
 

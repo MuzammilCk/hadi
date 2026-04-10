@@ -22,6 +22,10 @@ export class AdminHoldController {
     @Body() body: { note?: string },
     @Req() req: any,
   ) {
-    return this.holdService.releaseCommissionHold(id, req.adminActorId, body.note);
+    return this.holdService.releaseCommissionHold(
+      id,
+      req.adminActorId,
+      body.note,
+    );
   }
 }

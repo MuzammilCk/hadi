@@ -4,10 +4,16 @@ import { AuthModule } from '../../src/modules/auth/auth.module';
 import { ReferralModule } from '../../src/modules/referral/referral.module';
 import { ReferralValidationService } from '../../src/modules/referral/services/referral-validation.service';
 import { DataSource } from 'typeorm';
-import { ReferralCode, ReferralCodeStatus } from '../../src/modules/referral/entities/referral-code.entity';
+import {
+  ReferralCode,
+  ReferralCodeStatus,
+} from '../../src/modules/referral/entities/referral-code.entity';
 import { SponsorshipLink } from '../../src/modules/referral/entities/sponsorship-link.entity';
 import { User } from '../../src/modules/user/entities/user.entity';
-import { ReferralErrorCode, ReferralValidationException } from '../../src/modules/referral/exceptions/referral-validation.exception';
+import {
+  ReferralErrorCode,
+  ReferralValidationException,
+} from '../../src/modules/referral/exceptions/referral-validation.exception';
 
 describe('Circular Sponsorship Prevention (Integration)', () => {
   jest.setTimeout(30000);
@@ -48,17 +54,32 @@ describe('Circular Sponsorship Prevention (Integration)', () => {
 
     // Create User A
     await userRepo.save(
-      userRepo.create({ id: userAId, phone: '+11111111111', status: 'active', kyc_status: 'not_required' }),
+      userRepo.create({
+        id: userAId,
+        phone: '+11111111111',
+        status: 'active',
+        kyc_status: 'not_required',
+      }),
     );
 
     // Create User B
     await userRepo.save(
-      userRepo.create({ id: userBId, phone: '+22222222222', status: 'active', kyc_status: 'not_required', sponsor_id: userAId }),
+      userRepo.create({
+        id: userBId,
+        phone: '+22222222222',
+        status: 'active',
+        kyc_status: 'not_required',
+        sponsor_id: userAId,
+      }),
     );
 
     // User A sponsors User B
     const codeA = await codeRepo.save(
-      codeRepo.create({ code: 'CODEAAAA', owner_id: userAId, status: ReferralCodeStatus.ACTIVE }),
+      codeRepo.create({
+        code: 'CODEAAAA',
+        owner_id: userAId,
+        status: ReferralCodeStatus.ACTIVE,
+      }),
     );
 
     await linkRepo.save(
@@ -72,12 +93,21 @@ describe('Circular Sponsorship Prevention (Integration)', () => {
 
     // Now, User B tries to sponsor User A (creating a circle: A -> B -> A)
     const codeB = await codeRepo.save(
-      codeRepo.create({ code: 'CODEBBBB', owner_id: userBId, status: ReferralCodeStatus.ACTIVE }),
+      codeRepo.create({
+        code: 'CODEBBBB',
+        owner_id: userBId,
+        status: ReferralCodeStatus.ACTIVE,
+      }),
     );
 
     // User A tries to use User B's code. This should throw Circular Sponsorship
-    await expect(service.validateAndRedeem('CODEBBBB', userAId)).rejects.toThrow(
-      new ReferralValidationException(ReferralErrorCode.CIRCULAR_SPONSORSHIP, 'Circular sponsorship detected'),
+    await expect(
+      service.validateAndRedeem('CODEBBBB', userAId),
+    ).rejects.toThrow(
+      new ReferralValidationException(
+        ReferralErrorCode.CIRCULAR_SPONSORSHIP,
+        'Circular sponsorship detected',
+      ),
     );
   });
 });

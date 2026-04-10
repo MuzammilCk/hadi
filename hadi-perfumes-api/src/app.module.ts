@@ -19,10 +19,12 @@ import { dataSourceOptions } from './config/database.config';
 @Module({
   imports: [
     TypeOrmModule.forRoot(dataSourceOptions),
-    ThrottlerModule.forRoot([{
-      ttl: parseInt(process.env.THROTTLE_TTL_SECONDS || '60', 10) * 1000,
-      limit: parseInt(process.env.THROTTLE_LIMIT || '100', 10),
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: parseInt(process.env.THROTTLE_TTL_SECONDS || '60', 10) * 1000,
+        limit: parseInt(process.env.THROTTLE_LIMIT || '100', 10),
+      },
+    ]),
     CommissionModule,
     AuthModule,
     ReferralModule,
@@ -31,9 +33,9 @@ import { dataSourceOptions } from './config/database.config';
     ListingModule,
     InventoryModule,
     OrderModule,
-    LedgerModule,       // Phase 6 — new
-    PayoutModule,       // Phase 6 — new
-    TrustModule,        // Phase 7 — new
+    LedgerModule, // Phase 6 — new
+    PayoutModule, // Phase 6 — new
+    TrustModule, // Phase 7 — new
   ],
   controllers: [AppController],
   providers: [AppService],

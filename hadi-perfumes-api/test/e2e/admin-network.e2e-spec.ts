@@ -43,12 +43,24 @@ describe('Admin Network E2E', () => {
   const adminToken = 'test-admin-token';
 
   const allEntities = [
-    User, NetworkNode, QualificationRule, QualificationState,
-    QualificationEvent, RankAssignment, GraphRebuildJob,
-    GraphCorrectionLog, NetworkSnapshot, SponsorshipLink,
-    ReferralCode, ReferralRedemption, OnboardingAuditLog,
-    CompensationPolicyVersion, RankRule, CommissionRule,
-    ComplianceDisclosure, AllowedEarningsClaim,
+    User,
+    NetworkNode,
+    QualificationRule,
+    QualificationState,
+    QualificationEvent,
+    RankAssignment,
+    GraphRebuildJob,
+    GraphCorrectionLog,
+    NetworkSnapshot,
+    SponsorshipLink,
+    ReferralCode,
+    ReferralRedemption,
+    OnboardingAuditLog,
+    CompensationPolicyVersion,
+    RankRule,
+    CommissionRule,
+    ComplianceDisclosure,
+    AllowedEarningsClaim,
   ];
 
   beforeAll(async () => {
@@ -79,11 +91,13 @@ describe('Admin Network E2E', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
 
     em = moduleFixture.get(EntityManager);
@@ -155,7 +169,11 @@ describe('Admin Network E2E', () => {
   it('POST /admin/network/corrections without AdminGuard credentials returns 401', () => {
     return request(app.getHttpServer())
       .post('/admin/network/corrections')
-      .send({ userId: 'uuid1', newSponsorId: 'uuid2', reason: 'Test reason long enough' })
+      .send({
+        userId: 'uuid1',
+        newSponsorId: 'uuid2',
+        reason: 'Test reason long enough',
+      })
       .expect(401);
   });
 
@@ -164,7 +182,11 @@ describe('Admin Network E2E', () => {
     return request(app.getHttpServer())
       .post('/admin/network/corrections')
       .set('x-admin-token', adminToken)
-      .send({ userId, newSponsorId: userId, reason: 'Self-sponsor test reason' })
+      .send({
+        userId,
+        newSponsorId: userId,
+        reason: 'Self-sponsor test reason',
+      })
       .expect(400);
   });
 
@@ -173,7 +195,11 @@ describe('Admin Network E2E', () => {
     return request(app.getHttpServer())
       .post('/admin/network/corrections')
       .set('x-admin-token', adminToken)
-      .send({ userId, newSponsorId: '00000000-0000-0000-0000-000000000001', reason: 'short' })
+      .send({
+        userId,
+        newSponsorId: '00000000-0000-0000-0000-000000000001',
+        reason: 'short',
+      })
       .expect(400);
   });
 
