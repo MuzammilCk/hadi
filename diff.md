@@ -1106,3 +1106,38 @@ pm run build\ successfully.
 ### Impact
 - Multi-factor resilient login capabilities added.
 - Less restrictive signup structure.
+
+---
+
+## Phase 8: Observability · Security Hardening · Resilience · Scale
+**Date**: 2026-04-10
+
+### Added
+- **P8-01**: Installed `@nestjs/bull`, `bullmq`, `@nestjs/terminus`, `@nestjs/schedule`, `nestjs-pino`, `pino-pretty`, `helmet`, `compression`, `@nestjs/config`, `joi`, `prom-client`, `@types/compression`.
+- **P8-02**: Migration `1711800000000-Phase8OpsInit` — creates `job_runs`, `dead_letter_events`, `security_events` tables + 7 additive composite/partial indexes on hot query paths (`commission_events`, `ledger_entries`, `trust_audit_logs`, `payout_requests`, `disputes`, `resolution_events`).
+- **P8-03**: Entities — `JobRun`, `DeadLetterEvent`, `SecurityEvent` with proper `tstz()`/`simple-json` dual-DB compatibility.
+- **P8-04**: Config validation — `app.config.ts` with Joi schema. CRITICAL fields (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_TOKEN`, `REDIS_URL`) fail fast on missing.
+- **P8-05**: Log redaction — `log-redact.util.ts` strips passwords, OTPs, JWTs, Stripe keys, card numbers from log output.
+- **P8-06**: Correlation ID — `CorrelationIdMiddleware` attaches `X-Correlation-ID` to every request/response.
+- **P8-07**: Logging interceptor — `LoggingInterceptor` logs method, path, duration, correlationId; redacts sensitive fields on errors.
+- **P8-08**: BullMQ `QueueModule` — registers 6 queues (`commission-release`, `reservation-expiry`, `dispute-escalation`, `fraud-aggregation`, `hold-propagation`, `return-eligibility`).
+- **P8-09**: 6 processor wrappers — each calls existing job `.run()` or `.processApproved()`. Records `JobRun` on start, updates on completion/failure, writes `DeadLetterEvent` when max retries exhausted.
+- **P8-10**: `JobSchedulerService` — cron-based BullMQ enqueuing (commission 10min, reservation 5min, disputes hourly, fraud 2hr, holds/returns 30min).
+- **P8-11**: `HealthController` — `GET /health` (DB + memory), `GET /ready` (DB only), `GET /metrics` (system summary).
+- **P8-12**: `AdminOpsController` — `GET /admin/ops/job-runs`, `GET /admin/ops/dead-letter`, `POST /admin/ops/dead-letter/:id/replay`, `GET /admin/ops/security-events`, `GET /admin/ops/audit-logs`, `GET /admin/ops/system-health`. All behind AdminGuard.
+- **P8-13**: `OpsModule` — registers entities, services, controllers. Conditional loading of OpsService/AdminOpsController (require Redis).
+- **P8-14**: `main.ts` — added `helmet`, `compression`, `CorrelationIdMiddleware`, `LoggingInterceptor`.
+- **P8-15**: `app.module.ts` — added `OpsModule` + conditional `QueueModule` (skipped in test env).
+- **P8-16**: Security event logging in `AdminGuard` — `@Optional()` injection, fire-and-forget pattern, DB failure never blocks guard.
+- **P8-17**: 47 new tests across 6 suites: `log-redact`, `config-validate`, `correlation-id.middleware`, `logging.interceptor`, `security-event.service`, `phase8-trust-invariants`.
+
+### Why
+- Production observability: structured request tracing, job monitoring, dead-letter management.
+- Security hardening: security event audit trail, HTTP security headers, config validation at boot.
+- Resilience: BullMQ with exponential backoff replaces inline cron; dead-letter replay enables recovery.
+- Scale readiness: decoupled job execution, health/readiness probes for container orchestration.
+
+### Impact
+- All 319 pre-existing tests pass (0 regressions). 47 new tests added. Total: **366 tests · 53 suites · 0 failures**.
+- TypeScript compiles clean.
+- No business logic in commission, ledger, payout, order, or trust modules was modified.

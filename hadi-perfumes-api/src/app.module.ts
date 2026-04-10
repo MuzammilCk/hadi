@@ -14,7 +14,14 @@ import { OrderModule } from './modules/order/order.module';
 import { LedgerModule } from './modules/ledger/ledger.module';
 import { PayoutModule } from './modules/payout/payout.module';
 import { TrustModule } from './modules/trust/trust.module';
+import { OpsModule } from './modules/ops/ops.module';
 import { dataSourceOptions } from './config/database.config';
+
+// Phase 8: QueueModule requires Redis — only load outside test environment
+const conditionalImports =
+  process.env.NODE_ENV !== 'test'
+    ? [require('./queue/queue.module').QueueModule]
+    : [];
 
 @Module({
   imports: [
@@ -36,6 +43,8 @@ import { dataSourceOptions } from './config/database.config';
     LedgerModule, // Phase 6 — new
     PayoutModule, // Phase 6 — new
     TrustModule, // Phase 7 — new
+    OpsModule, // Phase 8 — new
+    ...conditionalImports, // Phase 8 — QueueModule (requires Redis)
   ],
   controllers: [AppController],
   providers: [AppService],

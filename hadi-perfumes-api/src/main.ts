@@ -1,11 +1,29 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+import helmet from 'helmet';
+import compression from 'compression';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+    bufferLogs: true,
+  });
 
+  // Phase 8: security headers
+  app.use(helmet());
+
+  // Phase 8: compression
+  app.use(compression());
+
+  // Phase 8: correlation ID on every request
+  const correlationMiddleware = new CorrelationIdMiddleware();
+  app.use(correlationMiddleware.use.bind(correlationMiddleware));
+
+  // Existing: DTO validation (unchanged)
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -14,11 +32,16 @@ async function bootstrap() {
     }),
   );
 
+  // Phase 8: request/response logging interceptor
+  app.useGlobalInterceptors(new LoggingInterceptor());
+
+  // Existing: CORS (unchanged)
   app.enableCors({
     origin: true,
     credentials: true,
   });
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+  Logger.log(`Application listening on port ${process.env.PORT ?? 3000}`);
 }
 bootstrap();
