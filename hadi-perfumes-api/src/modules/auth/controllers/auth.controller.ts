@@ -85,6 +85,6 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    return this.signupFlowService.login(dto.phone, dto.password);
+    return this.signupFlowService.login(dto.identifier, dto.password);
   }
 }

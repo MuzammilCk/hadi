@@ -1,10 +1,14 @@
-import { IsString, IsNotEmpty, Matches, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength } from 'class-validator';
 
 export class LoginDto {
+  /**
+   * identifier: E.164 phone (+919876543210) OR email (user@example.com)
+   * We validate only that it's a non-empty string here.
+   * Service layer decides which lookup to perform.
+   */
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\+[1-9]\d{1,14}$/, { message: 'Phone must be E.164 format' })
-  phone: string;
+  identifier: string;
 
   @IsString()
   @MinLength(8)

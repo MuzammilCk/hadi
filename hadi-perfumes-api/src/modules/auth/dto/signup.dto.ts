@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, IsOptional } from 'class-validator';
 
 export class SignupDto {
   @IsString()
@@ -9,7 +9,7 @@ export class SignupDto {
   @MinLength(8)
   password: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  referral_code: string;
+  referral_code?: string;
 }

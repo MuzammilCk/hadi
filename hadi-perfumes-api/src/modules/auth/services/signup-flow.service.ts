@@ -148,8 +148,8 @@ export class SignupFlowService {
     phone: string,
     fullName: string,
     passwordPlain: string,
-    referralCodeStr: string,
-    attemptId: string,
+    referralCodeStr?: string,
+    attemptId?: string,
     ipAddress?: string,
     deviceHash?: string,
   ) {
@@ -365,18 +365,27 @@ export class SignupFlowService {
     return { success: true };
   }
 
-  async login(phone: string, passwordPlain: string) {
+  async login(identifier: string, passwordPlain: string) {
+    // Determine lookup field: treat as phone if E.164, otherwise email
+    const isPhone = /^\+[1-9]\d{1,14}$/.test(identifier);
+
     const user = await this.userRepo.findOne({
-      where: { phone, status: UserStatus.ACTIVE },
+      where: isPhone
+        ? { phone: identifier, status: UserStatus.ACTIVE }
+        : { email: identifier, status: UserStatus.ACTIVE },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid phone or password');
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.password_hash) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const passwordMatch = await bcrypt.compare(passwordPlain, user.password_hash);
     if (!passwordMatch) {
-      throw new UnauthorizedException('Invalid phone or password');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const access_token = this.jwtService.sign({
@@ -397,7 +406,12 @@ export class SignupFlowService {
     await this.tokenRepo.save(rt);
 
     return {
-      user: { id: user.id, phone: user.phone, status: user.status },
+      user: {
+        id: user.id,
+        phone: user.phone,
+        email: user.email,
+        status: user.status,
+      },
       access_token,
       refresh_token: refreshTokenValue,
     };

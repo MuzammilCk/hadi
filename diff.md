@@ -1088,3 +1088,21 @@ pm run build\ successfully.
 - [ ] Confirm product decisions: `RETURN_WINDOW_DAYS`, `DISPUTE_AUTO_ESCALATE_HOURS`, `RISK_WEIGHT_*` thresholds
 - [ ] Refresh token family invalidation
 
+---
+
+## 2026-04-10 (Targeted Auth Fix Pass)
+
+### Changed
+- **FIX-B1**: Installed missing dependency `@nestjs/mapped-types`.
+- **FIX-B2**: Updated `LoginDto` to accept `identifier` (email OR phone) + `password`.
+- **FIX-B3**: Updated `login()` in `SignupFlowService` to accept `identifier`, lookup by phone (E.164 pattern match) or email.
+- **FIX-B4**: Updated `AuthController.login()` to pass `dto.identifier`.
+- **FIX-B5**: Made `referral_code` strictly optional in `SignupDto`.
+- **FIX-B6**: Updated `signup()` signature to make `referralCodeStr` optional and effectively skip processing via conditional.
+
+### Why
+- The authentication module lacked email-based login and forced strict referral code requirements that were restricting signup conversion.
+
+### Impact
+- Multi-factor resilient login capabilities added.
+- Less restrictive signup structure.
