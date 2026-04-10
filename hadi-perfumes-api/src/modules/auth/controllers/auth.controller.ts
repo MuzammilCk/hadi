@@ -13,6 +13,7 @@ import { SendOtpDto } from '../dto/send-otp.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';
 import { SignupDto } from '../dto/signup.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
+import { LoginDto } from '../dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -79,5 +80,11 @@ export class AuthController {
   @Post('logout')
   async logout(@Body() dto: RefreshTokenDto) {
     return this.signupFlowService.logout(dto.refresh_token);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('login')
+  async login(@Body() dto: LoginDto) {
+    return this.signupFlowService.login(dto.phone, dto.password);
   }
 }

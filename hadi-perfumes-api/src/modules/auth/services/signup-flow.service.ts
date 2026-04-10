@@ -365,6 +365,44 @@ export class SignupFlowService {
     return { success: true };
   }
 
+  async login(phone: string, passwordPlain: string) {
+    const user = await this.userRepo.findOne({
+      where: { phone, status: UserStatus.ACTIVE },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid phone or password');
+    }
+
+    const passwordMatch = await bcrypt.compare(passwordPlain, user.password_hash);
+    if (!passwordMatch) {
+      throw new UnauthorizedException('Invalid phone or password');
+    }
+
+    const access_token = this.jwtService.sign({
+      sub: user.id,
+      role: 'buyer',
+    });
+
+    const refreshTokenValue = uuidv4();
+    const tokenHash = this.hashToken(refreshTokenValue);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const rt = this.tokenRepo.create({
+      user_id: user.id,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+    });
+    await this.tokenRepo.save(rt);
+
+    return {
+      user: { id: user.id, phone: user.phone, status: user.status },
+      access_token,
+      refresh_token: refreshTokenValue,
+    };
+  }
+
   async getOnboardingStatus(userId: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) {

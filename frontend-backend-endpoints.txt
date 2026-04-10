@@ -125,3 +125,11 @@ Network corrections:
 - GET /admin/network/corrections
   - function: adminListGraphCorrections(params)
   - query params (optional): userId, page, limit
+
+POST /auth/login
+
+function: login(payload)
+body: { phone: string, password: string }
+returns: { user, access_token, refresh_token }
+
+

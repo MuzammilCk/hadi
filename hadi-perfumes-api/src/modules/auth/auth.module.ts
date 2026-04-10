@@ -42,6 +42,6 @@ import { ReferralModule } from '../referral/referral.module';
   ],
   controllers: [AuthController, MeController],
   providers: [OtpService, SignupFlowService, JwtAuthGuard],
-  exports: [JwtModule, JwtAuthGuard],
+  exports: [JwtModule, JwtAuthGuard, SignupFlowService],
 })
 export class AuthModule {}
