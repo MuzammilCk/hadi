@@ -63,6 +63,7 @@ export class AuthController {
       payload.phone,
       dto.full_name,
       dto.password,
+      dto.email,
       dto.referral_code,
       payload.attempt_id,
       ip,

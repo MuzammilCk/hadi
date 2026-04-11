@@ -148,6 +148,7 @@ export class SignupFlowService {
     phone: string,
     fullName: string,
     passwordPlain: string,
+    email?: string,
     referralCodeStr?: string,
     attemptId?: string,
     ipAddress?: string,
@@ -168,6 +169,7 @@ export class SignupFlowService {
       const user = txEm.create(User, {
         id: newUserId,
         phone,
+        email,
         password_hash: passwordHash,
         full_name: fullName,
         status: process.env.NODE_ENV === 'test' ? 'active' : UserStatus.ACTIVE,
