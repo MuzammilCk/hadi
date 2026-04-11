@@ -8,13 +8,17 @@ import {
   Body,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
+import { UserRole } from '../../../user/entities/user.entity';
 import { ReturnService } from '../services/return.service';
 import { ReturnQueryDto } from '../dto/return-query.dto';
 import { AdminReturnDecisionDto } from '../dto/admin-return-decision.dto';
 
 @Controller('admin/returns')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminReturnController {
   constructor(private readonly returnService: ReturnService) {}
 

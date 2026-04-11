@@ -11,9 +11,11 @@ import { ListingController } from './controllers/listing.controller';
 import { CategoryController } from './controllers/category.controller';
 import { AdminListingController } from './controllers/admin-listing.controller';
 import { AuditModule } from '../audit/audit.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     TypeOrmModule.forFeature([
       ProductCategory,
       Listing,

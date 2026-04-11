@@ -8,13 +8,17 @@ import {
   Req,
 } from '@nestjs/common';
 import { InventoryService } from '../services/inventory.service';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 import { AddStockDto } from '../dto/add-stock.dto';
 import { AdjustStockDto } from '../dto/adjust-stock.dto';
 import { ReservationExpiryJob } from '../../../jobs/reservation-expiry.job';
 
 @Controller('admin/inventory')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminInventoryController {
   constructor(
     private readonly inventoryService: InventoryService,

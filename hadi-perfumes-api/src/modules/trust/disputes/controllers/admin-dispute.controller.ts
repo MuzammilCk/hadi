@@ -9,13 +9,17 @@ import {
   Body,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
+import { UserRole } from '../../../user/entities/user.entity';
 import { DisputeService } from '../services/dispute.service';
 import { DisputeQueryDto } from '../dto/dispute-query.dto';
 import { AdminDisputeDecisionDto } from '../dto/admin-dispute-decision.dto';
 
 @Controller('admin/disputes')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminDisputeController {
   constructor(private readonly disputeService: DisputeService) {}
 

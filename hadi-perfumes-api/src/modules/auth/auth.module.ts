@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -39,7 +39,7 @@ import { ReferralModule } from '../referral/referral.module';
       })(),
       signOptions: { expiresIn: '15m' },
     }),
-    ReferralModule,
+    forwardRef(() => ReferralModule),
   ],
   controllers: [AuthController, MeController],
   providers: [OtpService, SignupFlowService, JwtAuthGuard, RolesGuard],

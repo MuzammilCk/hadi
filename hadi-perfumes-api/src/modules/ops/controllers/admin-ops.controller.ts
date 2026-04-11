@@ -7,7 +7,10 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 import { OpsService } from '../services/ops.service';
 import {
   JobRunQueryDto,
@@ -17,7 +20,8 @@ import {
 } from '../dto/ops-query.dto';
 
 @Controller('admin/ops')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminOpsController {
   constructor(private readonly opsService: OpsService) {}
 

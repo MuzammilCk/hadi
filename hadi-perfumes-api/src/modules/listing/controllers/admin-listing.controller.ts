@@ -14,7 +14,10 @@ import {
 } from '@nestjs/common';
 import { ListingService } from '../services/listing.service';
 import { ProductCategoryService } from '../services/product-category.service';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 import { CreateListingDto } from '../dto/create-listing.dto';
 import { UpdateListingDto } from '../dto/update-listing.dto';
 import { CreateCategoryDto } from '../dto/create-category.dto';
@@ -26,7 +29,8 @@ import { ModerationActionDto } from '../dto/moderation-action.dto';
 import { ModerationAction } from '../entities/listing-moderation-action.entity';
 
 @Controller('admin')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminListingController {
   constructor(
     private readonly listingService: ListingService,

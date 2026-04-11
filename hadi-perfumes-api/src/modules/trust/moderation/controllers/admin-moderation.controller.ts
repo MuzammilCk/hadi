@@ -8,13 +8,17 @@ import {
   Body,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
+import { UserRole } from '../../../user/entities/user.entity';
 import { ModerationService } from '../services/moderation.service';
 import { CreateModerationActionDto } from '../dto/create-moderation-action.dto';
 import { ModerationQueryDto } from '../dto/moderation-query.dto';
 
 @Controller('admin/moderation-actions')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminModerationController {
   constructor(private readonly moderationService: ModerationService) {}
 

@@ -10,13 +10,17 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 import { PayoutService } from '../services/payout.service';
 import { RejectPayoutDto } from '../dto/reject-payout.dto';
 import { PayoutQueryDto } from '../dto/payout-query.dto';
 
 @Controller('admin/payouts')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminPayoutController {
   constructor(private readonly payoutService: PayoutService) {}
 

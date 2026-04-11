@@ -6,13 +6,17 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 import { CommissionCalculationService } from '../services/commission-calculation.service';
 import { CommissionReleaseJob } from '../../../jobs/commission-release.job';
 import { ClawbackJob } from '../../../jobs/clawback.job';
 
 @Controller('admin/commission')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminCommissionTriggerController {
   constructor(
     private readonly commissionCalcService: CommissionCalculationService,

@@ -12,9 +12,13 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager, IsNull } from 'typeorm';
 import { SponsorshipLink } from '../entities/sponsorship-link.entity';
 import { OnboardingAuditLog } from '../../auth/entities/onboarding-audit-log.entity';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller('admin/referrals')
 export class AdminReferralController {
   constructor(

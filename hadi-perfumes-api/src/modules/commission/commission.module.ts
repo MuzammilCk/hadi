@@ -27,9 +27,11 @@ import { Order } from '../order/entities/order.entity';
 import { MoneyEventOutbox } from '../order/entities/money-event-outbox.entity';
 
 import { LedgerModule } from '../ledger/ledger.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     TypeOrmModule.forFeature([
       // Phase 1 — keep all
       CompensationPolicyVersion,

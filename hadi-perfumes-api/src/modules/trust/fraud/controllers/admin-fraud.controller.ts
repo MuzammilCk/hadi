@@ -8,13 +8,17 @@ import {
   Body,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../auth/guards/roles.guard';
+import { Roles } from '../../../auth/decorators/roles.decorator';
+import { UserRole } from '../../../user/entities/user.entity';
 import { FraudSignalService } from '../services/fraud-signal.service';
 import { FraudSignalQueryDto } from '../dto/fraud-signal-query.dto';
 import { AdminFraudReviewDto } from '../dto/admin-fraud-review.dto';
 
 @Controller('admin/fraud-signals')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminFraudController {
   constructor(private readonly fraudSignalService: FraudSignalService) {}
 

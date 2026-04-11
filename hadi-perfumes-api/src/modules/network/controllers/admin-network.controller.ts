@@ -11,7 +11,10 @@ import {
 } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 import { NetworkGraphService } from '../services/network-graph.service';
 import { QualificationEngineService } from '../services/qualification-engine.service';
 import { QualificationRecalcJob } from '../../../jobs/qualification-recalc.job';
@@ -31,7 +34,8 @@ import { NetworkNodeNotFoundException } from '../exceptions/network.exceptions';
  * These two corrections should be run together. Running only one will create drift
  * between sponsorship_links and network_nodes until the next graph rebuild.
  */
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller('admin/network')
 export class AdminNetworkController {
   constructor(

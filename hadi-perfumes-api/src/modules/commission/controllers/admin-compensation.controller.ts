@@ -11,9 +11,13 @@ import {
 } from '@nestjs/common';
 import { AdminPolicyService } from '../services/admin-policy.service';
 import { CreateCompensationPolicyDto } from '../dto/create-compensation-policy.dto';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller('admin/compensation-policy')
 export class AdminCompensationController {
   constructor(private readonly adminPolicyService: AdminPolicyService) {}

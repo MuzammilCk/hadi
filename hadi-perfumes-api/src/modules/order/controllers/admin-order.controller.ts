@@ -8,13 +8,17 @@ import {
   Body,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 import { OrderService } from '../services/order.service';
 import { OrderListQueryDto } from '../dto/order-list-query.dto';
 import { AdminUpdateOrderStatusDto } from '../dto/admin-update-order-status.dto';
 
 @Controller('admin/orders')
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class AdminOrderController {
   constructor(private readonly orderService: OrderService) {}
 
