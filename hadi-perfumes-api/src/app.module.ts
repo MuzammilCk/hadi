@@ -15,6 +15,9 @@ import { LedgerModule } from './modules/ledger/ledger.module';
 import { PayoutModule } from './modules/payout/payout.module';
 import { TrustModule } from './modules/trust/trust.module';
 import { OpsModule } from './modules/ops/ops.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { MediaModule } from './modules/media/media.module';
+import { HomepageModule } from './modules/homepage/homepage.module';
 import { dataSourceOptions } from './config/database.config';
 
 // Phase 8: QueueModule requires Redis — only load outside test environment
@@ -44,9 +47,13 @@ const conditionalImports =
     PayoutModule, // Phase 6 — new
     TrustModule, // Phase 7 — new
     OpsModule, // Phase 8 — new
+    AuditModule, // Phase 9 — new
+    MediaModule, // Phase 9 — new
+    HomepageModule, // Phase 9 — new
     ...conditionalImports, // Phase 8 — QueueModule (requires Redis)
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+

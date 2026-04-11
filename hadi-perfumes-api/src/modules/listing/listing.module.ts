@@ -10,6 +10,7 @@ import { ProductCategoryService } from './services/product-category.service';
 import { ListingController } from './controllers/listing.controller';
 import { CategoryController } from './controllers/category.controller';
 import { AdminListingController } from './controllers/admin-listing.controller';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AdminListingController } from './controllers/admin-listing.controller';
       ListingStatusHistory,
       ListingModerationAction,
     ]),
+    AuditModule,
   ],
   providers: [ListingService, ProductCategoryService],
   controllers: [ListingController, CategoryController, AdminListingController],

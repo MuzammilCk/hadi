@@ -12,6 +12,7 @@ import { SignupFlowService } from './services/signup-flow.service';
 import { AuthController } from './controllers/auth.controller';
 import { MeController } from './controllers/me.controller';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { ReferralModule } from '../referral/referral.module';
 
 @Module({
@@ -41,7 +42,7 @@ import { ReferralModule } from '../referral/referral.module';
     ReferralModule,
   ],
   controllers: [AuthController, MeController],
-  providers: [OtpService, SignupFlowService, JwtAuthGuard],
-  exports: [JwtModule, JwtAuthGuard, SignupFlowService],
+  providers: [OtpService, SignupFlowService, JwtAuthGuard, RolesGuard],
+  exports: [JwtModule, JwtAuthGuard, RolesGuard, SignupFlowService],
 })
 export class AuthModule {}

@@ -284,7 +284,7 @@ export class SignupFlowService {
       // 5. Issue Tokens
       const access_token = this.jwtService.sign({
         sub: user.id,
-        role: 'buyer',
+        role: user.role ?? 'customer',
         full_name: user.full_name ?? '',
       });
 
@@ -335,7 +335,7 @@ export class SignupFlowService {
     // Issue new access token
     const access_token = this.jwtService.sign({
       sub: rt.user_id,
-      role: 'buyer',
+      role: user?.role ?? 'customer',
       full_name: user?.full_name ?? '',
     });
 
@@ -396,7 +396,7 @@ export class SignupFlowService {
 
     const access_token = this.jwtService.sign({
       sub: user.id,
-      role: 'buyer',
+      role: user.role ?? 'customer',
       full_name: user.full_name ?? '',
     });
 

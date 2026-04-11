@@ -22,6 +22,7 @@ import {
   SkuAlreadyExistsException,
 } from '../exceptions/listing.exceptions';
 import { InventoryItem } from '../../inventory/entities/inventory-item.entity';
+import { AuditService } from '../../audit/services/audit.service';
 
 @Injectable()
 export class ListingService {
@@ -31,6 +32,7 @@ export class ListingService {
     @InjectRepository(Listing)
     private readonly listingRepository: Repository<Listing>,
     private readonly dataSource: DataSource,
+    private readonly auditService: AuditService,
   ) {}
 
   async createListing(
@@ -73,6 +75,15 @@ export class ListingService {
       });
       await em.save(ListingStatusHistory, history);
 
+      // Phase 9: Audit log
+      this.auditService.log({
+        actor_id: adminId,
+        action: 'PRODUCT_CREATED',
+        entity_type: 'listing',
+        entity_id: savedListing.id,
+        after_snapshot: { title: savedListing.title, sku: savedListing.sku, price: savedListing.price, status: savedListing.status },
+      });
+
       return savedListing;
     });
   }
@@ -113,6 +124,20 @@ export class ListingService {
         });
         await em.save(ListingStatusHistory, history);
       }
+
+      // Phase 9: Audit log
+      const changes: Record<string, any> = {};
+      if (updateDto.price !== undefined) changes.price = { from: prevStatus, to: savedListing.price };
+      if (updateDto.title !== undefined) changes.title = savedListing.title;
+      if (updateDto.status !== undefined) changes.status = { from: prevStatus, to: savedListing.status };
+      this.auditService.log({
+        actor_id: adminId,
+        action: updateDto.price !== undefined ? 'PRODUCT_PRICE_CHANGE' : 'PRODUCT_UPDATED',
+        entity_type: 'listing',
+        entity_id: savedListing.id,
+        before_snapshot: { price: listing.price, status: prevStatus },
+        after_snapshot: changes,
+      });
 
       return savedListing;
     });

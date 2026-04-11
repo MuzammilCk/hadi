@@ -13,6 +13,9 @@ export const envSchema = Joi.object({
   // IMPORTANT — will warn on missing but not crash
   STRIPE_SECRET_KEY: Joi.string().optional(),
   STRIPE_WEBHOOK_SECRET: Joi.string().optional(),
+  SUPABASE_URL: Joi.string().optional(),
+  SUPABASE_SERVICE_KEY: Joi.string().optional(),
+  SUPABASE_STORAGE_BUCKET: Joi.string().default('media'),
   DEFAULT_CURRENCY: Joi.string().default('INR'),
   CORS_ORIGIN: Joi.string().default('http://localhost:3001'),
   PORT: Joi.number().default(3000),

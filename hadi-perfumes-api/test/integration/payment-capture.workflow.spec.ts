@@ -52,6 +52,7 @@ import { OrderService } from '../../src/modules/order/services/order.service';
 import { PaymentService } from '../../src/modules/order/services/payment.service';
 import { InventoryService } from '../../src/modules/inventory/services/inventory.service';
 import { ListingService } from '../../src/modules/listing/services/listing.service';
+import { AuditService } from '../../src/modules/audit/services/audit.service';
 
 describe('Payment Capture Workflow (Integration)', () => {
   let module: TestingModule;
@@ -104,6 +105,10 @@ describe('Payment Capture Workflow (Integration)', () => {
         PaymentService,
         InventoryService,
         ListingService,
+        {
+          provide: AuditService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

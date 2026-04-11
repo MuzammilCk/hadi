@@ -20,6 +20,7 @@ import {
   ListingNotFoundException,
   ListingStateTransitionException,
 } from '../../../src/modules/listing/exceptions/listing.exceptions';
+import { AuditService } from '../../../src/modules/audit/services/audit.service';
 
 describe('ListingService', () => {
   let service: ListingService;
@@ -54,6 +55,10 @@ describe('ListingService', () => {
         {
           provide: DataSource,
           useValue: mockDataSource,
+        },
+        {
+          provide: AuditService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();
