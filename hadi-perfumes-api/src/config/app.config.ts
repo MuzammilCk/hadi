@@ -4,7 +4,8 @@ export const envSchema = Joi.object({
   // CRITICAL — app will not start without these
   DATABASE_URL: Joi.string().required(),
   JWT_SECRET: Joi.string().min(32).required(),
-  ADMIN_TOKEN: Joi.string().min(16).required(),
+  // ADMIN_TOKEN is no longer used — admin auth is now JWT-based via JwtAuthGuard + RolesGuard.
+  ADMIN_TOKEN: Joi.string().optional(),
 
   // REDIS_URL: required only when QueueModule is active (non-test, non-local-only)
   // In local dev without Redis, the app boots but jobs won't queue (graceful degradation).

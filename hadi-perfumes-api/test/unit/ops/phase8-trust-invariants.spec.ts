@@ -1,73 +1,8 @@
-import { AdminGuard } from '../../../src/modules/admin/guards/admin.guard';
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
 
 describe('Phase 8 — Trust Invariants', () => {
-  describe('AdminGuard security event logging', () => {
-    const originalEnv = process.env;
-
-    beforeEach(() => {
-      process.env = { ...originalEnv, ADMIN_TOKEN: 'valid-admin-token-1234' };
-    });
-
-    afterEach(() => {
-      process.env = originalEnv;
-    });
-
-    function createMockContext(token?: string): ExecutionContext {
-      return {
-        switchToHttp: () => ({
-          getRequest: () => ({
-            headers: token ? { 'x-admin-token': token } : {},
-            ip: '127.0.0.1',
-            path: '/admin/test',
-            method: 'GET',
-          }),
-        }),
-      } as any;
-    }
-
-    it('security event write failure does not prevent AdminGuard from rejecting bad token', () => {
-      const failingSecurityService = {
-        record: jest.fn().mockRejectedValue(new Error('DB connection failed')),
-      };
-      const guard = new AdminGuard(failingSecurityService);
-      const ctx = createMockContext('wrong-token-12345');
-
-      expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
-      expect(failingSecurityService.record).toHaveBeenCalled();
-    });
-
-    it('AdminGuard still rejects when security service is not available', () => {
-      const guard = new AdminGuard(undefined);
-      const ctx = createMockContext('wrong-token-12345');
-
-      expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
-    });
-
-    it('AdminGuard still accepts valid token with security service', () => {
-      const guard = new AdminGuard(undefined);
-      const ctx = createMockContext('valid-admin-token-1234');
-
-      expect(guard.canActivate(ctx)).toBe(true);
-    });
-
-    it('security event contains correct event_type and severity', () => {
-      const mockService = {
-        record: jest.fn().mockResolvedValue(undefined),
-      };
-      const guard = new AdminGuard(mockService);
-      const ctx = createMockContext('wrong-token-12345');
-
-      expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
-
-      expect(mockService.record).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event_type: 'invalid_admin_token',
-          severity: 'high',
-        }),
-      );
-    });
-  });
+  // AdminGuard tests removed — guard was replaced by JwtAuthGuard + RolesGuard in Phase 9.
+  // JWT auth is tested via e2e specs that send Bearer tokens.
 
   describe('CorrelationIdMiddleware invariants', () => {
     it('is idempotent per request — calling twice does not change existing correlationId', () => {

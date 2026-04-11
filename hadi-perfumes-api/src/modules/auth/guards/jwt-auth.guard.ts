@@ -21,6 +21,9 @@ export class JwtAuthGuard implements CanActivate {
     try {
       const payload = this.jwtService.verify(authHeader.split(' ')[1]);
       req.user = payload;
+      // Backward compat: admin controllers read req.adminActorId for audit/actor context.
+      // Previously set by the old AdminGuard; now derived from the JWT subject (actual user UUID).
+      req.adminActorId = payload.sub;
       return true;
     } catch {
       throw new UnauthorizedException('Invalid or expired token');

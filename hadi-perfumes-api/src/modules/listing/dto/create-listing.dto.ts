@@ -43,7 +43,8 @@ export class CreateListingDto {
   quantity: number;
 
   @IsEnum(ListingCondition)
-  condition: ListingCondition;
+  @IsOptional()
+  condition?: ListingCondition = ListingCondition.NEW;
 
   @IsEnum(AuthenticityStatus)
   @IsOptional()

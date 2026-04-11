@@ -76,7 +76,7 @@ export class ListingService {
       await em.save(ListingStatusHistory, history);
 
       // Phase 9: Audit log
-      this.auditService.log({
+      await this.auditService.log({
         actor_id: adminId,
         action: 'PRODUCT_CREATED',
         entity_type: 'listing',
@@ -110,6 +110,7 @@ export class ListingService {
       }
 
       const prevStatus = listing.status;
+      const prevPrice = listing.price;
       em.merge(Listing, listing, dto);
       const savedListing = await em.save(Listing, listing);
 
@@ -127,10 +128,10 @@ export class ListingService {
 
       // Phase 9: Audit log
       const changes: Record<string, any> = {};
-      if (updateDto.price !== undefined) changes.price = { from: prevStatus, to: savedListing.price };
+      if (updateDto.price !== undefined) changes.price = { from: prevPrice, to: savedListing.price };
       if (updateDto.title !== undefined) changes.title = savedListing.title;
       if (updateDto.status !== undefined) changes.status = { from: prevStatus, to: savedListing.status };
-      this.auditService.log({
+      await this.auditService.log({
         actor_id: adminId,
         action: updateDto.price !== undefined ? 'PRODUCT_PRICE_CHANGE' : 'PRODUCT_UPDATED',
         entity_type: 'listing',

@@ -31,7 +31,8 @@ import { QualificationEngineService } from '../../src/modules/network/services/q
 import { RankAssignmentService } from '../../src/modules/network/services/rank-assignment.service';
 import { QualificationRecalcJob } from '../../src/jobs/qualification-recalc.job';
 import { AdminNetworkController } from '../../src/modules/network/controllers/admin-network.controller';
-import { AdminGuard } from '../../src/modules/admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../src/modules/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../src/modules/auth/guards/roles.guard';
 
 jest.setTimeout(30000);
 
@@ -40,7 +41,7 @@ describe('Admin Network E2E', () => {
   let em: any;
   let userId: string;
   let policyVersionId: string;
-  const adminToken = 'test-admin-token';
+  let adminToken: string;
 
   const allEntities = [
     User,
@@ -64,7 +65,6 @@ describe('Admin Network E2E', () => {
   ];
 
   beforeAll(async () => {
-    process.env.ADMIN_TOKEN = adminToken;
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
@@ -86,7 +86,8 @@ describe('Admin Network E2E', () => {
         QualificationEngineService,
         RankAssignmentService,
         QualificationRecalcJob,
-        AdminGuard,
+        JwtAuthGuard,
+        RolesGuard,
       ],
     }).compile();
 
@@ -101,6 +102,11 @@ describe('Admin Network E2E', () => {
     await app.init();
 
     em = moduleFixture.get(EntityManager);
+
+    // Generate a JWT admin token for e2e requests
+    const { JwtService } = require('@nestjs/jwt');
+    const jwtService = moduleFixture.get(JwtService);
+    adminToken = jwtService.sign({ sub: 'e2e-admin-uuid', role: 'admin', full_name: 'E2E Admin' });
 
     // Seed users
     const user1 = em.create(User, {
@@ -181,7 +187,7 @@ describe('Admin Network E2E', () => {
   it('POST /admin/network/corrections with userId === newSponsorId returns 400', () => {
     return request(app.getHttpServer())
       .post('/admin/network/corrections')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         userId,
         newSponsorId: userId,
@@ -194,7 +200,7 @@ describe('Admin Network E2E', () => {
   it('POST /admin/network/corrections with reason shorter than 10 chars returns 400', () => {
     return request(app.getHttpServer())
       .post('/admin/network/corrections')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         userId,
         newSponsorId: '00000000-0000-0000-0000-000000000001',
@@ -254,7 +260,7 @@ describe('Admin Network E2E', () => {
 
     return request(app.getHttpServer())
       .post('/admin/network/corrections')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         userId: savedTarget.id,
         newSponsorId: savedNewSponsor.id,
@@ -277,7 +283,7 @@ describe('Admin Network E2E', () => {
 
     return request(app.getHttpServer())
       .post('/admin/network/corrections')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({
         userId: userId,
         newSponsorId: user2.id,
@@ -290,7 +296,7 @@ describe('Admin Network E2E', () => {
   it('POST /admin/network/recalculate returns 201 and GraphRebuildJob shape', () => {
     return request(app.getHttpServer())
       .post('/admin/network/recalculate')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ policyVersionId })
       .expect(201)
       .expect((res: any) => {
@@ -304,7 +310,7 @@ describe('Admin Network E2E', () => {
   it('POST /admin/network/snapshots returns 201 and NetworkSnapshot shape', () => {
     return request(app.getHttpServer())
       .post('/admin/network/snapshots')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(201)
       .expect((res: any) => {
         expect(res.body).toHaveProperty('snapshot_type');
@@ -317,7 +323,7 @@ describe('Admin Network E2E', () => {
   it('GET /admin/network/corrections returns 200 with paginated list', () => {
     return request(app.getHttpServer())
       .get('/admin/network/corrections')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200)
       .expect((res: any) => {
         expect(res.body).toHaveProperty('data');
@@ -331,7 +337,7 @@ describe('Admin Network E2E', () => {
   it('GET /admin/network/snapshots returns 200 with paginated list', () => {
     return request(app.getHttpServer())
       .get('/admin/network/snapshots')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200)
       .expect((res: any) => {
         expect(res.body).toHaveProperty('data');
@@ -343,7 +349,7 @@ describe('Admin Network E2E', () => {
   it('GET /admin/network/rebuild-jobs returns 200 with paginated list', () => {
     return request(app.getHttpServer())
       .get('/admin/network/rebuild-jobs')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200)
       .expect((res: any) => {
         expect(res.body).toHaveProperty('data');
@@ -355,7 +361,7 @@ describe('Admin Network E2E', () => {
   it('GET /admin/network/:userId/node returns 404 for non-existent userId', () => {
     return request(app.getHttpServer())
       .get('/admin/network/00000000-0000-0000-0000-000000000099/node')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(404);
   });
 
@@ -363,7 +369,7 @@ describe('Admin Network E2E', () => {
   it('GET /admin/network/:userId/node returns 200 with NetworkNode shape for existing userId', () => {
     return request(app.getHttpServer())
       .get(`/admin/network/${userId}/node`)
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200)
       .expect((res: any) => {
         expect(res.body).toHaveProperty('user_id');
@@ -376,7 +382,7 @@ describe('Admin Network E2E', () => {
   it('GET /admin/network/:userId/qualification returns 200 with QualificationState shape', () => {
     return request(app.getHttpServer())
       .get(`/admin/network/${userId}/qualification`)
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200)
       .expect((res: any) => {
         expect(res.body).toHaveProperty('is_active');
@@ -388,7 +394,7 @@ describe('Admin Network E2E', () => {
   it('static route GET /admin/network/corrections resolves correctly and does NOT match :userId param', () => {
     return request(app.getHttpServer())
       .get('/admin/network/corrections')
-      .set('x-admin-token', adminToken)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200)
       .expect((res: any) => {
         // Should return paginated list, not a 404 or single node
