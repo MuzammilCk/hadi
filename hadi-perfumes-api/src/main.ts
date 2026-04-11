@@ -44,7 +44,7 @@ async function bootstrap() {
 
   // Existing: CORS (unchanged)
   app.enableCors({
-    origin: true,
+    origin: process.env.CORS_ORIGIN?.split(',').map(s => s.trim()) || ['http://localhost:5173'],
     credentials: true,
   });
 

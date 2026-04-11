@@ -1,7 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
-import { ThrottlerModule } from '@nestjs/throttler';
 import { User } from '../user/entities/user.entity';
 import { OnboardingAttempt } from './entities/onboarding-attempt.entity';
 import { OtpVerification } from './entities/otp-verification.entity';
@@ -24,12 +23,8 @@ import { ReferralModule } from '../referral/referral.module';
       RefreshToken,
       OnboardingAuditLog,
     ]),
-    ThrottlerModule.forRoot([
-      {
-        ttl: parseInt(process.env.OTP_SEND_TTL_SECONDS || '60', 10) * 1000,
-        limit: parseInt(process.env.OTP_SEND_LIMIT || '5', 10),
-      },
-    ]),
+    // ThrottlerModule is registered at the app level (AppModule).
+    // OTP-specific rate limits are applied via @Throttle() on endpoints.
     JwtModule.register({
       secret: (() => {
         if (process.env.JWT_SECRET) return process.env.JWT_SECRET;

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, IsNull } from 'typeorm';
+import { randomInt } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { OtpVerification } from '../entities/otp-verification.entity';
 
@@ -25,7 +26,7 @@ export class OtpService implements IOtpService {
       { expires_at: new Date() }, // Expire immediately
     );
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+    const otp = randomInt(100000, 999999).toString(); // 6 digits, CSPRNG
     const otpHash = await bcrypt.hash(otp, 12);
 
     const expiresAt = new Date();
@@ -40,7 +41,10 @@ export class OtpService implements IOtpService {
     await this.otpRepo.save(verification);
 
     // Stub mechanism
-    this.logger.log(`[OTP STUB] Sent OTP ${otp} to phone ${phone}`);
+    // In production, integrate with SMS provider (Twilio, SNS, etc.)
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.debug(`[OTP DEV] OTP generated for ${phone}`);
+    }
   }
 
   async verifyOtp(phone: string, otp: string): Promise<boolean> {
