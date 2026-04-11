@@ -61,4 +61,8 @@ export class CreateListingDto {
   @IsBoolean()
   @IsOptional()
   requires_approval?: boolean;
+
+  @IsString({ each: true })
+  @IsOptional()
+  media_keys?: string[];
 }

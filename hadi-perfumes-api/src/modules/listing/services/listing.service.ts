@@ -56,6 +56,19 @@ export class ListingService {
       });
       const savedListing = await em.save(Listing, listing);
 
+      // 2.5 Associating Media Images
+      if (dto.media_keys && dto.media_keys.length > 0) {
+        for (let i = 0; i < dto.media_keys.length; i++) {
+          const img = em.create(ListingImage, {
+            listing_id: savedListing.id,
+            storage_key: dto.media_keys[i],
+            sort_order: i,
+            is_primary: i === 0,
+          });
+          await em.save(ListingImage, img);
+        }
+      }
+
       // 3. Create initial InventoryItem synchronously
       const invItem = em.create(InventoryItem, {
         listing_id: savedListing.id,
