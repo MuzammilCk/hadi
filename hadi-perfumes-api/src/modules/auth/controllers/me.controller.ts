@@ -7,6 +7,12 @@ export class MeController {
   constructor(private signupFlowService: SignupFlowService) {}
 
   @UseGuards(JwtAuthGuard)
+  @Get()
+  async getMe(@Req() req: any) {
+    return this.signupFlowService.getMyProfile(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('onboarding-status')
   async getOnboardingStatus(@Req() req: any) {
     return this.signupFlowService.getOnboardingStatus(req.user.sub);

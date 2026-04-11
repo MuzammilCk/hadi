@@ -285,6 +285,7 @@ export class SignupFlowService {
       const access_token = this.jwtService.sign({
         sub: user.id,
         role: 'buyer',
+        full_name: user.full_name ?? '',
       });
 
       const refreshTokenValue = uuidv4();
@@ -329,10 +330,13 @@ export class SignupFlowService {
     rt.revoked_at = new Date();
     await this.tokenRepo.save(rt);
 
+    const user = await this.userRepo.findOne({ where: { id: rt.user_id } });
+
     // Issue new access token
     const access_token = this.jwtService.sign({
       sub: rt.user_id,
       role: 'buyer',
+      full_name: user?.full_name ?? '',
     });
 
     // Issue new refresh token
@@ -393,6 +397,7 @@ export class SignupFlowService {
     const access_token = this.jwtService.sign({
       sub: user.id,
       role: 'buyer',
+      full_name: user.full_name ?? '',
     });
 
     const refreshTokenValue = uuidv4();
@@ -429,6 +434,22 @@ export class SignupFlowService {
       status: user.status,
       kyc_status: user.kyc_status,
       onboarding_completed_at: user.onboarding_completed_at ?? null,
+    };
+  }
+
+  async getMyProfile(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    return {
+      id: user.id,
+      phone: user.phone,
+      email: user.email ?? null,
+      full_name: user.full_name ?? null,
+      status: user.status,
+      kyc_status: user.kyc_status,
+      sponsor_id: user.sponsor_id ?? null,
+      onboarding_completed_at: user.onboarding_completed_at ?? null,
+      created_at: user.created_at,
     };
   }
 }
