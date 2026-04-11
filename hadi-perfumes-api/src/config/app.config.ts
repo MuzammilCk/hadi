@@ -6,8 +6,9 @@ export const envSchema = Joi.object({
   JWT_SECRET: Joi.string().min(32).required(),
   ADMIN_TOKEN: Joi.string().min(16).required(),
 
-  // CRITICAL for BullMQ (Phase 8)
-  REDIS_URL: Joi.string().required(),
+  // REDIS_URL: required only when QueueModule is active (non-test, non-local-only)
+  // In local dev without Redis, the app boots but jobs won't queue (graceful degradation).
+  REDIS_URL: Joi.string().default('redis://localhost:6379'),
 
   // IMPORTANT — will warn on missing but not crash
   STRIPE_SECRET_KEY: Joi.string().optional(),

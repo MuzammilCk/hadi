@@ -14,19 +14,16 @@ import { HoldPropagationProcessor } from './processors/hold-propagation.processo
 import { ReturnEligibilityProcessor } from './processors/return-eligibility.processor';
 import { JobSchedulerService } from './schedulers/job-scheduler.service';
 
-// Import modules that own the job services
+// Import modules that own the job services — required for NestJS DI resolution.
+// QueueModule processors inject job services (CommissionReleaseJob, ReservationExpiryJob, etc.)
+// which are only accessible if their owning modules are imported here.
 import { CommissionModule } from '../modules/commission/commission.module';
 import { InventoryModule } from '../modules/inventory/inventory.module';
 import { TrustModule } from '../modules/trust/trust.module';
 
-export const QUEUE_NAMES = {
-  COMMISSION_RELEASE: 'commission-release',
-  RESERVATION_EXPIRY: 'reservation-expiry',
-  DISPUTE_ESCALATION: 'dispute-escalation',
-  FRAUD_AGGREGATION: 'fraud-aggregation',
-  HOLD_PROPAGATION: 'hold-propagation',
-  RETURN_ELIGIBILITY: 'return-eligibility',
-};
+// Re-export so existing imports of QUEUE_NAMES from this file still work
+export { QUEUE_NAMES } from './queue.constants';
+import { QUEUE_NAMES } from './queue.constants';
 
 @Module({
   imports: [
@@ -51,6 +48,9 @@ export const QUEUE_NAMES = {
       { name: QUEUE_NAMES.RETURN_ELIGIBILITY },
     ),
     TypeOrmModule.forFeature([JobRun, DeadLetterEvent]),
+    // These modules export the job services that processors inject.
+    // NestJS requires direct imports — parent AppModule graph does NOT
+    // transitively provide providers (modules are not @Global).
     CommissionModule,
     InventoryModule,
     TrustModule,

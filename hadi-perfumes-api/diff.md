@@ -16,3 +16,30 @@
 - **Ops Module**: `HealthController` (`/health`, `/ready`, `/metrics`), `AdminOpsController` (`/admin/ops/*`), `SecurityEventService`, `MetricsService`.
 - **Hardening**: `helmet`, `compression` in `main.ts`. Security event logging in `AdminGuard` (fire-and-forget, @Optional injection).
 - **Tests**: 47 new tests across 6 suites. 366 total tests, 53 suites, 0 failures.
+
+## 2026-04-11 (Phase 8 Startup Fix)
+
+### Changed
+- `src/modules/trust/trust.module.ts`: Added ReturnEligibilityJob, DisputeEscalationJob,
+  FraudAggregationJob, HoldPropagationJob to exports. QueueModule processors require these.
+- `src/modules/ops/ops.module.ts`: Removed dynamic require() for OpsService and
+  AdminOpsController. Added static imports. Added BullModule.forRootAsync() and
+  BullModule.registerQueue() so OpsService can inject BullMQ queue tokens.
+- `src/modules/admin/guards/admin.guard.ts`: Replaced @Inject('SecurityEventService')
+  string token with direct class injection + @Optional(). String token never resolved.
+- `src/main.ts`: Added validateEnv() call at top of bootstrap() (skipped in test env).
+- `src/config/app.config.ts`: Changed REDIS_URL from .required() to
+  .default('redis://localhost:6379') for graceful local dev without Redis.
+- `src/queue/queue.constants.ts`: [NEW] Extracted QUEUE_NAMES to a standalone constants
+  file to break circular import between queue.module.ts and processor files.
+- `src/queue/processors/*.processor.ts`: Updated all 6 processors to import QUEUE_NAMES
+  from queue.constants instead of queue.module (fixes circular import crash).
+
+### Why
+- Phase 8 wiring errors prevented the application from starting. All 6 issues were
+  NestJS DI/module registration problems, not business logic errors. An additional
+  circular CJS import issue (QUEUE_NAMES undefined at decorator evaluation time) was
+  discovered and fixed during verification.
+
+### Impact
+- Backend boots cleanly. No business logic changed.

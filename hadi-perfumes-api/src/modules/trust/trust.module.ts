@@ -95,6 +95,15 @@ import { CommissionModule } from '../commission/commission.module';
     AdminModerationController,
     AdminHoldController,
   ],
-  exports: [HoldService, FraudSignalService, TrustAuditService],
+  exports: [
+    HoldService,
+    FraudSignalService,
+    TrustAuditService,
+    // Phase 8: export job services so QueueModule processors can inject them
+    ReturnEligibilityJob,
+    DisputeEscalationJob,
+    FraudAggregationJob,
+    HoldPropagationJob,
+  ],
 })
 export class TrustModule {}

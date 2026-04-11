@@ -4,10 +4,17 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+import { validateEnv } from './config/app.config';
 import helmet from 'helmet';
 import compression from 'compression';
 
 async function bootstrap() {
+  // Phase 8: fail fast on missing critical config BEFORE any module is initialized.
+  // In test env, skip validation — Jest sets NODE_ENV=test and config is mocked.
+  if (process.env.NODE_ENV !== 'test') {
+    validateEnv(process.env as Record<string, unknown>);
+  }
+
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
     bufferLogs: true,

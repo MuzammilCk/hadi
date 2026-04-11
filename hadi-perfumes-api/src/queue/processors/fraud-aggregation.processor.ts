@@ -6,7 +6,7 @@ import * as Bull from 'bull';
 import { FraudAggregationJob } from '../../modules/trust/jobs/fraud-aggregation.job';
 import { JobRun } from '../../modules/ops/entities/job-run.entity';
 import { DeadLetterEvent } from '../../modules/ops/entities/dead-letter-event.entity';
-import { QUEUE_NAMES } from '../queue.module';
+import { QUEUE_NAMES } from '../queue.constants';
 
 @Processor(QUEUE_NAMES.FRAUD_AGGREGATION)
 @Injectable()

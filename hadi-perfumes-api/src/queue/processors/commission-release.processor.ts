@@ -6,7 +6,7 @@ import * as Bull from 'bull';
 import { CommissionReleaseJob } from '../../jobs/commission-release.job';
 import { JobRun } from '../../modules/ops/entities/job-run.entity';
 import { DeadLetterEvent } from '../../modules/ops/entities/dead-letter-event.entity';
-import { QUEUE_NAMES } from '../queue.module';
+import { QUEUE_NAMES } from '../queue.constants';
 
 @Processor(QUEUE_NAMES.COMMISSION_RELEASE)
 @Injectable()

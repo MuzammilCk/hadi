@@ -3,18 +3,18 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
-  Inject,
   Optional,
 } from '@nestjs/common';
 import { timingSafeEqual } from 'crypto';
+import { SecurityEventService } from '../../ops/services/security-event.service';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
   constructor(
-    // Phase 8: Optional injection — works even when OpsModule isn't imported
+    // @Optional() — SecurityEventService may not be available in test module contexts.
+    // Fire-and-forget: DB failure in record() never blocks the guard.
     @Optional()
-    @Inject('SecurityEventService')
-    private readonly securityEventService?: any,
+    private readonly securityEventService?: SecurityEventService,
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
