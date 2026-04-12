@@ -65,3 +65,22 @@ export class IdempotencyKeyRequiredException extends BadRequestException {
     super('Idempotency-Key header is required and must be a valid UUID');
   }
 }
+
+export class PriceChangedException extends BadRequestException {
+  constructor(listingId: string, expected: number, actual: number) {
+    super(
+      `Price has changed for listing ${listingId}. ` +
+      `Expected INR ${expected.toFixed(2)}, current price is INR ${actual.toFixed(2)}. ` +
+      `Please refresh your cart.`,
+    );
+  }
+}
+
+export class IdempotencyMismatchException extends ConflictException {
+  constructor() {
+    super(
+      'An order with this idempotency key already exists but with different items. ' +
+      'This may indicate a duplicate submission with modified cart contents.',
+    );
+  }
+}

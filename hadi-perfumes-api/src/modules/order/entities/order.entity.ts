@@ -31,6 +31,9 @@ export class Order {
   @Column({ type: 'varchar', length: 255, unique: true })
   idempotency_key: string;
 
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  payload_hash: string | null;
+
   @Column({ type: 'uuid', nullable: true })
   checkout_session_id: string | null;
 

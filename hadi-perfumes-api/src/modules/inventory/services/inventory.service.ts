@@ -247,6 +247,94 @@ export class InventoryService {
     });
   }
 
+  /**
+   * Em-aware variant of reserveStock for callers that already own a transaction.
+   * Uses the provided EntityManager directly — NEVER opens its own dataSource.transaction().
+   * Follow the same pattern as confirmReservationWithEm / releaseReservationWithEm.
+   */
+  async reserveStockWithEm(
+    userId: string,
+    dto: ReserveStockDto,
+    em: EntityManager,
+  ): Promise<InventoryReservation> {
+    const item = await em.findOne(InventoryItem, {
+      where: { listing_id: dto.listingId },
+    });
+    if (!item) throw new InventoryItemNotFoundException();
+
+    const updateRes = await em.query(
+      sqlParams(
+        `UPDATE inventory_items SET available_qty = available_qty - $1, reserved_qty = reserved_qty + $2, updated_at = ${nowFn()} WHERE id = $3 AND available_qty >= $4`,
+      ),
+      [dto.qty, dto.qty, item.id, dto.qty],
+    );
+
+    let rowUpdated: boolean;
+    if (isSqlite()) {
+      const [{ changed }] = await em.query(`SELECT changes() as changed`);
+      rowUpdated = Number(changed) > 0;
+    } else {
+      const affectedCount =
+        Array.isArray(updateRes) && updateRes.length === 2
+          ? Number(updateRes[1])
+          : 0;
+      rowUpdated = affectedCount > 0;
+    }
+
+    if (!rowUpdated) {
+      const event = em.create(InventoryEvent, {
+        inventory_item_id: item.id,
+        listing_id: dto.listingId,
+        event_type: InventoryEventType.OVERSELL_BLOCKED,
+        qty_delta: dto.qty,
+        qty_after: item.total_qty,
+        actor_id: userId,
+      });
+      await em.save(InventoryEvent, event);
+      throw new InsufficientStockException();
+    }
+
+    const result = await em.findOne(InventoryItem, { where: { id: item.id } });
+    if (!result) throw new InventoryItemNotFoundException();
+
+    if (result.available_qty === 0 || Number(result.available_qty) === 0) {
+      await em.query(
+        sqlParams(
+          `UPDATE listings SET status = $1, updated_at = ${nowFn()} WHERE id = $2 AND status = $3`,
+        ),
+        [ListingStatus.SOLD_OUT, dto.listingId, ListingStatus.ACTIVE],
+      );
+    }
+
+    const ttl =
+      dto.ttlSeconds || Number(process.env.RESERVATION_TTL_SECONDS) || 900;
+    const expiresAt = new Date(Date.now() + ttl * 1000);
+
+    const reservation = em.create(InventoryReservation, {
+      listing_id: dto.listingId,
+      inventory_item_id: item.id,
+      reserved_by_user_id: userId,
+      qty: dto.qty,
+      expires_at: expiresAt,
+      status: ReservationStatus.RESERVED,
+      reservation_ttl_seconds: ttl,
+    });
+    const savedRes = await em.save(InventoryReservation, reservation);
+
+    const event = em.create(InventoryEvent, {
+      inventory_item_id: item.id,
+      listing_id: dto.listingId,
+      event_type: InventoryEventType.RESERVED,
+      qty_delta: dto.qty * -1,
+      qty_after: result.total_qty,
+      actor_id: userId,
+      reference_id: savedRes.id,
+    });
+    await em.save(InventoryEvent, event);
+
+    return savedRes;
+  }
+
   async confirmReservation(
     reservationId: string,
     orderId: string,

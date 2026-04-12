@@ -59,6 +59,11 @@ export class OrderItemInputDto {
   @IsInt()
   @Min(1)
   qty: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  expected_unit_price?: number;
 }
 
 export class CreateOrderDto {
