@@ -38,6 +38,11 @@ export class AdminListingController {
   ) {}
 
   // ================= Categories ==================
+  @Get('categories')
+  async getCategories() {
+    return this.categoryService.listCategories(true);
+  }
+
   @Post('categories')
   async createCategory(@Body() dto: CreateCategoryDto) {
     return this.categoryService.createCategory(dto);
