@@ -10,6 +10,7 @@ import {
   Equals,
   IsInt,
   IsBoolean,
+  IsArray,
 } from 'class-validator';
 import {
   ListingCondition,
@@ -62,6 +63,7 @@ export class CreateListingDto {
   @IsOptional()
   requires_approval?: boolean;
 
+  @IsArray()
   @IsString({ each: true })
   @IsOptional()
   media_keys?: string[];
