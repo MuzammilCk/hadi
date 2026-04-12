@@ -40,10 +40,9 @@ export class OtpService implements IOtpService {
 
     await this.otpRepo.save(verification);
 
-    // Stub mechanism
-    // In production, integrate with SMS provider (Twilio, SNS, etc.)
-    if (process.env.NODE_ENV === 'development') {
-      this.logger.debug(`[OTP DEV] OTP generated for ${phone}`);
+    // ENTERPRISE STANDARD: Never leak OTPs to STDOUT in production (prevents CloudWatch/Datadog hijacking)
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      this.logger.log(`[OTP DEV/TEST] OTP generated for ${phone} is: ${otp}`);
     }
   }
 
