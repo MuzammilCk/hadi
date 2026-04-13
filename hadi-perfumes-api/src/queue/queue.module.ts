@@ -6,6 +6,7 @@ import { JobRun } from '../modules/ops/entities/job-run.entity';
 import { DeadLetterEvent } from '../modules/ops/entities/dead-letter-event.entity';
 
 // Processors wrap existing jobs — they never rewrite business logic
+import { CommissionOutboxProcessor } from './processors/commission-outbox.processor';
 import { CommissionReleaseProcessor } from './processors/commission-release.processor';
 import { ReservationExpiryProcessor } from './processors/reservation-expiry.processor';
 import { DisputeEscalationProcessor } from './processors/dispute-escalation.processor';
@@ -40,6 +41,7 @@ import { QUEUE_NAMES } from './queue.constants';
       }),
     }),
     BullModule.registerQueue(
+      { name: QUEUE_NAMES.COMMISSION_OUTBOX },
       { name: QUEUE_NAMES.COMMISSION_RELEASE },
       { name: QUEUE_NAMES.RESERVATION_EXPIRY },
       { name: QUEUE_NAMES.DISPUTE_ESCALATION },
@@ -56,6 +58,7 @@ import { QUEUE_NAMES } from './queue.constants';
     TrustModule,
   ],
   providers: [
+    CommissionOutboxProcessor,
     CommissionReleaseProcessor,
     ReservationExpiryProcessor,
     DisputeEscalationProcessor,

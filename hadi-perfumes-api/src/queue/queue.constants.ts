@@ -4,6 +4,7 @@
  * from it.  Both queue.module.ts and every processor import this file instead.
  */
 export const QUEUE_NAMES = {
+  COMMISSION_OUTBOX: 'commission-outbox',
   COMMISSION_RELEASE: 'commission-release',
   RESERVATION_EXPIRY: 'reservation-expiry',
   DISPUTE_ESCALATION: 'dispute-escalation',

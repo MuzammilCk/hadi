@@ -270,16 +270,19 @@ export class CommissionCalculationService {
       } catch (err) {
         this.logger.error(`Failed to process outbox event ${event.id}:`, err);
         // Increment error count for dead-letter tracking (Fix H3)
+        // Fix A7: repo.query() returns raw rows where error_count is a string.
+        // Without Number() cast, "0" + 1 = "01" (string concat), causing premature dead-lettering.
+        const newErrorCount = Number(event.error_count ?? 0) + 1;
         await this.outboxRepo.update(
           { id: event.id },
           {
-            error_count: (event.error_count ?? 0) + 1,
+            error_count: newErrorCount,
             last_error: err instanceof Error ? err.message : String(err),
           },
         );
-        if ((event.error_count ?? 0) + 1 >= maxRetries) {
+        if (newErrorCount >= maxRetries) {
           this.logger.error(
-            `Outbox event ${event.id} has exceeded ${maxRetries} retries — moved to dead-letter (error_count=${(event.error_count ?? 0) + 1})`,
+            `Outbox event ${event.id} has exceeded ${maxRetries} retries — moved to dead-letter (error_count=${newErrorCount})`,
           );
         }
         errors++;

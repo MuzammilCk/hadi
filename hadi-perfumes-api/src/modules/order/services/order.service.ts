@@ -10,6 +10,7 @@ import { CreateOrderDto } from '../dto/create-order.dto';
 import { OrderListQueryDto } from '../dto/order-list-query.dto';
 import { CheckoutService } from './checkout.service';
 import { InventoryService } from '../../inventory/services/inventory.service';
+import { ClawbackJob } from '../../../jobs/clawback.job';
 import {
   OrderNotFoundException,
   OrderNotCancellableException,
@@ -32,6 +33,7 @@ export class OrderService {
     private readonly auditRepo: Repository<OrderAuditLog>,
     private readonly checkoutService: CheckoutService,
     private readonly inventoryService: InventoryService,
+    private readonly clawbackJob: ClawbackJob,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -154,6 +156,20 @@ export class OrderService {
         }
       }
 
+      // Fix A2: trigger commission clawback for orders that were already paid.
+      // Without this, cancelled orders leave intact commissions in the upline —
+      // a trivial exploit for commission farming.
+      if (
+        prevStatus === OrderStatus.PAID ||
+        prevStatus === OrderStatus.COMPLETED
+      ) {
+        await this.clawbackJob.clawbackForOrder(orderId).catch((err) => {
+          this.logger.error(
+            `Failed to clawback commissions for order ${orderId}: ${err.message}`,
+          );
+        });
+      }
+
       return freshOrder;
     });
   }
@@ -240,6 +256,43 @@ export class OrderService {
         ip_address: ipAddress || null,
       });
       await em.save(OrderAuditLog, audit);
+
+      // Fix A3: Release inventory reservations when admin cancels an order.
+      // Without this, admin cancellation left reserved stock permanently locked,
+      // causing invisible stock shrinkage.
+      if (newStatus === OrderStatus.CANCELLED) {
+        const items = await em.find(OrderItem, {
+          where: { order_id: orderId },
+        });
+        for (const item of items) {
+          if (item.inventory_reservation_id) {
+            await this.inventoryService
+              .releaseReservationWithEm(
+                item.inventory_reservation_id,
+                adminActorId,
+                false,
+                em,
+              )
+              .catch((err) => {
+                this.logger.warn(
+                  `Failed to release reservation ${item.inventory_reservation_id}: ${err.message}`,
+                );
+              });
+          }
+        }
+
+        // Fix A2: trigger commission clawback for paid/completed orders.
+        if (
+          prevStatus === OrderStatus.PAID ||
+          prevStatus === OrderStatus.COMPLETED
+        ) {
+          await this.clawbackJob.clawbackForOrder(orderId).catch((err) => {
+            this.logger.error(
+              `Failed to clawback commissions for order ${orderId}: ${err.message}`,
+            );
+          });
+        }
+      }
 
       return order;
     });

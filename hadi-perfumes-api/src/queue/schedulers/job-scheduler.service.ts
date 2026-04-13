@@ -8,6 +8,8 @@ export class JobSchedulerService {
   private readonly logger = new Logger(JobSchedulerService.name);
 
   constructor(
+    @InjectQueue('commission-outbox')
+    private commissionOutboxQueue: Bull.Queue,
     @InjectQueue('commission-release')
     private commissionReleaseQueue: Bull.Queue,
     @InjectQueue('reservation-expiry')
@@ -21,6 +23,16 @@ export class JobSchedulerService {
     @InjectQueue('return-eligibility')
     private returnEligibilityQueue: Bull.Queue,
   ) {}
+
+  // Fix A1: Every minute — process unpublished outbox events into commission calculations.
+  // Without this cron entry, MoneyEventOutbox rows written by the Stripe webhook
+  // are NEVER consumed, leaving the entire MLM commission system non-functional.
+  @Cron(CronExpression.EVERY_MINUTE)
+  async scheduleCommissionOutbox(): Promise<void> {
+    await this.commissionOutboxQueue.add('run', {}, {
+      jobId: `commission-outbox-${Date.now()}`,
+    });
+  }
 
   // Every 10 minutes — release matured commission events
   @Cron(CronExpression.EVERY_10_MINUTES)

@@ -43,6 +43,17 @@ export class PaymentService {
         apiVersion: '2024-06-20' as any,
       });
     }
+
+    // Fix A6: fail-fast if webhook secret is missing in production.
+    // An empty secret could allow forged webhooks to mark orders as paid.
+    if (
+      process.env.NODE_ENV === 'production' &&
+      !process.env.STRIPE_WEBHOOK_SECRET
+    ) {
+      throw new Error(
+        'STRIPE_WEBHOOK_SECRET must be set in production to validate webhook signatures',
+      );
+    }
   }
 
   private get stripeClient(): Stripe {
@@ -323,10 +334,14 @@ export class PaymentService {
         const items = await em.find(OrderItem, {
           where: { order_id: orderId },
         });
+        // Fix A4: use releaseReservationWithEm() to join the parent transaction.
+        // The old releaseReservation() ran its own nested transaction — if the outer
+        // tx rolled back (e.g. state machine threw), inventory was already released
+        // but order stayed in 'payment_pending', creating phantom available stock.
         for (const item of items) {
           if (item.inventory_reservation_id) {
             await this.inventoryService
-              .releaseReservation(item.inventory_reservation_id, 'system')
+              .releaseReservationWithEm(item.inventory_reservation_id, 'system', false, em)
               .catch((err) => {
                 this.logger.warn(
                   `Failed to release reservation ${item.inventory_reservation_id}: ${err.message}`,

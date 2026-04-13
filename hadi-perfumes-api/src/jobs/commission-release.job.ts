@@ -27,14 +27,29 @@ export class CommissionReleaseJob {
     );
     const now = new Date();
 
-    // Use injected repo for the initial read (outside transaction) — safe
-    const events = await this.commissionEventRepo
-      .createQueryBuilder('ce')
-      .where('ce.status = :status', { status: 'pending' })
-      .andWhere('ce.available_after <= :now', { now })
-      .orderBy('ce.available_after', 'ASC')
-      .take(batchSize)
-      .getMany();
+    // Fix A10: Use FOR UPDATE SKIP LOCKED to prevent two concurrent job instances
+    // from claiming the same commission events. Without this, duplicate release
+    // processing could double-credit wallets.
+    let events: CommissionEvent[];
+    if (process.env.NODE_ENV === 'test') {
+      events = await this.commissionEventRepo
+        .createQueryBuilder('ce')
+        .where('ce.status = :status', { status: 'pending' })
+        .andWhere('ce.available_after <= :now', { now })
+        .orderBy('ce.available_after', 'ASC')
+        .take(batchSize)
+        .getMany();
+    } else {
+      events = await this.dataSource.query(
+        `SELECT * FROM commission_events
+         WHERE status = 'pending'
+           AND available_after <= $1
+         ORDER BY available_after ASC
+         LIMIT $2
+         FOR UPDATE SKIP LOCKED`,
+        [now.toISOString(), batchSize],
+      );
+    }
 
     let released = 0,
       errors = 0;

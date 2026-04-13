@@ -66,6 +66,10 @@ describe('CheckoutIdempotency', () => {
       ),
     };
 
+    const mockClawbackJob = {
+      clawbackForOrder: jest.fn().mockResolvedValue({ clawedBack: 0, skipped: 0 }),
+    };
+
     orderService = new OrderService(
       mockOrderRepo,
       mockItemRepo,
@@ -73,6 +77,7 @@ describe('CheckoutIdempotency', () => {
       mockAuditRepo,
       mockCheckoutService,
       mockInventoryService,
+      mockClawbackJob as any,
       mockDataSource,
     );
   });

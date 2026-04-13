@@ -17,6 +17,7 @@ import { AdminOrderController } from './controllers/admin-order.controller';
 import { InventoryModule } from '../inventory/inventory.module';
 import { ListingModule } from '../listing/listing.module';
 import { AuthModule } from '../auth/auth.module';
+import { CommissionModule } from '../commission/commission.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AuthModule } from '../auth/auth.module';
     InventoryModule,
     ListingModule,
     AuthModule,
+    CommissionModule,
   ],
   providers: [CheckoutService, OrderService, PaymentService],
   controllers: [OrderController, PaymentController, AdminOrderController],
