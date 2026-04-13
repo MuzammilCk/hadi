@@ -266,6 +266,11 @@ export class ListingService {
       .leftJoinAndSelect('listing.images', 'images')
       .leftJoinAndSelect('listing.category', 'category');
 
+    // Admin views include real inventory data for stock display
+    if (isAdmin) {
+      query.leftJoinAndSelect('listing.inventory_item', 'inventory_item');
+    }
+
     if (!isAdmin) {
       // Public view forces active items only
       query.andWhere('listing.status = :activeStatus', {

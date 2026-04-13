@@ -15,6 +15,7 @@ import { ProductCategory } from './product-category.entity';
 import { ListingImage } from './listing-image.entity';
 import { ListingStatusHistory } from './listing-status-history.entity';
 import { ListingModerationAction } from './listing-moderation-action.entity';
+import { InventoryItem } from '../../inventory/entities/inventory-item.entity';
 
 export enum ListingCondition {
   NEW = 'new',
@@ -103,4 +104,7 @@ export class Listing {
 
   @OneToMany(() => ListingModerationAction, (action) => action.listing)
   moderation_actions: ListingModerationAction[];
+
+  @OneToOne(() => InventoryItem, (inv) => inv.listing)
+  inventory_item: InventoryItem;
 }
