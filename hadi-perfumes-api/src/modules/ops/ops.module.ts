@@ -11,7 +11,11 @@ import { SecurityEventService } from './services/security-event.service';
 import { OpsService } from './services/ops.service';
 import { HealthController } from './controllers/health.controller';
 import { AdminOpsController } from './controllers/admin-ops.controller';
+import { AdminDashboardController } from './controllers/admin-dashboard.controller';
 import { AuthModule } from '../auth/auth.module';
+import { User } from '../user/entities/user.entity';
+import { Order } from '../order/entities/order.entity';
+import { Listing } from '../listing/entities/listing.entity';
 
 // Queue names must match QueueModule exactly
 const QUEUE_NAMES = [
@@ -30,6 +34,9 @@ const QUEUE_NAMES = [
       DeadLetterEvent,
       SecurityEvent,
       TrustAuditLog,
+      User,
+      Order,
+      Listing,
     ]),
     TerminusModule,
     AuthModule,
@@ -57,6 +64,7 @@ const QUEUE_NAMES = [
   ],
   controllers: [
     HealthController,
+    AdminDashboardController,
     ...(process.env.NODE_ENV !== 'test' ? [AdminOpsController] : []),
   ],
   exports: [MetricsService, SecurityEventService],

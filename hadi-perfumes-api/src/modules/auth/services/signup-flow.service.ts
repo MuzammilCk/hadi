@@ -452,4 +452,18 @@ export class SignupFlowService {
       created_at: user.created_at,
     };
   }
+
+  async updateProfile(
+    userId: string,
+    data: { full_name?: string; email?: string },
+  ) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    if (data.full_name !== undefined) user.full_name = data.full_name;
+    if (data.email !== undefined) user.email = data.email;
+    await this.userRepo.save(user);
+
+    return this.getMyProfile(userId);
+  }
 }
