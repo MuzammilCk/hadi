@@ -116,6 +116,14 @@ export class AdminReferralController {
       });
       await em.save(SponsorshipLink, newLink);
 
+      // Fix B6: Sync users.sponsor_id to match the corrected sponsorship link.
+      // Without this, the denormalized sponsor_id on the user row drifts from
+      // the canonical SponsorshipLink, causing inconsistent reads downstream.
+      await em.query(
+        `UPDATE users SET sponsor_id = $1, updated_at = NOW() WHERE id = $2`,
+        [newSponsorId, userId],
+      );
+
       // Audit log — actor_id set from AdminGuard context
       const auditLog = em.create(OnboardingAuditLog, {
         actor_id: adminActorId,

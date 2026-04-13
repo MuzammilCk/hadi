@@ -551,68 +551,70 @@ export class InventoryService {
   }
 
   async expireStaleReservations(): Promise<{ expired: number }> {
-    return this.dataSource.transaction(async (em: EntityManager) => {
-      // Find all reserved stock that passed expiry
-      const expirySql = isSqlite()
-        ? sqlParams(
-            `SELECT id FROM inventory_reservations WHERE status = $1 AND expires_at < ${nowFn()} LIMIT 100`,
-          )
-        : sqlParams(
-            `SELECT id FROM inventory_reservations WHERE status = $1 AND expires_at < ${nowFn()} FOR UPDATE SKIP LOCKED LIMIT 100`,
-          );
-      const expired = await em.query(expirySql, [ReservationStatus.RESERVED]);
+    // Fix B4: Fetch candidates outside the per-reservation transaction.
+    // Each reservation is processed in its own independent transaction so one
+    // failure doesn't roll back all successful expirations (PostgreSQL aborts
+    // the entire tx on any error).
+    const expirySql = isSqlite()
+      ? sqlParams(
+          `SELECT id FROM inventory_reservations WHERE status = $1 AND expires_at < ${nowFn()} LIMIT 100`,
+        )
+      : sqlParams(
+          `SELECT id FROM inventory_reservations WHERE status = $1 AND expires_at < ${nowFn()} FOR UPDATE SKIP LOCKED LIMIT 100`,
+        );
+    const expired = await this.dataSource.query(expirySql, [ReservationStatus.RESERVED]);
 
-      let processed = 0;
-      for (const row of expired) {
-        try {
-          // Release reservation
+    let processed = 0;
+    for (const row of expired) {
+      try {
+        await this.dataSource.transaction(async (em: EntityManager) => {
           const res = await em.findOne(InventoryReservation, {
             where: { id: row.id },
           });
-          if (res) {
-            res.status = ReservationStatus.EXPIRED;
-            await em.save(InventoryReservation, res);
+          if (!res || res.status !== ReservationStatus.RESERVED) return;
 
+          res.status = ReservationStatus.EXPIRED;
+          await em.save(InventoryReservation, res);
+
+          await em.query(
+            sqlParams(
+              `UPDATE inventory_items SET reserved_qty = reserved_qty - $1, available_qty = available_qty + $2, updated_at = ${nowFn()} WHERE id = $3`,
+            ),
+            [res.qty, res.qty, res.inventory_item_id],
+          );
+
+          const result = await em.findOne(InventoryItem, {
+            where: { id: res.inventory_item_id },
+          });
+          if (!result) throw new InventoryItemNotFoundException();
+
+          if (result.available_qty > 0) {
             await em.query(
               sqlParams(
-                `UPDATE inventory_items SET reserved_qty = reserved_qty - $1, available_qty = available_qty + $2, updated_at = ${nowFn()} WHERE id = $3`,
+                `UPDATE listings SET status = $1, updated_at = ${nowFn()} WHERE id = $2 AND status = $3`,
               ),
-              [res.qty, res.qty, res.inventory_item_id],
+              [ListingStatus.ACTIVE, res.listing_id, ListingStatus.SOLD_OUT],
             );
-
-            const result = await em.findOne(InventoryItem, {
-              where: { id: res.inventory_item_id },
-            });
-            if (!result) throw new InventoryItemNotFoundException();
-
-            if (result.available_qty > 0) {
-              await em.query(
-                sqlParams(
-                  `UPDATE listings SET status = $1, updated_at = ${nowFn()} WHERE id = $2 AND status = $3`,
-                ),
-                [ListingStatus.ACTIVE, res.listing_id, ListingStatus.SOLD_OUT],
-              );
-            }
-
-            const event = em.create(InventoryEvent, {
-              inventory_item_id: res.inventory_item_id,
-              listing_id: res.listing_id,
-              event_type: InventoryEventType.RESERVATION_EXPIRED,
-              qty_delta: res.qty,
-              qty_after: result.total_qty,
-              actor_id: null,
-              reference_id: res.id,
-            });
-            await em.save(InventoryEvent, event);
-
-            processed++;
           }
-        } catch (error) {
-          this.logger.error(`Failed to expire reservation ${row.id}`, error);
-        }
-      }
 
-      return { expired: processed };
-    });
+          const event = em.create(InventoryEvent, {
+            inventory_item_id: res.inventory_item_id,
+            listing_id: res.listing_id,
+            event_type: InventoryEventType.RESERVATION_EXPIRED,
+            qty_delta: res.qty,
+            qty_after: result.total_qty,
+            actor_id: null,
+            reference_id: res.id,
+          });
+          await em.save(InventoryEvent, event);
+
+          processed++;
+        });
+      } catch (error) {
+        this.logger.error(`Failed to expire reservation ${row.id}`, error);
+      }
+    }
+
+    return { expired: processed };
   }
 }

@@ -70,12 +70,17 @@ describe('CheckoutIdempotency', () => {
       clawbackForOrder: jest.fn().mockResolvedValue({ clawedBack: 0, skipped: 0 }),
     };
 
+    const mockPaymentService = {
+      refundPayment: jest.fn().mockResolvedValue(undefined),
+    };
+
     orderService = new OrderService(
       mockOrderRepo,
       mockItemRepo,
       mockHistoryRepo,
       mockAuditRepo,
       mockCheckoutService,
+      mockPaymentService as any,
       mockInventoryService,
       mockClawbackJob as any,
       mockDataSource,

@@ -6,6 +6,7 @@ import { AddCartItemDto } from '../dto/add-cart-item.dto';
 import { UpdateCartItemDto } from '../dto/update-cart-item.dto';
 import { MergeCartItemDto } from '../dto/merge-cart.dto';
 import { Listing, ListingStatus } from '../../listing/entities/listing.entity';
+import { MediaService } from '../../media/services/media.service';
 
 const MAX_QTY = 10;
 
@@ -34,6 +35,7 @@ export class CartService {
     private readonly cartRepo: Repository<CartItem>,
     @InjectRepository(Listing)
     private readonly listingRepo: Repository<Listing>,
+    private readonly mediaService: MediaService,
   ) {}
 
   /**
@@ -201,7 +203,11 @@ export class CartService {
       sku: listing?.sku ?? '',
       price: String(listing?.price ?? '0'),
       qty: ci.qty,
-      image_url: primaryImage?.storage_key ?? '',
+      // Fix B3: convert raw storage key to full public URL.
+      // Previously returned 'uploads/abc.jpg' which the frontend couldn't render.
+      image_url: primaryImage?.storage_key
+        ? this.mediaService.getPublicUrl(primaryImage.storage_key)
+        : '',
       available_qty: inventoryItem?.available_qty ?? 0,
       in_stock:
         listing?.status === ListingStatus.ACTIVE &&

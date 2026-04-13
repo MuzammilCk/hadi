@@ -143,6 +143,35 @@ export class PaymentService {
     return this.paymentRepo.findOne({ where: { order_id: orderId } });
   }
 
+  // Fix B9: Added standard Stripe refund method to be called from OrderService
+  // on order cancellation if the payment was already captured.
+  async refundPayment(orderId: string): Promise<void> {
+    const payment = await this.paymentRepo.findOne({
+      where: { order_id: orderId },
+    });
+    if (!payment || !payment.provider_payment_intent_id) {
+      throw new Error('No valid payment intent found for this order.');
+    }
+
+    if (!this.stripe) {
+      throw new Error('Stripe is not configured.');
+    }
+
+    try {
+      await this.stripe.refunds.create({
+        payment_intent: payment.provider_payment_intent_id,
+        reason: 'requested_by_customer', // Or a more dynamic reason if available
+      });
+
+      // Update payment status locally
+      payment.status = 'refunded';
+      await this.paymentRepo.save(payment);
+    } catch (err: any) {
+      this.logger.error(`Stripe refund failed for order ${orderId}: ${err.message}`);
+      throw new Error('Failed to issue refund with payment provider.');
+    }
+  }
+
   async handleWebhook(rawBody: Buffer, signature: string): Promise<void> {
     let event: Stripe.Event;
 

@@ -9,6 +9,7 @@ import { OrderStateMachine } from '../order-state-machine';
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { OrderListQueryDto } from '../dto/order-list-query.dto';
 import { CheckoutService } from './checkout.service';
+import { PaymentService } from './payment.service';
 import { InventoryService } from '../../inventory/services/inventory.service';
 import { ClawbackJob } from '../../../jobs/clawback.job';
 import {
@@ -22,6 +23,7 @@ export class OrderService {
   private readonly logger = new Logger(OrderService.name);
   private readonly stateMachine = new OrderStateMachine();
 
+  // Fix B9 dependency: Add PaymentService to constructor to allow refunds
   constructor(
     @InjectRepository(Order)
     private readonly orderRepo: Repository<Order>,
@@ -32,6 +34,7 @@ export class OrderService {
     @InjectRepository(OrderAuditLog)
     private readonly auditRepo: Repository<OrderAuditLog>,
     private readonly checkoutService: CheckoutService,
+    private readonly paymentService: PaymentService,
     private readonly inventoryService: InventoryService,
     private readonly clawbackJob: ClawbackJob,
     private readonly dataSource: DataSource,
@@ -163,6 +166,14 @@ export class OrderService {
         prevStatus === OrderStatus.PAID ||
         prevStatus === OrderStatus.COMPLETED
       ) {
+        // Fix B9: If order was PAID (meaning funds were actually captured), issue a refund automatically
+        try {
+          await this.paymentService.refundPayment(orderId);
+        } catch (err: any) {
+          this.logger.error(`Failed to refund order ${orderId} on cancellation: ${err.message}`);
+          throw new Error('Order cancellation failed: Could not issue refund. Please try again.');
+        }
+
         await this.clawbackJob.clawbackForOrder(orderId).catch((err) => {
           this.logger.error(
             `Failed to clawback commissions for order ${orderId}: ${err.message}`,

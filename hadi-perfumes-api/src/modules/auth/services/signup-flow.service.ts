@@ -440,6 +440,13 @@ export class SignupFlowService {
   async getMyProfile(userId: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
+
+    // Fix B8: Include the user's actual referral code instead of forcing
+    // the frontend to fake it with id.slice(0,8)
+    const referralCode = await this.em.findOne(ReferralCode, {
+      where: { owner_id: userId, status: ReferralCodeStatus.ACTIVE },
+    });
+
     return {
       id: user.id,
       phone: user.phone,
@@ -448,6 +455,7 @@ export class SignupFlowService {
       status: user.status,
       kyc_status: user.kyc_status,
       sponsor_id: user.sponsor_id ?? null,
+      referral_code: referralCode?.code ?? null,
       onboarding_completed_at: user.onboarding_completed_at ?? null,
       created_at: user.created_at,
     };

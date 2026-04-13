@@ -99,7 +99,7 @@ describe('Payout Flow Workflow (Integration)', () => {
     const idempotencyKey = uuidv4();
     const request = await payoutService.createPayoutRequest(
       userId,
-      { amount: 300 },
+      { amount: 300, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } },
       idempotencyKey,
     );
 
@@ -151,7 +151,7 @@ describe('Payout Flow Workflow (Integration)', () => {
     const idempotencyKey = uuidv4();
     const request = await payoutService.createPayoutRequest(
       userId,
-      { amount: 200 },
+      { amount: 200, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } },
       idempotencyKey,
     );
 
@@ -176,13 +176,13 @@ describe('Payout Flow Workflow (Integration)', () => {
 
   it('Insufficient balance → InsufficientBalanceForPayoutException', async () => {
     await expect(
-      payoutService.createPayoutRequest(userId, { amount: 99999 }, uuidv4()),
+      payoutService.createPayoutRequest(userId, { amount: 99999, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } }, uuidv4()),
     ).rejects.toThrow('Insufficient balance');
   });
 
   it('Below minimum → BelowMinimumPayoutAmountException', async () => {
     await expect(
-      payoutService.createPayoutRequest(userId, { amount: 50 }, uuidv4()),
+      payoutService.createPayoutRequest(userId, { amount: 50, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } }, uuidv4()),
     ).rejects.toThrow('below minimum threshold');
   });
 
@@ -190,12 +190,12 @@ describe('Payout Flow Workflow (Integration)', () => {
     const key = uuidv4();
     const first = await payoutService.createPayoutRequest(
       userId,
-      { amount: 100 },
+      { amount: 100, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } },
       key,
     );
     const second = await payoutService.createPayoutRequest(
       userId,
-      { amount: 100 },
+      { amount: 100, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } },
       key,
     );
     expect(first.id).toBe(second.id);
@@ -218,13 +218,13 @@ describe('Payout Flow Workflow (Integration)', () => {
     // First request (new key)
     const first = await payoutService.createPayoutRequest(
       userId,
-      { amount: 100 },
+      { amount: 100, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } },
       uuidv4(),
     );
 
     // Second request should fail
     await expect(
-      payoutService.createPayoutRequest(userId, { amount: 100 }, uuidv4()),
+      payoutService.createPayoutRequest(userId, { amount: 100, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } }, uuidv4()),
     ).rejects.toThrow('pending or approved');
   });
 
@@ -244,7 +244,7 @@ describe('Payout Flow Workflow (Integration)', () => {
 
     const balanceBefore = await ledgerService.getAvailableBalance(userId);
     const key = uuidv4();
-    await payoutService.createPayoutRequest(userId, { amount: 150 }, key);
+    await payoutService.createPayoutRequest(userId, { amount: 150, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } }, key);
 
     const balanceAfter = await ledgerService.getAvailableBalance(userId);
     expect(balanceAfter).toBe(parseFloat((balanceBefore - 150).toFixed(2)));

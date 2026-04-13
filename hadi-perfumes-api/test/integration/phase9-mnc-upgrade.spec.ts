@@ -89,7 +89,7 @@ describe('Phase 9: RBAC + Audit + Homepage (Integration)', () => {
 
     beforeEach(() => {
       reflector = module.get(Reflector);
-      guard = new RolesGuard(reflector);
+      guard = new RolesGuard(reflector, dataSource);
     });
 
     it('should allow access when no roles are required', () => {

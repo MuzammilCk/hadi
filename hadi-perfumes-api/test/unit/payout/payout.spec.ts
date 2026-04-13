@@ -108,7 +108,7 @@ describe('PayoutService', () => {
   it('amount < MIN_PAYOUT_AMOUNT_INR → BelowMinimumPayoutAmountException', async () => {
     process.env.MIN_PAYOUT_AMOUNT_INR = '100';
     await expect(
-      service.createPayoutRequest(userId, { amount: 50 }, uuidv4()),
+      service.createPayoutRequest(userId, { amount: 50, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } }, uuidv4()),
     ).rejects.toThrow('below minimum threshold');
   });
 
@@ -128,7 +128,7 @@ describe('PayoutService', () => {
       },
     );
     await expect(
-      service.createPayoutRequest(userId, { amount: 200 }, uuidv4()),
+      service.createPayoutRequest(userId, { amount: 200, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } }, uuidv4()),
     ).rejects.toThrow('not active');
   });
 
@@ -150,7 +150,7 @@ describe('PayoutService', () => {
       },
     );
     await expect(
-      service.createPayoutRequest(userId, { amount: 200 }, uuidv4()),
+      service.createPayoutRequest(userId, { amount: 200, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } }, uuidv4()),
     ).rejects.toThrow('not qualified');
   });
 
@@ -158,7 +158,7 @@ describe('PayoutService', () => {
     // Fix #2b: createPayoutRequest now uses getAvailableBalanceForManager (tx-scoped)
     mockLedgerService.getAvailableBalanceForManager.mockResolvedValue(50);
     await expect(
-      service.createPayoutRequest(userId, { amount: 200 }, uuidv4()),
+      service.createPayoutRequest(userId, { amount: 200, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } }, uuidv4()),
     ).rejects.toThrow('Insufficient balance');
   });
 
@@ -190,14 +190,14 @@ describe('PayoutService', () => {
       },
     );
     await expect(
-      service.createPayoutRequest(userId, { amount: 200 }, uuidv4()),
+      service.createPayoutRequest(userId, { amount: 200, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } }, uuidv4()),
     ).rejects.toThrow('pending or approved');
   });
 
   it('valid request → PayoutRequest created + PAYOUT_REQUESTED ledger entry (negative, HELD)', async () => {
     const result = await service.createPayoutRequest(
       userId,
-      { amount: 200 },
+      { amount: 200, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } },
       uuidv4(),
     );
     expect(result).toBeDefined();
@@ -225,7 +225,7 @@ describe('PayoutService', () => {
 
     const result = await service.createPayoutRequest(
       userId,
-      { amount: 200 },
+      { amount: 200, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } },
       key,
     );
     expect(result.id).toBe(payoutId);
@@ -345,7 +345,7 @@ describe('PayoutService', () => {
 
     const result = await service.createPayoutRequest(
       userId,
-      { amount: 200 },
+      { amount: 200, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } },
       uuidv4(),
     );
     expect(result.ledger_entry_id).toBeDefined();

@@ -113,7 +113,7 @@ describe('Hold Release Workflow (Integration)', () => {
     // 1. Create a payout request
     const request = await payoutService.createPayoutRequest(
       testUser.id,
-      { amount: 100 },
+      { amount: 100, payout_method: { type: 'bank_transfer', account_number: '1234', ifsc_code: 'IFSC123', account_name: 'test' } },
       uuidv4(),
     );
 
