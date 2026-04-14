@@ -39,3 +39,7 @@ services:
         value: "10"
       - key: MAX_ORDERS_PER_HOUR
         value: "5"
+
+      # Security (CORS) - Set this to your Vercel URL
+      - key: CORS_ORIGIN
+        sync: false
