@@ -257,7 +257,8 @@ export class CheckoutService {
     );
     const shipping_fee = parseFloat((dto.shipping_fee || 0).toFixed(2));
     const tax_amount = parseFloat((dto.tax_amount || 0).toFixed(2));
-    const discount_amount = parseFloat((dto.discount_amount || 0).toFixed(2));
+    // Discount authority is reserved for the backend promo service. Client-supplied discount_amount is ignored.
+    const discount_amount = 0;
     const total_amount = parseFloat(
       (subtotal + shipping_fee + tax_amount - discount_amount).toFixed(2),
     );

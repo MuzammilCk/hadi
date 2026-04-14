@@ -95,11 +95,6 @@ export class CreateOrderDto {
   @IsOptional()
   tax_amount?: number;
 
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  @IsOptional()
-  discount_amount?: number;
-
   @IsString()
   @IsOptional()
   notes?: string;
