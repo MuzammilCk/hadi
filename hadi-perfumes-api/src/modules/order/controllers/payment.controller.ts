@@ -22,11 +22,16 @@ export class PaymentController {
   @Post('intent')
   @UseGuards(JwtAuthGuard)
   async createIntent(@Req() req: any, @Body() dto: CreatePaymentIntentDto) {
-    return this.paymentService.createPaymentIntent(
-      dto.order_id,
-      dto.idempotency_key,
-      req.user.sub,
-    );
+    const { payment, clientSecret } =
+      await this.paymentService.createPaymentIntent(
+        dto.order_id,
+        dto.idempotency_key,
+        req.user.sub,
+      );
+    return {
+      clientSecret,
+      paymentIntentId: payment.provider_payment_intent_id,
+    };
   }
 
   @Post('capture')

@@ -69,7 +69,7 @@ export class PaymentService {
     orderId: string,
     idempotencyKey: string,
     buyerId: string,
-  ): Promise<Payment> {
+  ): Promise<{ payment: Payment; clientSecret: string }> {
     const order = await this.orderRepo.findOne({
       where: { id: orderId, buyer_id: buyerId },
     });
@@ -81,7 +81,13 @@ export class PaymentService {
     const existing = await this.paymentRepo.findOne({
       where: { order_id: orderId },
     });
-    if (existing) return existing;
+    if (existing && existing.provider_payment_intent_id) {
+      // Re-fetch the PaymentIntent from Stripe to obtain the client_secret
+      const pi = await this.stripeClient.paymentIntents.retrieve(
+        existing.provider_payment_intent_id,
+      );
+      return { payment: existing, clientSecret: pi.client_secret! };
+    }
 
     // Validate Stripe is available BEFORE transitioning order state.
     // Without this guard, the order moves to PAYMENT_PENDING but the Stripe
@@ -116,6 +122,7 @@ export class PaymentService {
         amount: Math.round(Number(order.total_amount) * 100), // smallest currency unit (paise)
         currency: order.currency.toLowerCase(),
         metadata: { order_id: orderId },
+        automatic_payment_methods: { enabled: true },
       },
       { idempotencyKey },
     );
@@ -131,7 +138,8 @@ export class PaymentService {
       currency: order.currency,
     });
     try {
-      return await this.paymentRepo.save(payment);
+      const saved = await this.paymentRepo.save(payment);
+      return { payment: saved, clientSecret: intent.client_secret! };
     } catch (err: any) {
       // Handle unique constraint violation from concurrent request (PSQL code 23505)
       if (
@@ -142,7 +150,9 @@ export class PaymentService {
         const duplicate = await this.paymentRepo.findOne({
           where: { order_id: orderId },
         });
-        if (duplicate) return duplicate;
+        if (duplicate) {
+          return { payment: duplicate, clientSecret: intent.client_secret! };
+        }
       }
       throw err;
     }
