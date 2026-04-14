@@ -51,4 +51,31 @@ async function bootstrap() {
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
   Logger.log(`Application listening on port ${process.env.PORT ?? 3000}`);
 }
-bootstrap();
+
+// ── Process-level resilience ──────────────────────────────────────────────────
+// Transient failures (DNS blips, brief Supabase outages, connection pool resets)
+// must NEVER crash the process. Log them loudly, but stay alive so the next
+// request can succeed once connectivity returns.
+const processLogger = new Logger('Process');
+
+process.on('unhandledRejection', (reason: any) => {
+  processLogger.error(
+    `Unhandled promise rejection — ${reason?.message || reason}`,
+    reason?.stack,
+  );
+  // Do NOT call process.exit(). The HTTP server stays alive.
+});
+
+process.on('uncaughtException', (error: Error) => {
+  processLogger.error(
+    `Uncaught exception — ${error.message}`,
+    error.stack,
+  );
+  // For truly fatal errors (out-of-memory, corrupted heap), Node will still
+  // crash on its own. For network/DNS errors, we survive.
+});
+
+bootstrap().catch((err) => {
+  processLogger.error(`Bootstrap failed: ${err.message}`, err.stack);
+  process.exit(1);
+});

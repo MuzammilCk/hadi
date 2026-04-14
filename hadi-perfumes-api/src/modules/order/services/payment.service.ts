@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import Stripe from 'stripe';
@@ -58,8 +58,8 @@ export class PaymentService {
 
   private get stripeClient(): Stripe {
     if (!this.stripe) {
-      throw new Error(
-        'Stripe is not configured. Set STRIPE_SECRET_KEY in production.',
+      throw new ServiceUnavailableException(
+        'Payment processing is temporarily unavailable. Please try again later.',
       );
     }
     return this.stripe;
@@ -82,6 +82,15 @@ export class PaymentService {
       where: { order_id: orderId },
     });
     if (existing) return existing;
+
+    // Validate Stripe is available BEFORE transitioning order state.
+    // Without this guard, the order moves to PAYMENT_PENDING but the Stripe
+    // call fails, leaving the order stuck in a limbo state with no way to retry.
+    if (!this.stripe) {
+      throw new ServiceUnavailableException(
+        'Payment processing is temporarily unavailable. Please try again later.',
+      );
+    }
 
     // Transition order to payment_pending
     await this.dataSource.transaction(async (em) => {
