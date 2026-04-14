@@ -11,4 +11,5 @@ export const QUEUE_NAMES = {
   FRAUD_AGGREGATION: 'fraud-aggregation',
   HOLD_PROPAGATION: 'hold-propagation',
   RETURN_ELIGIBILITY: 'return-eligibility',
+  QUALIFICATION_RECALC: 'qualification-recalc',
 };

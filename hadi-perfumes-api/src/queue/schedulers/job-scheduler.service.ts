@@ -22,6 +22,8 @@ export class JobSchedulerService {
     private holdPropagationQueue: Bull.Queue,
     @InjectQueue('return-eligibility')
     private returnEligibilityQueue: Bull.Queue,
+    @InjectQueue('qualification-recalc')
+    private qualificationRecalcQueue: Bull.Queue,
   ) {}
 
   // Fix A1: Every minute — process unpublished outbox events into commission calculations.
@@ -72,5 +74,14 @@ export class JobSchedulerService {
   @Cron('*/30 * * * *')
   async scheduleReturnEligibility(): Promise<void> {
     await this.returnEligibilityQueue.add('run', {});
+  }
+
+  // Fix C3: Every 30 minutes — auto-recalculate ranks based on updated volumes.
+  // Without this, users who qualify for rank upgrades only get promoted via manual admin trigger.
+  @Cron('*/30 * * * *')
+  async scheduleQualificationRecalc(): Promise<void> {
+    await this.qualificationRecalcQueue.add('run', {}, {
+      jobId: `qualification-recalc-${Date.now()}`,
+    });
   }
 }

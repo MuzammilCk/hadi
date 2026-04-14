@@ -13,6 +13,7 @@ import { DisputeEscalationProcessor } from './processors/dispute-escalation.proc
 import { FraudAggregationProcessor } from './processors/fraud-aggregation.processor';
 import { HoldPropagationProcessor } from './processors/hold-propagation.processor';
 import { ReturnEligibilityProcessor } from './processors/return-eligibility.processor';
+import { QualificationRecalcProcessor } from './processors/qualification-recalc.processor';
 import { JobSchedulerService } from './schedulers/job-scheduler.service';
 
 // Import modules that own the job services — required for NestJS DI resolution.
@@ -21,6 +22,7 @@ import { JobSchedulerService } from './schedulers/job-scheduler.service';
 import { CommissionModule } from '../modules/commission/commission.module';
 import { InventoryModule } from '../modules/inventory/inventory.module';
 import { TrustModule } from '../modules/trust/trust.module';
+import { NetworkModule } from '../modules/network/network.module';
 
 // Re-export so existing imports of QUEUE_NAMES from this file still work
 export { QUEUE_NAMES } from './queue.constants';
@@ -30,15 +32,39 @@ import { QUEUE_NAMES } from './queue.constants';
   imports: [
     ScheduleModule.forRoot(),
     BullModule.forRootAsync({
-      useFactory: () => ({
-        redis: process.env.REDIS_URL || 'redis://localhost:6379',
-        defaultJobOptions: {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
-          removeOnComplete: 100,
-          removeOnFail: 500,
-        },
-      }),
+      useFactory: () => {
+        const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+        const isSecure = redisUrl.startsWith('rediss://') || redisUrl.includes('upstash.io');
+        
+        let redisConfig: any = redisUrl;
+        
+        // Upstash and secure Redis connections require explicit TLS passing for BullMQ to authenticate
+        if (isSecure) {
+          try {
+            const url = new URL(redisUrl);
+            redisConfig = {
+              host: url.hostname,
+              port: Number(url.port),
+              password: url.password || undefined,
+              username: url.username || undefined,
+              tls: { rejectUnauthorized: false },
+            };
+          } catch (e) {
+            // Fallback to raw string if parsing fails
+            redisConfig = redisUrl;
+          }
+        }
+
+        return {
+          redis: redisConfig,
+          defaultJobOptions: {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 5000 },
+            removeOnComplete: 100,
+            removeOnFail: 500,
+          },
+        };
+      },
     }),
     BullModule.registerQueue(
       { name: QUEUE_NAMES.COMMISSION_OUTBOX },
@@ -48,6 +74,7 @@ import { QUEUE_NAMES } from './queue.constants';
       { name: QUEUE_NAMES.FRAUD_AGGREGATION },
       { name: QUEUE_NAMES.HOLD_PROPAGATION },
       { name: QUEUE_NAMES.RETURN_ELIGIBILITY },
+      { name: QUEUE_NAMES.QUALIFICATION_RECALC },
     ),
     TypeOrmModule.forFeature([JobRun, DeadLetterEvent]),
     // These modules export the job services that processors inject.
@@ -56,6 +83,7 @@ import { QUEUE_NAMES } from './queue.constants';
     CommissionModule,
     InventoryModule,
     TrustModule,
+    NetworkModule,
   ],
   providers: [
     CommissionOutboxProcessor,
@@ -65,6 +93,7 @@ import { QUEUE_NAMES } from './queue.constants';
     FraudAggregationProcessor,
     HoldPropagationProcessor,
     ReturnEligibilityProcessor,
+    QualificationRecalcProcessor,
     JobSchedulerService,
   ],
   exports: [BullModule],

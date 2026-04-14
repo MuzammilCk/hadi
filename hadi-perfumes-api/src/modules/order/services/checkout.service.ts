@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
@@ -54,6 +55,22 @@ export class CheckoutService {
         throw new IdempotencyMismatchException();
       }
       return existing;
+    }
+
+    // Fix C7: Order velocity limiter — prevent rapid micro-order commission farming.
+    // Count orders placed by this buyer in the last hour; block if over threshold.
+    const maxOrdersPerHour = Number(process.env.MAX_ORDERS_PER_HOUR ?? 5);
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentOrderCount = await this.orderRepo
+      .createQueryBuilder('o')
+      .where('o.buyer_id = :buyerId', { buyerId })
+      .andWhere('o.created_at >= :since', { since: oneHourAgo })
+      .getCount();
+    if (recentOrderCount >= maxOrdersPerHour) {
+      throw new HttpException(
+        'Order limit exceeded. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     // 2. Sort items by listing_id to guarantee consistent lock acquisition order
@@ -152,6 +169,12 @@ export class CheckoutService {
         });
         await em.save(OrderStatusHistory, history);
 
+        // Fix C5: Mark checkout session as completed — prevents orphaned PENDING sessions
+        await em.update(CheckoutSession, { id: savedSession.id }, {
+          status: CheckoutSessionStatus.COMPLETED,
+          completed_at: new Date(),
+        });
+
         return savedOrder;
       });
     } catch (err: any) {
@@ -247,5 +270,23 @@ export class CheckoutService {
       total_amount,
       currency,
     };
+  }
+
+  // Fix C5: Daily cleanup — expire orphaned checkout sessions.
+  // Sessions that remain PENDING for over 24h have no associated order
+  // and their reservations were already expired by the reservation-expiry cron.
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async expireOrphanedSessions(): Promise<void> {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const result = await this.sessionRepo
+      .createQueryBuilder()
+      .update(CheckoutSession)
+      .set({ status: CheckoutSessionStatus.EXPIRED })
+      .where('status = :status', { status: CheckoutSessionStatus.PENDING })
+      .andWhere('created_at < :cutoff', { cutoff })
+      .execute();
+    if (result.affected && result.affected > 0) {
+      this.logger.log(`Expired ${result.affected} orphaned checkout sessions`);
+    }
   }
 }

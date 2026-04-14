@@ -1,148 +1,103 @@
-# context.md — Hadi Perfumes: Project Source of Truth
+# Hadi Perfumes — Architecture & Context Source of Truth
+
+**Hadi Perfumes** is a production-grade, FTC-compliant **Multi-Level Marketing (MLM) eCommerce application**.
+This document serves as the architectural compass and business rule set for onboarding senior engineers.
 
 ---
 
-## Project Purpose
+## 1. Business Model & Philosophy
 
-**Hadi Perfumes** is a production-grade, FTC-compliant **MLM-enabled eCommerce backend**.
-
-The commerce model is now **single-vendor, admin-owned catalog** (not P2P marketplace):
-- Only the company/admin account owns and publishes listings.
-- Participants and customers can buy products, build referral networks, and earn commissions based on verified retail events.
-- No participant-owned storefronts, no seller onboarding flow, and no vendor payout splitting.
-
----
-
-## Domain Glossary
-
-| Term | Definition |
-|---|---|
-| **Sponsor** | The user who referred a new member into the network. Fixed at signup. |
-| **Upline** | All ancestors of a user in the sponsorship tree. |
-| **Downline** | All descendants of a user in the sponsorship tree. |
-| **Upline Path** | Materialized ancestor array for fast traversal and qualification calculations. |
-| **Qualified Sale** | Paid, valid retail order event eligible for MLM commission logic per active policy version. |
-| **Pending Commission** | Calculated commission not yet releasable (risk/return window not cleared). |
-| **Available Commission** | Commission cleared for payout eligibility after policy hold conditions pass. |
-| **Clawback** | Negative ledger movement reversing commission from refund/chargeback/dispute outcome. |
-| **Ledger Entry** | Immutable append-only money event record. |
-| **Wallet (derived)** | Computed balance view from ledger events; never a direct mutable source of truth. |
-| **SKU** | Unique stock identifier in admin-owned catalog listings. |
-| **Inventory Reservation** | Atomic stock hold during checkout with strict TTL (15 minutes in Phase 4). |
-| **Catalog Owner** | Company/admin identity that exclusively controls listing creation and inventory. |
-| **Rank** | Sales/volume-based participant tier per versioned qualification and rank rules. |
-| **Commission Policy Version** | Immutable policy snapshot used at commission evaluation time. |
-| **Audit Log** | Immutable record of admin/system actions for traceability and compliance. |
+Hadi Perfumes uses a **single-vendor, admin-owned catalog** commerce model combined with an **MLM referral network**.
+- **Not a P2P Marketplace**: Participants do not own storefronts, and there are no vendor payouts or split payments (e.g., no Stripe Connect).
+- **Company Catalog**: The company (Admin) owns, manages, and ships all products (SKUs) and holds all inventory.
+- **Retail-Driven MLM**: Users can buy products, refer others to build a "downline" network, and earn commissions. 
+- **FTC Compliance**: Commissions are strictly generated from **verified retail sales** (paid orders), never from mere recruitment or signup events. Fraud or refunds trigger immediate, automated commission clawbacks.
 
 ---
 
-## System Overview
+## 2. Tech Stack & Infrastructure
 
-### Architecture Style
-Modular monolith on NestJS + PostgreSQL, with clear module boundaries for later service extraction.
+The application uses a **Modular Monolith** pattern designed for eventual microservice extraction.
 
-### Tech Stack
-
-| Layer | Choice | Reason |
+| Layer | Technology | Rationale & Usage |
 |---|---|---|
-| Backend | NestJS (TypeScript) | Typed modular architecture |
-| DB | PostgreSQL | ACID transactions, deterministic financial logic |
-| Queue | BullMQ / background workers | async recalculation, expiry, settlement |
-| Cache | Redis | rate limits, ephemeral state, job coordination |
-| Payments | Stripe (standard platform charges) | single merchant flow, webhook ecosystem |
-| Storage | S3-compatible | listing media |
+| **Frontend** | React, Vite, Tailwind CSS | High-performance SPA with secure context-driven state management (Cart, Wishlist, Auth). |
+| **Backend API** | NestJS (TypeScript) | Strong typing, Dependency Injection, and bounded module contexts. |
+| **Database** | PostgreSQL (Supabase) | Strict ACID transactional requirements for order processing and ledgers. |
+| **ORM** | TypeORM | Utilizing transactional Entity Managers (`em`) for atomic, cross-table workflows. |
+| **Async Tasks** | BullMQ & Redis | Handing retries, commission calculations, and schedule-based jobs (Crons). |
+| **External Integrations** | Stripe, MSG91 | Stripe for 100% platform-revenue payment intents + webhooks. MSG91 for SMS OTP auth. |
+| **Storage** | Supabase Storage (S3) | Secured, signed URL delivery for catalog media. |
 
 ---
 
-## Build Phases
+## 3. Core Domain Glossary
 
-### Phase 1 — Commission & Compliance Rules Engine ✅
-- Versioned, immutable compensation policy model.
-- `CompensationPolicyVersion`, `CommissionRule`, `RankRule`, disclosures and audit primitives.
-- Deterministic server-side policy evaluation without hardcoded plan math.
-
-### Phase 2 — Identity, OTP, Referral Integrity ✅
-- OTP onboarding flow.
-- Strict referral redemption + sponsorship persistence.
-- Anti-abuse invariants: no self-referral, no circular sponsorship, auditable corrections.
-
-### Phase 3 — Network Graph & Qualification Engine ✅
-- Materialized path + adjacency graph support.
-- Qualification state/rank assignment services.
-- Admin-safe graph correction and rebuild primitives.
-
-### Phase 4 — Admin Catalog & Atomic Inventory ✅ (Pivot implemented)
-- Product categories/listings/media/moderation built under admin routes.
-- **Architectural pivot finalized:** no multi-vendor seller domain.
-- `listings.seller_id` retained for user FK compatibility but operationally constrained to admin/company owner.
-- Inventory engine guarantees no oversell via atomic SQL updates and reservation lifecycle.
-
-### Phase 5 — Checkout, Orders, Payments (Single Merchant)
-- Cart → order lifecycle with idempotent checkout.
-- Stripe payment intent/capture where platform/company receives 100% gross revenue.
-- No Stripe Connect account onboarding, no split transfers, no vendor payouts.
-- Webhook deduplication and order state machine.
-
-### Phase 6 — Commission Ledger, Wallets, Payout Settlement
-- Append-only commission ledger and derived balances.
-- Commission posting from eligible paid retail orders.
-- Pending → available release after policy-defined windows.
-- Participant commission payouts from platform-controlled revenue pool.
-- Automatic clawbacks on refund/chargeback/dispute outcomes.
-
-### Phase 7 — Returns, Disputes, Fraud, Moderation
-- Return/dispute orchestration.
-- Fraud review and payout hold hooks.
-- Admin safety workflows and immutable audit trail.
-
-### Phase 8 — Observability, Security, Scale
-- Metrics, traces, structured logs, DLQ/retry hardening.
-- Permissioned admin controls and idempotency enforcement across money-moving endpoints.
+| Term | Concept Definition |
+|---|---|
+| **Sponsor / Upline** | The user who referred a member. "Upline" represents the entire materialized path of ancestors. |
+| **Downline** | All descendant nodes in a user's referral graph. |
+| **Network Node** | The materialized graph row used for fast tree traversal and rank/volume evaluation. |
+| **Inventory Reservation** | A strict, atomic stock hold created during checkout (TTL restricted). Prevents overselling. |
+| **Commission Outbox** | Transactional outbox pattern table mapping paid orders to asynchronous commission calculation events. |
+| **Pending vs Available** | Commissions sit in a "Pending" risk window to account for chargebacks/returns before becoming "Available" to withdraw. |
+| **Ledger Entry** | An immutable, append-only financial record. Wallets are derived from these, never updated directly. |
+| **Clawback** | A negative ledger correction that traverses up the network to reclaim commissions on refunded/cancelled orders. |
+| **Idempotency Key** | A unique frontend-generated UUID attached to checkouts/payments to guarantee single-execution across network retries. |
 
 ---
 
-## Data Model (Current + Planned)
+## 4. Architectural Patterns & Guardrails
 
-### Implemented Core (Phases 1–4)
-- `users`
-- `referral_codes`
-- `referral_redemptions`
-- `sponsorship_links`
-- `network_nodes`, qualification/rank entities
-- `compensation_policy_versions`, `commission_rules`, `rank_rules`, compliance tables
-- `product_categories`
-- `listings` (admin-owned; `seller_id` mapped to admin/company user)
-- `listing_images`
-- `listing_status_history`
-- `listing_moderation_actions`
-- `inventory_items`
-- `inventory_reservations`
-- `inventory_events`
+Senior engineers touching this codebase must strictly adhere to the following implemented patterns:
 
-### Planned Core (Phases 5–8)
-- `carts`, `cart_items`
-- `orders`, `order_items`
-- `payments`, `payment_webhook_events`
-- `commission_events`
-- `ledger_entries`
-- `payout_requests`, `payout_batches`
-- `refunds`, `returns`, `disputes`
-- `audit_logs`, `fraud_signals`
+### 1. The Transactional Outbox Pattern
+We do **not** calculate commissions synchronously during the checkout/webhook flow. 
+- When an order transitions to `PAID`, an event is saved to `money_event_outbox` inside the exact same database transaction that updates the order.
+- A `@Cron` job picks up unpublished outbox events and pushes them to a BullMQ queue for safe, isolated, and retriable commission graph traversal.
 
-### Explicit Non-Goals After Phase 4 Pivot
-- ❌ `seller_profiles`
-- ❌ vendor KYC onboarding tables/flows
-- ❌ participant-owned stores
-- ❌ marketplace split-payments / Stripe Connect transfer topology
+### 2. Transaction Atomicity & `em` propagation
+Functions mutating critical state (e.g., `cancelOrder`, `releaseReservation`) accept an optional TypeORM `EntityManager (em)`. 
+- If an operation belongs to a larger workflow (like an Order Cancellation causing an Inventory Release), the `em` is passed down to join the parent transaction. This prevents partial rollbacks.
+
+### 3. Graceful Degradation & Resilience
+- **Node.js Crash Guards**: We trap `unhandledRejection` and `uncaughtException`. Transient network blips (e.g., DNS failures to the DB pooler) log loudly but **never** kill the HTTP process.
+- **Stripe Outages**: Network connection failures to Stripe throw proper `503 Service Unavailable` exceptions, instructing the frontend UI to gracefully allow a retry rather than hanging or leaving an order in a zombie state.
+
+### 4. Live-Evaluated RBAC (Role-Based Access Control)
+- JSON Web Tokens (JWT) manage session identity, but **critical Admin routes** do not trust the JWT's role claim directly. 
+- The `RolesGuard` performs a live DB lookup for High-Privilege actions. If an admin is demoted, their access is revoked mid-session immediately.
 
 ---
 
-## Hard Constraints
+## 5. Implementation Roadmap Status
 
-1. No commission on recruitment/signup-only events.
-2. No direct wallet mutation without ledger entries.
-3. Inventory mutations must be transactional and atomic.
-4. Payment and webhook handlers must be idempotent.
-5. Sponsor tree integrity is enforced server-side with auditable admin corrections.
-6. Catalog ownership is company-admin only.
+The system was built in sequential logic phases. **Phases 1 through 9 are fully implemented.**
 
+✅ **Phase 1-3:** Immutable Commission Rule Engine, OTP Identity, and Tree Graph traversal algorithms.
+✅ **Phase 4:** Admin Catalog management and the Atomic Inventory Engine.
+✅ **Phase 5:** End-to-end Checkout form and Stripe Webhooks.
+✅ **Phase 6:** The Append-only Ledger, Outbox Processing, and Wallet balances.
+✅ **Phase 7:** Automated Clawbacks and Refund propagation.
+✅ **Phase 8:** Logging, Auditing, and Global Error Filters.
+✅ **Phase 9:** Dynamic Homepage content, and RBAC implementation.
+
+### Pre-Production Hardening (`Bucket A` & `Bucket B` - ✅ COMPETED)
+Following Phase 9, intense audit patches were applied:
+1. **Commission Exploits Closed**: Automated clawback hooks attached to `CANCELLED` orders.
+2. **Double-Spend Prevention**: Distributed locking (`FOR UPDATE SKIP LOCKED`) attached to BullMQ background workers to stop race conditions on ledger payouts.
+3. **Idempotency Regeneration**: Frontend safely rolls idempotency UUIDs strictly on 503/Network failures, but preserves them on 4xx business errors.
+4. **Data Sync**: Denormalized `sponsor_id` sync drift eliminated, Wallet Balances connected to live Ledgers, Cart Images properly resolved via Signed URLs.
+
+### What's Next: `Bucket C` (Current Focus)
+The system is operationally secure. The next objective involves deep regression testing, deduplication of business logic code, performance optimization, and collusion detection algorithms.
+
+---
+
+## 6. Hard Invariants (Do Not Break)
+
+1. **No direct wallet mutation**: Wallets are a mathematical sum of Ledger Entries.
+2. **No commission on signup**: Code must evaluate product volume, not headcount.
+3. **Zero tolerance for phantom stock**: Inventory holds must always have an expiration TTL or be joined transactionally to an Order pipeline.
+4. **Assume the network lies**: Every POST request moving money must enforce idempotency via UUIDs.
+5. **Fail closed**: If Stripe or a dependency is unreachable, abort the transaction cleanly to prevent corrupted application state.

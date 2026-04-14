@@ -45,6 +45,6 @@ import { OnboardingAuditLog } from '../auth/entities/onboarding-audit-log.entity
     QualificationRecalcJob,
   ],
   controllers: [NetworkController, AdminNetworkController],
-  exports: [NetworkGraphService, QualificationEngineService, TypeOrmModule],
+  exports: [NetworkGraphService, QualificationEngineService, QualificationRecalcJob, TypeOrmModule],
 })
 export class NetworkModule {}

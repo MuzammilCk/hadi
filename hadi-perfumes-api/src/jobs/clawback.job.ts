@@ -34,7 +34,7 @@ export class ClawbackJob {
         skipped++;
         continue;
       }
-      if (event.status === 'available' && event.clawback_before < now) {
+      if (event.status === 'available' && event.clawback_before <= now) {
         this.logger.warn(
           `Commission event ${event.id} past clawback window — skipping`,
         );

@@ -5,6 +5,9 @@ import {
   ConflictException,
   NotFoundException,
   InternalServerErrorException,
+  HttpException,
+  HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { InjectRepository, InjectEntityManager } from '@nestjs/typeorm';
@@ -29,6 +32,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class SignupFlowService {
+  private readonly logger = new Logger(SignupFlowService.name);
+
   constructor(
     private otpService: OtpService,
     private referralValidationService: ReferralValidationService,
@@ -73,6 +78,24 @@ export class SignupFlowService {
     }
 
     await this.otpService.sendOtp(phone);
+
+    // Fix C4: Per-phone OTP brute-force rate limit.
+    // The per-attempt counter is resettable by requesting a new OTP.
+    // This global check counts ALL failures for the phone in the last hour.
+    const maxFailures = Number(process.env.MAX_OTP_FAILURES_PER_HOUR ?? 10);
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentFailures = await this.attemptRepo
+      .createQueryBuilder('a')
+      .where('a.phone = :phone', { phone })
+      .andWhere('a.stage = :stage', { stage: OnboardingStage.FAILED })
+      .andWhere('a.created_at >= :since', { since: oneHourAgo })
+      .getCount();
+    if (recentFailures >= maxFailures) {
+      throw new HttpException(
+        'Too many failed attempts. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
 
     // Invalidate earlier attempts for this phone
     await this.attemptRepo.update(
@@ -160,6 +183,23 @@ export class SignupFlowService {
       });
       if (existingUser) {
         throw new ConflictException('User already active');
+      }
+
+      // Fix C2: Device hash dedup — prevent multi-account commission farming
+      // Skip if deviceHash is not provided (graceful degradation for old clients)
+      if (deviceHash) {
+        const maxAccounts = Number(process.env.MAX_ACCOUNTS_PER_DEVICE ?? 3);
+        const deviceAccountCount = await txEm.count(User, {
+          where: { device_hash: deviceHash, status: UserStatus.ACTIVE },
+        });
+        if (deviceAccountCount >= maxAccounts) {
+          this.logger.warn(
+            `Device hash ${deviceHash.slice(0, 8)}… already has ${deviceAccountCount} accounts — blocking signup`,
+          );
+          throw new ConflictException(
+            'Too many accounts registered from this device',
+          );
+        }
       }
 
       // 1. Create User (without sponsor_id initially)
