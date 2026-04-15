@@ -29,6 +29,7 @@ import { ReferralValidationService } from '../../referral/services/referral-vali
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { NetworkNode } from '../../network/entities/network-node.entity';
 
 @Injectable()
 export class SignupFlowService {
@@ -292,6 +293,56 @@ export class SignupFlowService {
             : ReferralCodeStatus.ACTIVE,
       });
       await txEm.save(ReferralCode, newUserCode);
+
+      // 6. Create NetworkNode — this is the computed graph row used by all
+      //    downline queries, commission traversal, and qualification checks.
+      //    Without this, the user is invisible to the MLM network.
+      //    Created directly via EntityManager to avoid circular module dependency.
+      const now = new Date();
+      const nodeUplinePath = uplinePath || [];
+      const newNode = txEm.create(NetworkNode, {
+        user_id: user.id,
+        sponsor_id: sponsorId || null,
+        upline_path:
+          process.env.NODE_ENV === 'test'
+            ? (JSON.stringify(nodeUplinePath) as any)
+            : nodeUplinePath,
+        depth: nodeUplinePath.length,
+        direct_count: 0,
+        total_downline: 0,
+        last_rebuilt_at: now,
+        created_at: now,
+        updated_at: now,
+      });
+      await txEm.save(NetworkNode, newNode);
+
+      // 6b. Increment sponsor's direct_count atomically within this transaction
+      if (sponsorId) {
+        const sponsorNode = await txEm.findOne(NetworkNode, {
+          where: { user_id: sponsorId },
+        });
+        if (sponsorNode) {
+          sponsorNode.direct_count += 1;
+          sponsorNode.total_downline += 1;
+          sponsorNode.updated_at = new Date();
+          await txEm.save(NetworkNode, sponsorNode);
+        }
+
+        // Also increment total_downline for all ancestors in the upline
+        if (uplinePath && uplinePath.length > 1) {
+          // uplinePath[0] is the direct sponsor (already handled above),
+          // the rest are grandparent ancestors
+          const ancestorIds = uplinePath.slice(1);
+          if (ancestorIds.length > 0) {
+            await txEm
+              .createQueryBuilder()
+              .update(NetworkNode)
+              .set({ total_downline: () => 'total_downline + 1', updated_at: new Date() })
+              .where('user_id IN (:...ids)', { ids: ancestorIds })
+              .execute();
+          }
+        }
+      }
 
       // 5. Write Audit Log
       const auditLog = txEm.create(OnboardingAuditLog, {

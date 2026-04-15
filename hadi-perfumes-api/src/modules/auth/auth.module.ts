@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { NetworkNode } from '../network/entities/network-node.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { User } from '../user/entities/user.entity';
@@ -22,6 +23,7 @@ import { ReferralModule } from '../referral/referral.module';
       OtpVerification,
       RefreshToken,
       OnboardingAuditLog,
+      NetworkNode,
     ]),
     // ThrottlerModule is registered at the app level (AppModule).
     // OTP-specific rate limits are applied via @Throttle() on endpoints.

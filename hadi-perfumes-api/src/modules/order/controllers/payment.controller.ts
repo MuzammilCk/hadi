@@ -34,6 +34,20 @@ export class PaymentController {
     };
   }
 
+  /**
+   * Synchronous payment verification fallback.
+   * Called by the frontend after stripe.confirmPayment() succeeds to ensure
+   * the backend order transitions to PAID even if the webhook is delayed.
+   */
+  @Post('verify')
+  @UseGuards(JwtAuthGuard)
+  async verifyPayment(
+    @Req() req: any,
+    @Body('order_id') orderId: string,
+  ) {
+    return this.paymentService.verifyAndSyncPayment(orderId, req.user.sub);
+  }
+
   @Post('capture')
   @UseGuards(JwtAuthGuard)
   async capturePayment(@Req() req: any, @Body('order_id') orderId: string) {

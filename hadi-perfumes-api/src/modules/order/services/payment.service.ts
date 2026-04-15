@@ -167,6 +167,142 @@ export class PaymentService {
     return this.paymentRepo.findOne({ where: { order_id: orderId } });
   }
 
+  /**
+   * Synchronous payment verification fallback.
+   *
+   * After the frontend's stripe.confirmPayment() succeeds, the backend order
+   * is still PAYMENT_PENDING because it relies on the async Stripe webhook.
+   * This method checks the PaymentIntent status directly from Stripe's API
+   * and transitions the order to PAID if payment succeeded.
+   *
+   * Idempotent: if the webhook already processed the event, the PAID guard
+   * prevents double-processing.
+   */
+  async verifyAndSyncPayment(
+    orderId: string,
+    buyerId: string,
+  ): Promise<{ status: string; synced: boolean }> {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId, buyer_id: buyerId },
+    });
+    if (!order) throw new OrderNotFoundException(orderId);
+
+    // Already paid — nothing to do (idempotent)
+    if (order.status === OrderStatus.PAID) {
+      return { status: order.status, synced: false };
+    }
+
+    // Only verify orders that are in PAYMENT_PENDING state
+    if (order.status !== OrderStatus.PAYMENT_PENDING) {
+      return { status: order.status, synced: false };
+    }
+
+    const payment = await this.paymentRepo.findOne({
+      where: { order_id: orderId },
+    });
+    if (!payment || !payment.provider_payment_intent_id) {
+      return { status: order.status, synced: false };
+    }
+
+    // Check real status from Stripe
+    const intent = await this.stripeClient.paymentIntents.retrieve(
+      payment.provider_payment_intent_id,
+    );
+
+    if (intent.status === 'succeeded') {
+      // Run the same atomic transition as the webhook handler
+      await this.dataSource.transaction(async (em) => {
+        // Update payment record
+        const freshPayment = await em.findOne(Payment, {
+          where: { id: payment.id },
+        });
+        if (freshPayment && freshPayment.status !== 'captured') {
+          freshPayment.status = 'captured';
+          freshPayment.captured_at = new Date();
+          freshPayment.provider_charge_id = (intent as any).latest_charge || null;
+          await em.save(Payment, freshPayment);
+        }
+
+        // Transition order to PAID
+        const freshOrder = await em.findOne(Order, {
+          where: { id: orderId },
+        });
+        if (!freshOrder) return;
+
+        // Idempotent guard: if already paid, bail out
+        if (freshOrder.status === OrderStatus.PAID) return;
+
+        const prevStatus = freshOrder.status;
+        this.stateMachine.transition(freshOrder, OrderStatus.PAID);
+        await em.save(Order, freshOrder);
+
+        await em.save(
+          OrderStatusHistory,
+          em.create(OrderStatusHistory, {
+            order_id: orderId,
+            from_status: prevStatus,
+            to_status: OrderStatus.PAID,
+            actor_type: 'system',
+            actor_id: null,
+            reason: 'Payment verified via server-side Stripe API check',
+          }),
+        );
+
+        // Confirm inventory reservations
+        const items = await em.find(OrderItem, {
+          where: { order_id: orderId },
+        });
+        for (const item of items) {
+          if (item.inventory_reservation_id) {
+            await this.inventoryService
+              .confirmReservationWithEm(
+                item.inventory_reservation_id,
+                orderId,
+                'system',
+                em,
+              )
+              .catch((err) => {
+                this.logger.warn(
+                  `Failed to confirm reservation ${item.inventory_reservation_id} in verify tx: ${err.message}`,
+                );
+              });
+          }
+        }
+
+        // Write outbox event for commission processing
+        await em.save(
+          MoneyEventOutbox,
+          em.create(MoneyEventOutbox, {
+            event_type: 'order.paid',
+            aggregate_id: orderId,
+            payload: {
+              order_id: orderId,
+              buyer_id: freshOrder.buyer_id,
+              total_amount: freshOrder.total_amount,
+              currency: freshOrder.currency,
+              items: items.map((i) => ({
+                listing_id: i.listing_id,
+                qty: i.qty,
+                unit_price: i.unit_price,
+              })),
+              paid_at: new Date().toISOString(),
+            },
+            published: false,
+          }),
+        );
+      });
+
+      return { status: OrderStatus.PAID, synced: true };
+    }
+
+    if (intent.status === 'requires_payment_method' || intent.status === 'canceled') {
+      return { status: 'payment_failed', synced: false };
+    }
+
+    // Still processing (e.g., UPI pending approval)
+    return { status: order.status, synced: false };
+  }
+
   // Fix B9: Added standard Stripe refund method to be called from OrderService
   // on order cancellation if the payment was already captured.
   async refundPayment(orderId: string): Promise<void> {
