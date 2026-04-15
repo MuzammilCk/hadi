@@ -14,6 +14,7 @@ import { VerifyOtpDto } from '../dto/verify-otp.dto';
 import { SignupDto } from '../dto/signup.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { LoginDto } from '../dto/login.dto';
+import { GoogleLoginDto } from '../dto/google-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -87,5 +88,11 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto) {
     return this.signupFlowService.login(dto.identifier, dto.password);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('google')
+  async loginWithGoogle(@Body() dto: GoogleLoginDto) {
+    return this.signupFlowService.loginWithGoogle(dto.credential);
   }
 }

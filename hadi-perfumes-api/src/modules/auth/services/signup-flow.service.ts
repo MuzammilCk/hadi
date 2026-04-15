@@ -13,6 +13,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { InjectRepository, InjectEntityManager } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
 import { OtpService } from './otp.service';
 import {
   OnboardingAttempt,
@@ -483,6 +484,72 @@ export class SignupFlowService {
     const passwordMatch = await bcrypt.compare(passwordPlain, user.password_hash);
     if (!passwordMatch) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const access_token = this.jwtService.sign({
+      sub: user.id,
+      role: user.role ?? 'customer',
+      full_name: user.full_name ?? '',
+    });
+
+    const refreshTokenValue = uuidv4();
+    const tokenHash = this.hashToken(refreshTokenValue);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const rt = this.tokenRepo.create({
+      user_id: user.id,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+    });
+    await this.tokenRepo.save(rt);
+
+    return {
+      user: {
+        id: user.id,
+        phone: user.phone,
+        email: user.email,
+        status: user.status,
+      },
+      access_token,
+      refresh_token: refreshTokenValue,
+    };
+  }
+
+  async loginWithGoogle(credential: string) {
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      throw new InternalServerErrorException('Google SSO is not configured on the backend');
+    }
+
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (e) {
+      this.logger.error(`Google token verification failed: ${e.message}`);
+      throw new UnauthorizedException('Invalid Google token');
+    }
+
+    if (!payload?.email) {
+      throw new BadRequestException('Google token did not contain an email');
+    }
+
+    const user = await this.userRepo.findOne({
+      where: { email: payload.email },
+    });
+
+    if (!user) {
+      // Return 404 so frontend knows to redirect to register and populate form
+      throw new NotFoundException('Account not found, please register.');
+    }
+
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Account is not active');
     }
 
     const access_token = this.jwtService.sign({
