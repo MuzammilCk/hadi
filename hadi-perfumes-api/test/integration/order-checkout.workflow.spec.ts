@@ -48,7 +48,7 @@ import { ListingModerationAction } from '../../src/modules/listing/entities/list
 // Services
 import { CheckoutService } from '../../src/modules/order/services/checkout.service';
 import { OrderService } from '../../src/modules/order/services/order.service';
-import { PaymentService } from '../../src/modules/order/services/payment.service';
+import { PaymentService, CreatePaymentIntentResponse } from '../../src/modules/order/services/payment.service';
 import { InventoryService } from '../../src/modules/inventory/services/inventory.service';
 import { ListingService } from '../../src/modules/listing/services/listing.service';
 import { AuditService } from '../../src/modules/audit/services/audit.service';
@@ -280,7 +280,7 @@ describe('Order Checkout Workflow (Integration)', () => {
 
     // Create payment intent
     const paymentIdempotencyKey = uuidv4();
-    const payment = await paymentService.createPaymentIntent(
+    const { payment }: CreatePaymentIntentResponse = await paymentService.createPaymentIntent(
       order.id,
       paymentIdempotencyKey,
       testUser.id,

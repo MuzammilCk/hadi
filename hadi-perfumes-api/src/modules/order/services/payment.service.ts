@@ -16,6 +16,11 @@ import {
   WebhookSignatureInvalidException,
 } from '../exceptions/order.exceptions';
 
+export interface CreatePaymentIntentResponse {
+  payment: Payment;
+  clientSecret: string;
+}
+
 @Injectable()
 export class PaymentService {
   private stripe?: Stripe;
@@ -69,7 +74,7 @@ export class PaymentService {
     orderId: string,
     idempotencyKey: string,
     buyerId: string,
-  ): Promise<{ payment: Payment; clientSecret: string }> {
+  ): Promise<CreatePaymentIntentResponse> {
     const order = await this.orderRepo.findOne({
       where: { id: orderId, buyer_id: buyerId },
     });
