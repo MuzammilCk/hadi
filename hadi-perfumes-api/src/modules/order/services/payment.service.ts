@@ -258,7 +258,7 @@ export class PaymentService {
               .confirmReservationWithEm(
                 item.inventory_reservation_id,
                 orderId,
-                'system',
+                null as any,
                 em,
               )
               .catch((err) => {
@@ -442,7 +442,7 @@ export class PaymentService {
               .confirmReservationWithEm(
                 item.inventory_reservation_id,
                 orderId,
-                'system',
+                null as any,
                 em,
               )
               .catch((err) => {
