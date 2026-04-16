@@ -164,6 +164,54 @@ export class AdminNetworkController {
   // ===== DYNAMIC ROUTES — must come after all static routes =====
 
   /**
+   * GET /admin/network/:userId/downline — paginated downline tree for any user.
+   * Reuses NetworkGraphService.getDownline() with admin-provided userId.
+   */
+  @Get(':userId/downline')
+  async getAdminDownline(
+    @Param('userId') userId: string,
+    @Query('maxDepth') maxDepth?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    // Verify the target user exists in the graph
+    const rootNode = await this.entityManager.findOne(NetworkNode, {
+      where: { user_id: userId },
+    });
+
+    if (!rootNode) {
+      throw new NetworkNodeNotFoundException(userId);
+    }
+
+    const depth = maxDepth ? parseInt(maxDepth, 10) : undefined;
+    const allDownline = await this.graphService.getDownline(userId, depth);
+
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = parseInt(limit || '50', 10);
+    const start = (pageNum - 1) * limitNum;
+    const paginatedData = allDownline.slice(start, start + limitNum);
+
+    return {
+      rootNode: {
+        userId: rootNode.user_id,
+        depth: rootNode.depth,
+        sponsorId: rootNode.sponsor_id,
+        directCount: rootNode.direct_count,
+        totalDownline: allDownline.length,
+      },
+      data: paginatedData.map((n) => ({
+        userId: n.user_id,
+        depth: n.depth,
+        sponsorId: n.sponsor_id,
+        directCount: n.direct_count,
+      })),
+      total: allDownline.length,
+      page: pageNum,
+      limit: limitNum,
+    };
+  }
+
+  /**
    * GET /admin/network/:userId/node — NetworkNode for specific user.
    */
   @Get(':userId/node')
