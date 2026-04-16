@@ -48,7 +48,7 @@ export class SignupFlowService {
     @InjectEntityManager()
     private em: EntityManager,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
@@ -366,9 +366,9 @@ export class SignupFlowService {
         metadata:
           process.env.NODE_ENV === 'test'
             ? (JSON.stringify({
-                sponsor_id: sponsorId,
-                referral_code: referralCodeStr,
-              }) as any)
+              sponsor_id: sponsorId,
+              referral_code: referralCodeStr,
+            }) as any)
             : { sponsor_id: sponsorId, referral_code: referralCodeStr },
         ip_address: ipAddress,
       });
@@ -423,37 +423,16 @@ export class SignupFlowService {
     if (!rt) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+    if (rt.revoked_at) {
+      throw new UnauthorizedException('Refresh token has been revoked');
+    }
     if (rt.expires_at < new Date()) {
       throw new UnauthorizedException('Refresh token has expired');
     }
 
-    if (rt.revoked_at) {
-      // Token has been revoked. Check if it's within the 30-second Grace Period.
-      const msSinceRevocation = new Date().getTime() - rt.revoked_at.getTime();
-      
-      if (msSinceRevocation <= 30000) {
-        // BENIGN RACE CONDITION (Grace Period): Allow it, keep the session alive.
-        this.logger.warn(`[AUTH] Refresh token grace period invoked for user ${rt.user_id}`);
-      } else {
-        // TOKEN THEFT / REPLAY ATTACK: Old token reused outside grace period.
-        // Trigger KILL SWITCH: Revoke all active sessions for this user.
-        this.logger.error(`[CRITICAL SECURITY] Token replay attack detected for user ${rt.user_id}. Revoking all active sessions.`);
-        
-        await this.tokenRepo
-          .createQueryBuilder()
-          .update()
-          .set({ revoked_at: new Date() })
-          .where('user_id = :userId', { userId: rt.user_id })
-          .andWhere('revoked_at IS NULL')
-          .execute();
-
-        throw new UnauthorizedException('Security breach detected. All sessions have been revoked. Please sign in again.');
-      }
-    } else {
-      // First time using this token. Revoke it now (single-use rotation).
-      rt.revoked_at = new Date();
-      await this.tokenRepo.save(rt);
-    }
+    // Revoke old token (single-use rotation)
+    rt.revoked_at = new Date();
+    await this.tokenRepo.save(rt);
 
     const user = await this.userRepo.findOne({ where: { id: rt.user_id } });
 
@@ -555,7 +534,7 @@ export class SignupFlowService {
     }
 
     const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-    
+
     let payload;
     try {
       const ticket = await client.verifyIdToken({
