@@ -98,12 +98,7 @@ export class HomepageService {
 
       let imageUrl = '';
       if (listing.primary_image_key) {
-        try {
-          const urls = await this.mediaService.resolveMediaUrls([listing.primary_image_key]);
-          imageUrl = urls[0] || '';
-        } catch {
-          this.logger.warn(`Failed to resolve media for listing ${listing.id}`);
-        }
+        imageUrl = this.mediaService.getPublicUrl(listing.primary_image_key);
       }
 
       resolvedItems.push({
