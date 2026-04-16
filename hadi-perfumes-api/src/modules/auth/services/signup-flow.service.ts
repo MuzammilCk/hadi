@@ -74,9 +74,12 @@ export class SignupFlowService {
       where: { phone, status: UserStatus.ACTIVE },
     });
     if (existingUser) {
-      throw new ConflictException(
-        'Phone number is already associated with an active user',
-      );
+      throw new ConflictException({
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'An account with this phone number already exists. Please sign in instead.',
+        code: 'PHONE_ALREADY_REGISTERED',
+      });
     }
 
     await this.otpService.sendOtp(phone);
@@ -147,15 +150,24 @@ export class SignupFlowService {
         attempt.stage = OnboardingStage.FAILED;
         attempt.failure_reason = 'Too many failed OTP attempts';
         await this.attemptRepo.save(attempt);
-        throw new UnauthorizedException(
-          'Too many failed OTP attempts. Please request a new OTP.',
-        );
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Too many failed OTP attempts. Please request a new OTP.',
+          code: 'OTP_MAX_ATTEMPTS_EXCEEDED',
+          remaining_attempts: 0,
+        });
       }
 
+      const remaining = 5 - failCount;
       // Store updated failure count in failure_reason
       attempt.failure_reason = `Invalid OTP:${failCount}`;
       await this.attemptRepo.save(attempt);
-      throw new UnauthorizedException('Invalid or expired OTP');
+      throw new BadRequestException({
+        statusCode: 400,
+        message: `Invalid OTP. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`,
+        code: 'OTP_INVALID',
+        remaining_attempts: remaining,
+      });
     }
 
     attempt.stage = OnboardingStage.OTP_VERIFIED;
