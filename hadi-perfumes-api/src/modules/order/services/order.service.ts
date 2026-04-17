@@ -72,6 +72,38 @@ export class OrderService {
     return { order, items };
   }
 
+  async getOrderWithPermissions(
+    orderId: string,
+    buyerId: string,
+  ): Promise<{
+    order: Order;
+    items: OrderItem[];
+    permissions: { can_cancel: boolean; can_return: boolean };
+  }> {
+    const { order, items } = await this.getOrderWithItems(orderId, buyerId);
+
+    const can_cancel = this.stateMachine.canTransition(
+      order.status,
+      OrderStatus.CANCELLED,
+    );
+
+    let can_return = false;
+    if (
+      order.status === OrderStatus.COMPLETED &&
+      order.completed_at != null
+    ) {
+      const elapsed = Date.now() - new Date(order.completed_at).getTime();
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      can_return = elapsed < THIRTY_DAYS_MS;
+    }
+
+    return {
+      order,
+      items,
+      permissions: { can_cancel, can_return },
+    };
+  }
+
   async listOrders(
     buyerId: string,
     query: OrderListQueryDto,

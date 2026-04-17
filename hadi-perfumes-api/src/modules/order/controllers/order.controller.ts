@@ -42,7 +42,7 @@ export class OrderController {
 
   @Get(':id')
   async getOrder(@Req() req: any, @Param('id') id: string) {
-    return this.orderService.getOrder(id, req.user.sub);
+    return this.orderService.getOrderWithPermissions(id, req.user.sub);
   }
 
   @Post(':id/cancel')
