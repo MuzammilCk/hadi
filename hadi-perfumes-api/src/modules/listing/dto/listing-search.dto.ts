@@ -48,6 +48,18 @@ export class ListingSearchDto {
 
   @Type(() => Number)
   @IsNumber()
+  @Min(10)
+  @IsOptional()
+  intensity_min?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(10)
+  @IsOptional()
+  intensity_max?: number;
+
+  @Type(() => Number)
+  @IsNumber()
   @Min(1)
   @IsOptional()
   page?: number = 1;

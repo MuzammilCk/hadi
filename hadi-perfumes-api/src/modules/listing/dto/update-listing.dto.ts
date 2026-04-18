@@ -44,6 +44,11 @@ export class UpdateListingDto {
   @IsOptional()
   quantity?: number;
 
+  @IsInt()
+  @Min(10)
+  @IsOptional()
+  intensity?: number;
+
   @IsEnum(ListingCondition)
   @IsOptional()
   condition?: ListingCondition;

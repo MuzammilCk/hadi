@@ -78,6 +78,9 @@ export class Listing {
   @Column({ type: 'int', default: 0 })
   quantity: number;
 
+  @Column({ type: 'smallint', default: 70, nullable: true })
+  intensity: number;    // 10-100 scale (Soft: 10-39, Moderate: 40-69, Intense: 70-100)
+
   @Column({ type: 'varchar' })
   condition: ListingCondition | string;
 

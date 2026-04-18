@@ -309,6 +309,11 @@ export class ListingService {
       );
     }
 
+    if (filters.intensity_min !== undefined)
+      query.andWhere('listing.intensity >= :intMin', { intMin: filters.intensity_min });
+    if (filters.intensity_max !== undefined)
+      query.andWhere('listing.intensity <= :intMax', { intMax: filters.intensity_max });
+
     const page = filters.page || 1;
     const limit = filters.limit || 20;
 

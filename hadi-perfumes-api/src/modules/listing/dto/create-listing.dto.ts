@@ -43,6 +43,11 @@ export class CreateListingDto {
   @Min(0)
   quantity: number;
 
+  @IsInt()
+  @Min(10)
+  @IsOptional()
+  intensity?: number;
+
   @IsEnum(ListingCondition)
   @IsOptional()
   condition?: ListingCondition = ListingCondition.NEW;
