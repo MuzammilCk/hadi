@@ -43,12 +43,24 @@ describe('Network E2E', () => {
   let userId: string;
 
   const allEntities = [
-    User, NetworkNode, QualificationRule, QualificationState,
-    QualificationEvent, RankAssignment, GraphRebuildJob,
-    GraphCorrectionLog, NetworkSnapshot, SponsorshipLink,
-    ReferralCode, ReferralRedemption, OnboardingAuditLog,
-    CompensationPolicyVersion, RankRule, CommissionRule,
-    ComplianceDisclosure, AllowedEarningsClaim,
+    User,
+    NetworkNode,
+    QualificationRule,
+    QualificationState,
+    QualificationEvent,
+    RankAssignment,
+    GraphRebuildJob,
+    GraphCorrectionLog,
+    NetworkSnapshot,
+    SponsorshipLink,
+    ReferralCode,
+    ReferralRedemption,
+    OnboardingAuditLog,
+    CompensationPolicyVersion,
+    RankRule,
+    CommissionRule,
+    ComplianceDisclosure,
+    AllowedEarningsClaim,
   ];
 
   beforeAll(async () => {
@@ -77,11 +89,13 @@ describe('Network E2E', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
 
     jwtService = moduleFixture.get<JwtService>(JwtService);
@@ -121,9 +135,7 @@ describe('Network E2E', () => {
 
   // Test 1
   it('GET /network/upline returns 401 without JWT', () => {
-    return request(app.getHttpServer())
-      .get('/network/upline')
-      .expect(401);
+    return request(app.getHttpServer()).get('/network/upline').expect(401);
   });
 
   // Test 2
@@ -142,9 +154,7 @@ describe('Network E2E', () => {
 
   // Test 3
   it('GET /network/downline returns 401 without JWT', () => {
-    return request(app.getHttpServer())
-      .get('/network/downline')
-      .expect(401);
+    return request(app.getHttpServer()).get('/network/downline').expect(401);
   });
 
   // Test 4
@@ -163,9 +173,7 @@ describe('Network E2E', () => {
 
   // Test 5
   it('GET /network/stats returns 401 without JWT', () => {
-    return request(app.getHttpServer())
-      .get('/network/stats')
-      .expect(401);
+    return request(app.getHttpServer()).get('/network/stats').expect(401);
   });
 
   // Test 6

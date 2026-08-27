@@ -1,10 +1,21 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany, OneToOne } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+} from 'typeorm';
 import { enumType, tstz } from '../../../common/utils/db-type.util';
 import { User } from '../../user/entities/user.entity';
 import { ProductCategory } from './product-category.entity';
 import { ListingImage } from './listing-image.entity';
 import { ListingStatusHistory } from './listing-status-history.entity';
 import { ListingModerationAction } from './listing-moderation-action.entity';
+import { InventoryItem } from '../../inventory/entities/inventory-item.entity';
 
 export enum ListingCondition {
   NEW = 'new',
@@ -43,7 +54,9 @@ export class Listing {
   @Column({ type: 'uuid', nullable: true })
   category_id: string;
 
-  @ManyToOne(() => ProductCategory, category => category.listings, { nullable: true })
+  @ManyToOne(() => ProductCategory, (category) => category.listings, {
+    nullable: true,
+  })
   @JoinColumn({ name: 'category_id' })
   category: ProductCategory;
 
@@ -65,6 +78,9 @@ export class Listing {
   @Column({ type: 'int', default: 0 })
   quantity: number;
 
+  @Column({ type: 'smallint', default: 70, nullable: true })
+  intensity: number;    // 10-100 scale (Soft: 10-39, Moderate: 40-69, Intense: 70-100)
+
   @Column({ type: 'varchar' })
   condition: ListingCondition | string;
 
@@ -83,12 +99,15 @@ export class Listing {
   @UpdateDateColumn({ type: tstz() as any })
   updated_at: Date;
 
-  @OneToMany(() => ListingImage, image => image.listing)
+  @OneToMany(() => ListingImage, (image) => image.listing)
   images: ListingImage[];
 
-  @OneToMany(() => ListingStatusHistory, history => history.listing)
+  @OneToMany(() => ListingStatusHistory, (history) => history.listing)
   status_history: ListingStatusHistory[];
 
-  @OneToMany(() => ListingModerationAction, action => action.listing)
+  @OneToMany(() => ListingModerationAction, (action) => action.listing)
   moderation_actions: ListingModerationAction[];
+
+  @OneToOne(() => InventoryItem, (inv) => inv.listing)
+  inventory_item: InventoryItem;
 }

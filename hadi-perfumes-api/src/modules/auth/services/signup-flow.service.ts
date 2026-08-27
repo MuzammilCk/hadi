@@ -1,21 +1,41 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { createHash } from 'crypto';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  InternalServerErrorException,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { InjectRepository, InjectEntityManager } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
 import { OtpService } from './otp.service';
-import { OnboardingAttempt, OnboardingStage } from '../entities/onboarding-attempt.entity';
+import {
+  OnboardingAttempt,
+  OnboardingStage,
+} from '../entities/onboarding-attempt.entity';
 import { User, UserStatus, KycStatus } from '../../user/entities/user.entity';
 import { SponsorshipLink } from '../../referral/entities/sponsorship-link.entity';
-import { ReferralCode, ReferralCodeStatus } from '../../referral/entities/referral-code.entity';
+import {
+  ReferralCode,
+  ReferralCodeStatus,
+} from '../../referral/entities/referral-code.entity';
 import { OnboardingAuditLog } from '../entities/onboarding-audit-log.entity';
 import { ReferralValidationService } from '../../referral/services/referral-validation.service';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { NetworkNode } from '../../network/entities/network-node.entity';
 
 @Injectable()
 export class SignupFlowService {
+  private readonly logger = new Logger(SignupFlowService.name);
+
   constructor(
     private otpService: OtpService,
     private referralValidationService: ReferralValidationService,
@@ -28,17 +48,19 @@ export class SignupFlowService {
     @InjectEntityManager()
     private em: EntityManager,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
 
+  // Fix M1: use CSPRNG (randomBytes) instead of Math.random() — prevents code enumeration
   private generateReferralCode(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const bytes = randomBytes(8);
     let code = '';
     for (let i = 0; i < 8; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += chars[bytes[i] % chars.length];
     }
     return code;
   }
@@ -48,15 +70,43 @@ export class SignupFlowService {
       throw new BadRequestException('Invalid phone format. Must be E.164');
     }
 
-    const existingUser = await this.userRepo.findOne({ where: { phone, status: UserStatus.ACTIVE } });
+    const existingUser = await this.userRepo.findOne({
+      where: { phone, status: UserStatus.ACTIVE },
+    });
     if (existingUser) {
-      throw new ConflictException('Phone number is already associated with an active user');
+      throw new ConflictException({
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'An account with this phone number already exists. Please sign in instead.',
+        code: 'PHONE_ALREADY_REGISTERED',
+      });
     }
 
     await this.otpService.sendOtp(phone);
-    
+
+    // Fix C4: Per-phone OTP brute-force rate limit.
+    // The per-attempt counter is resettable by requesting a new OTP.
+    // This global check counts ALL failures for the phone in the last hour.
+    const maxFailures = Number(process.env.MAX_OTP_FAILURES_PER_HOUR ?? 10);
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentFailures = await this.attemptRepo
+      .createQueryBuilder('a')
+      .where('a.phone = :phone', { phone })
+      .andWhere('a.stage = :stage', { stage: OnboardingStage.FAILED })
+      .andWhere('a.created_at >= :since', { since: oneHourAgo })
+      .getCount();
+    if (recentFailures >= maxFailures) {
+      throw new HttpException(
+        'Too many failed attempts. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     // Invalidate earlier attempts for this phone
-    await this.attemptRepo.update({ phone, stage: OnboardingStage.OTP_SENT }, { stage: OnboardingStage.FAILED, failure_reason: 'Re-sent OTP' });
+    await this.attemptRepo.update(
+      { phone, stage: OnboardingStage.OTP_SENT },
+      { stage: OnboardingStage.FAILED, failure_reason: 'Re-sent OTP' },
+    );
 
     const attempt = this.attemptRepo.create({
       phone,
@@ -64,7 +114,7 @@ export class SignupFlowService {
       device_hash: deviceHash,
       stage: OnboardingStage.OTP_SENT,
     });
-    
+
     await this.attemptRepo.save(attempt);
     return { message: 'OTP sent' };
   }
@@ -76,7 +126,9 @@ export class SignupFlowService {
     });
 
     if (!attempt) {
-      throw new BadRequestException('No pending OTP request found for this phone');
+      throw new BadRequestException(
+        'No pending OTP request found for this phone',
+      );
     }
 
     const isValid = await this.otpService.verifyOtp(phone, otp);
@@ -85,7 +137,10 @@ export class SignupFlowService {
       // Parse current in-memory failure count from failure_reason field
       // Format: 'Invalid OTP:N' where N is the number of failures so far
       let failCount = 0;
-      if (attempt.failure_reason && attempt.failure_reason.startsWith('Invalid OTP:')) {
+      if (
+        attempt.failure_reason &&
+        attempt.failure_reason.startsWith('Invalid OTP:')
+      ) {
         failCount = parseInt(attempt.failure_reason.split(':')[1], 10) || 0;
       }
       failCount++;
@@ -95,13 +150,24 @@ export class SignupFlowService {
         attempt.stage = OnboardingStage.FAILED;
         attempt.failure_reason = 'Too many failed OTP attempts';
         await this.attemptRepo.save(attempt);
-        throw new UnauthorizedException('Too many failed OTP attempts. Please request a new OTP.');
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Too many failed OTP attempts. Please request a new OTP.',
+          code: 'OTP_MAX_ATTEMPTS_EXCEEDED',
+          remaining_attempts: 0,
+        });
       }
 
+      const remaining = 5 - failCount;
       // Store updated failure count in failure_reason
       attempt.failure_reason = `Invalid OTP:${failCount}`;
       await this.attemptRepo.save(attempt);
-      throw new UnauthorizedException('Invalid or expired OTP');
+      throw new BadRequestException({
+        statusCode: 400,
+        message: `Invalid OTP. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`,
+        code: 'OTP_INVALID',
+        remaining_attempts: remaining,
+      });
     }
 
     attempt.stage = OnboardingStage.OTP_VERIFIED;
@@ -119,15 +185,35 @@ export class SignupFlowService {
     phone: string,
     fullName: string,
     passwordPlain: string,
-    referralCodeStr: string,
-    attemptId: string,
+    email?: string,
+    referralCodeStr?: string,
+    attemptId?: string,
     ipAddress?: string,
     deviceHash?: string,
   ) {
     return this.em.transaction(async (txEm) => {
-      const existingUser = await txEm.findOne(User, { where: { phone, status: UserStatus.ACTIVE } });
+      const existingUser = await txEm.findOne(User, {
+        where: { phone, status: UserStatus.ACTIVE },
+      });
       if (existingUser) {
         throw new ConflictException('User already active');
+      }
+
+      // Fix C2: Device hash dedup — prevent multi-account commission farming
+      // Skip if deviceHash is not provided (graceful degradation for old clients)
+      if (deviceHash) {
+        const maxAccounts = Number(process.env.MAX_ACCOUNTS_PER_DEVICE ?? 3);
+        const deviceAccountCount = await txEm.count(User, {
+          where: { device_hash: deviceHash, status: UserStatus.ACTIVE },
+        });
+        if (deviceAccountCount >= maxAccounts) {
+          this.logger.warn(
+            `Device hash ${deviceHash.slice(0, 8)}… already has ${deviceAccountCount} accounts — blocking signup`,
+          );
+          throw new ConflictException(
+            'Too many accounts registered from this device',
+          );
+        }
       }
 
       // 1. Create User (without sponsor_id initially)
@@ -137,10 +223,14 @@ export class SignupFlowService {
       const user = txEm.create(User, {
         id: newUserId,
         phone,
+        email,
         password_hash: passwordHash,
         full_name: fullName,
         status: process.env.NODE_ENV === 'test' ? 'active' : UserStatus.ACTIVE,
-        kyc_status: process.env.NODE_ENV === 'test' ? 'not_required' : KycStatus.NOT_REQUIRED,
+        kyc_status:
+          process.env.NODE_ENV === 'test'
+            ? 'not_required'
+            : KycStatus.NOT_REQUIRED,
         ip_at_signup: ipAddress,
         device_hash: deviceHash,
         onboarding_completed_at: new Date(),
@@ -154,13 +244,14 @@ export class SignupFlowService {
 
       if (referralCodeStr) {
         try {
-          const referralResult = await this.referralValidationService.validateAndRedeem(
-            referralCodeStr,
-            newUserId,
-            ipAddress,
-            deviceHash,
-            txEm,
-          );
+          const referralResult =
+            await this.referralValidationService.validateAndRedeem(
+              referralCodeStr,
+              newUserId,
+              ipAddress,
+              deviceHash,
+              txEm,
+            );
           sponsorId = referralResult.sponsorId;
           uplinePath = referralResult.uplinePath;
           referralCode = referralResult.referralCode;
@@ -169,7 +260,9 @@ export class SignupFlowService {
           user.sponsor_id = sponsorId;
           await txEm.save(User, user);
         } catch (e) {
-          throw new BadRequestException(e.message || 'Referral validation failed');
+          throw new BadRequestException(
+            e.message || 'Referral validation failed',
+          );
         }
       }
 
@@ -179,24 +272,90 @@ export class SignupFlowService {
           user_id: user.id,
           sponsor_id: sponsorId,
           referral_code_id: referralCode.id,
-          upline_path: process.env.NODE_ENV === 'test' ? JSON.stringify(uplinePath) as any : uplinePath,
+          upline_path:
+            process.env.NODE_ENV === 'test'
+              ? (JSON.stringify(uplinePath) as any)
+              : uplinePath,
         });
         await txEm.save(SponsorshipLink, link);
       }
 
-      // 4. Generate a referral code for the new user
-      let newCodeStr = this.generateReferralCode();
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const exists = await txEm.findOne(ReferralCode, { where: { code: newCodeStr } });
-        if (!exists) break;
-        newCodeStr = this.generateReferralCode();
+      // 4. Generate a unique referral code for the new user (Fix H4: explicit throw on exhaustion)
+      let newCodeStr: string | null = null;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const candidate = this.generateReferralCode();
+        const exists = await txEm.findOne(ReferralCode, {
+          where: { code: candidate },
+        });
+        if (!exists) {
+          newCodeStr = candidate;
+          break;
+        }
+      }
+      if (!newCodeStr) {
+        throw new InternalServerErrorException(
+          'Failed to generate a unique referral code after 10 attempts',
+        );
       }
       const newUserCode = txEm.create(ReferralCode, {
         code: newCodeStr,
         owner_id: user.id,
-        status: process.env.NODE_ENV === 'test' ? 'active' as any : ReferralCodeStatus.ACTIVE,
+        status:
+          process.env.NODE_ENV === 'test'
+            ? ('active' as any)
+            : ReferralCodeStatus.ACTIVE,
       });
       await txEm.save(ReferralCode, newUserCode);
+
+      // 6. Create NetworkNode — this is the computed graph row used by all
+      //    downline queries, commission traversal, and qualification checks.
+      //    Without this, the user is invisible to the MLM network.
+      //    Created directly via EntityManager to avoid circular module dependency.
+      const now = new Date();
+      const nodeUplinePath = uplinePath || [];
+      const newNode = txEm.create(NetworkNode, {
+        user_id: user.id,
+        sponsor_id: sponsorId || null,
+        upline_path:
+          process.env.NODE_ENV === 'test'
+            ? (JSON.stringify(nodeUplinePath) as any)
+            : nodeUplinePath,
+        depth: nodeUplinePath.length,
+        direct_count: 0,
+        total_downline: 0,
+        last_rebuilt_at: now,
+        created_at: now,
+        updated_at: now,
+      });
+      await txEm.save(NetworkNode, newNode);
+
+      // 6b. Increment sponsor's direct_count atomically within this transaction
+      if (sponsorId) {
+        const sponsorNode = await txEm.findOne(NetworkNode, {
+          where: { user_id: sponsorId },
+        });
+        if (sponsorNode) {
+          sponsorNode.direct_count += 1;
+          sponsorNode.total_downline += 1;
+          sponsorNode.updated_at = new Date();
+          await txEm.save(NetworkNode, sponsorNode);
+        }
+
+        // Also increment total_downline for all ancestors in the upline
+        if (uplinePath && uplinePath.length > 1) {
+          // uplinePath[0] is the direct sponsor (already handled above),
+          // the rest are grandparent ancestors
+          const ancestorIds = uplinePath.slice(1);
+          if (ancestorIds.length > 0) {
+            await txEm
+              .createQueryBuilder()
+              .update(NetworkNode)
+              .set({ total_downline: () => 'total_downline + 1', updated_at: new Date() })
+              .where('user_id IN (:...ids)', { ids: ancestorIds })
+              .execute();
+          }
+        }
+      }
 
       // 5. Write Audit Log
       const auditLog = txEm.create(OnboardingAuditLog, {
@@ -204,16 +363,22 @@ export class SignupFlowService {
         action: 'user_signup',
         target_type: 'user',
         target_id: user.id,
-        metadata: process.env.NODE_ENV === 'test' 
-          ? JSON.stringify({ sponsor_id: sponsorId, referral_code: referralCodeStr }) as any 
-          : { sponsor_id: sponsorId, referral_code: referralCodeStr },
+        metadata:
+          process.env.NODE_ENV === 'test'
+            ? (JSON.stringify({
+              sponsor_id: sponsorId,
+              referral_code: referralCodeStr,
+            }) as any)
+            : { sponsor_id: sponsorId, referral_code: referralCodeStr },
         ip_address: ipAddress,
       });
       await txEm.save(OnboardingAuditLog, auditLog);
 
       // 4. Update Onboarding Attempt
       if (attemptId) {
-        const attempt = await txEm.findOne(OnboardingAttempt, { where: { id: attemptId } });
+        const attempt = await txEm.findOne(OnboardingAttempt, {
+          where: { id: attemptId },
+        });
         if (attempt) {
           attempt.stage = OnboardingStage.COMPLETED;
           await txEm.save(OnboardingAttempt, attempt);
@@ -221,8 +386,12 @@ export class SignupFlowService {
       }
 
       // 5. Issue Tokens
-      const access_token = this.jwtService.sign({ sub: user.id, role: 'buyer' });
-      
+      const access_token = this.jwtService.sign({
+        sub: user.id,
+        role: user.role ?? 'customer',
+        full_name: user.full_name ?? '',
+      });
+
       const refreshTokenValue = uuidv4();
       const tokenHash = this.hashToken(refreshTokenValue);
       const expiresAt = new Date();
@@ -265,8 +434,14 @@ export class SignupFlowService {
     rt.revoked_at = new Date();
     await this.tokenRepo.save(rt);
 
+    const user = await this.userRepo.findOne({ where: { id: rt.user_id } });
+
     // Issue new access token
-    const access_token = this.jwtService.sign({ sub: rt.user_id, role: 'buyer' });
+    const access_token = this.jwtService.sign({
+      sub: rt.user_id,
+      role: user?.role ?? 'customer',
+      full_name: user?.full_name ?? '',
+    });
 
     // Issue new refresh token
     const newRefreshValue = uuidv4();
@@ -300,6 +475,125 @@ export class SignupFlowService {
     return { success: true };
   }
 
+  async login(identifier: string, passwordPlain: string) {
+    // Determine lookup field: treat as phone if E.164, otherwise email
+    const isPhone = /^\+[1-9]\d{1,14}$/.test(identifier);
+
+    const user = await this.userRepo.findOne({
+      where: isPhone
+        ? { phone: identifier, status: UserStatus.ACTIVE }
+        : { email: identifier, status: UserStatus.ACTIVE },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.password_hash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const passwordMatch = await bcrypt.compare(passwordPlain, user.password_hash);
+    if (!passwordMatch) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const access_token = this.jwtService.sign({
+      sub: user.id,
+      role: user.role ?? 'customer',
+      full_name: user.full_name ?? '',
+    });
+
+    const refreshTokenValue = uuidv4();
+    const tokenHash = this.hashToken(refreshTokenValue);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const rt = this.tokenRepo.create({
+      user_id: user.id,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+    });
+    await this.tokenRepo.save(rt);
+
+    return {
+      user: {
+        id: user.id,
+        phone: user.phone,
+        email: user.email,
+        status: user.status,
+      },
+      access_token,
+      refresh_token: refreshTokenValue,
+    };
+  }
+
+  async loginWithGoogle(credential: string) {
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      throw new InternalServerErrorException('Google SSO is not configured on the backend');
+    }
+
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (e) {
+      this.logger.error(`Google token verification failed: ${e.message}`);
+      throw new UnauthorizedException('Invalid Google token');
+    }
+
+    if (!payload?.email) {
+      throw new BadRequestException('Google token did not contain an email');
+    }
+
+    const user = await this.userRepo.findOne({
+      where: { email: payload.email },
+    });
+
+    if (!user) {
+      // Return 404 so frontend knows to redirect to register and populate form
+      throw new NotFoundException('Account not found, please register.');
+    }
+
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Account is not active');
+    }
+
+    const access_token = this.jwtService.sign({
+      sub: user.id,
+      role: user.role ?? 'customer',
+      full_name: user.full_name ?? '',
+    });
+
+    const refreshTokenValue = uuidv4();
+    const tokenHash = this.hashToken(refreshTokenValue);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const rt = this.tokenRepo.create({
+      user_id: user.id,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+    });
+    await this.tokenRepo.save(rt);
+
+    return {
+      user: {
+        id: user.id,
+        phone: user.phone,
+        email: user.email,
+        status: user.status,
+      },
+      access_token,
+      refresh_token: refreshTokenValue,
+    };
+  }
+
   async getOnboardingStatus(userId: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) {
@@ -311,5 +605,43 @@ export class SignupFlowService {
       kyc_status: user.kyc_status,
       onboarding_completed_at: user.onboarding_completed_at ?? null,
     };
+  }
+
+  async getMyProfile(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    // Fix B8: Include the user's actual referral code instead of forcing
+    // the frontend to fake it with id.slice(0,8)
+    const referralCode = await this.em.findOne(ReferralCode, {
+      where: { owner_id: userId, status: ReferralCodeStatus.ACTIVE },
+    });
+
+    return {
+      id: user.id,
+      phone: user.phone,
+      email: user.email ?? null,
+      full_name: user.full_name ?? null,
+      status: user.status,
+      kyc_status: user.kyc_status,
+      sponsor_id: user.sponsor_id ?? null,
+      referral_code: referralCode?.code ?? null,
+      onboarding_completed_at: user.onboarding_completed_at ?? null,
+      created_at: user.created_at,
+    };
+  }
+
+  async updateProfile(
+    userId: string,
+    data: { full_name?: string; email?: string },
+  ) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    if (data.full_name !== undefined) user.full_name = data.full_name;
+    if (data.email !== undefined) user.email = data.email;
+    await this.userRepo.save(user);
+
+    return this.getMyProfile(userId);
   }
 }

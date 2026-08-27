@@ -30,7 +30,11 @@ describe('NetworkGraphService (Unit)', () => {
     find: jest.fn().mockResolvedValue([]),
     findOne: jest.fn().mockResolvedValue(null),
     create: jest.fn().mockImplementation((data) => ({ ...data })),
-    save: jest.fn().mockImplementation((entity) => Promise.resolve({ id: 'mock-id', ...entity })),
+    save: jest
+      .fn()
+      .mockImplementation((entity) =>
+        Promise.resolve({ id: 'mock-id', ...entity }),
+      ),
     createQueryBuilder: jest.fn().mockReturnValue({
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
@@ -52,7 +56,11 @@ describe('NetworkGraphService (Unit)', () => {
       findOne: jest.fn().mockResolvedValue(null),
       find: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockImplementation((_, data) => ({ ...data })),
-      save: jest.fn().mockImplementation((_, entity) => Promise.resolve({ id: 'mock-id', ...entity })),
+      save: jest
+        .fn()
+        .mockImplementation((_, entity) =>
+          Promise.resolve({ id: 'mock-id', ...entity }),
+        ),
       createQueryBuilder: jest.fn().mockReturnValue({
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
@@ -66,12 +74,27 @@ describe('NetworkGraphService (Unit)', () => {
         NetworkGraphService,
         { provide: getRepositoryToken(NetworkNode), useValue: mockNodeRepo },
         { provide: getRepositoryToken(GraphRebuildJob), useValue: mockJobRepo },
-        { provide: getRepositoryToken(GraphCorrectionLog), useValue: mockCorrectionLogRepo },
-        { provide: getRepositoryToken(NetworkSnapshot), useValue: mockSnapshotRepo },
-        { provide: getRepositoryToken(QualificationEvent), useValue: mockQualEventRepo },
-        { provide: getRepositoryToken(SponsorshipLink), useValue: mockLinkRepo },
+        {
+          provide: getRepositoryToken(GraphCorrectionLog),
+          useValue: mockCorrectionLogRepo,
+        },
+        {
+          provide: getRepositoryToken(NetworkSnapshot),
+          useValue: mockSnapshotRepo,
+        },
+        {
+          provide: getRepositoryToken(QualificationEvent),
+          useValue: mockQualEventRepo,
+        },
+        {
+          provide: getRepositoryToken(SponsorshipLink),
+          useValue: mockLinkRepo,
+        },
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
-        { provide: getRepositoryToken(OnboardingAuditLog), useValue: mockAuditLogRepo },
+        {
+          provide: getRepositoryToken(OnboardingAuditLog),
+          useValue: mockAuditLogRepo,
+        },
         { provide: EntityManager, useValue: mockEntityManager },
       ],
     }).compile();
@@ -119,14 +142,16 @@ describe('NetworkGraphService (Unit)', () => {
       created_at: new Date(),
     });
 
-    await expect(service.buildNodeForUser(userId, mockEntityManager))
-      .rejects
-      .toThrow(NetworkCycleException);
+    await expect(
+      service.buildNodeForUser(userId, mockEntityManager),
+    ).rejects.toThrow(NetworkCycleException);
   });
 
   // Test 4
   it('detectCycle() returns true when userId is in path', () => {
-    expect(service.detectCycle('user-1', ['root', 'user-1', 'other'])).toBe(true);
+    expect(service.detectCycle('user-1', ['root', 'user-1', 'other'])).toBe(
+      true,
+    );
   });
 
   // Test 5
@@ -160,8 +185,18 @@ describe('NetworkGraphService (Unit)', () => {
   // Test 10
   it('getDownline() returns all nodes matching LIKE pattern', async () => {
     const mockNodes = [
-      { user_id: 'child-1', depth: 2, sponsor_id: 'user-1', upline_path: '["user-1"]' },
-      { user_id: 'child-2', depth: 3, sponsor_id: 'child-1', upline_path: '["user-1","child-1"]' },
+      {
+        user_id: 'child-1',
+        depth: 2,
+        sponsor_id: 'user-1',
+        upline_path: '["user-1"]',
+      },
+      {
+        user_id: 'child-2',
+        depth: 3,
+        sponsor_id: 'child-1',
+        upline_path: '["user-1","child-1"]',
+      },
     ];
     mockNodeRepo.createQueryBuilder.mockReturnValue({
       where: jest.fn().mockReturnThis(),
@@ -174,9 +209,7 @@ describe('NetworkGraphService (Unit)', () => {
 
   // Test 11
   it('getDirectRecruits() returns only nodes where sponsor_id matches userId', async () => {
-    const directNodes = [
-      { user_id: 'child-1', sponsor_id: 'user-1' },
-    ];
+    const directNodes = [{ user_id: 'child-1', sponsor_id: 'user-1' }];
     mockNodeRepo.find.mockResolvedValue(directNodes);
 
     const result = await service.getDirectRecruits('user-1');
@@ -186,11 +219,24 @@ describe('NetworkGraphService (Unit)', () => {
 
   // Test 12
   it('applyGraphCorrection() throws NetworkCycleException if new path creates cycle', async () => {
-    const dto = { userId: 'user-1', newSponsorId: 'child-1', reason: 'Test correction reason' };
+    const dto = {
+      userId: 'user-1',
+      newSponsorId: 'child-1',
+      reason: 'Test correction reason',
+    };
     const mockEm = {
-      findOne: jest.fn()
-        .mockResolvedValueOnce({ user_id: 'user-1', sponsor_id: 'old-sponsor', upline_path: '[]' }) // current node
-        .mockResolvedValueOnce({ user_id: 'child-1', sponsor_id: 'user-1', upline_path: JSON.stringify(['user-1']) }), // new sponsor's node has user-1 in path
+      findOne: jest
+        .fn()
+        .mockResolvedValueOnce({
+          user_id: 'user-1',
+          sponsor_id: 'old-sponsor',
+          upline_path: '[]',
+        }) // current node
+        .mockResolvedValueOnce({
+          user_id: 'child-1',
+          sponsor_id: 'user-1',
+          upline_path: JSON.stringify(['user-1']),
+        }), // new sponsor's node has user-1 in path
       create: jest.fn().mockImplementation((_, data) => data),
       save: jest.fn().mockResolvedValue({}),
       createQueryBuilder: jest.fn().mockReturnValue({
@@ -199,18 +245,22 @@ describe('NetworkGraphService (Unit)', () => {
       }),
     } as any;
 
-    await expect(service.applyGraphCorrection(dto, 'admin-1', mockEm))
-      .rejects
-      .toThrow(NetworkCycleException);
+    await expect(
+      service.applyGraphCorrection(dto, 'admin-1', mockEm),
+    ).rejects.toThrow(NetworkCycleException);
   });
 
   // Test 13
   it('applyGraphCorrection() throws BadRequestException if userId === newSponsorId', async () => {
-    const dto = { userId: 'user-1', newSponsorId: 'user-1', reason: 'Test correction reason' };
+    const dto = {
+      userId: 'user-1',
+      newSponsorId: 'user-1',
+      reason: 'Test correction reason',
+    };
     const mockEm = {} as any;
 
-    await expect(service.applyGraphCorrection(dto, 'admin-1', mockEm))
-      .rejects
-      .toThrow('Cannot assign a user as their own sponsor');
+    await expect(
+      service.applyGraphCorrection(dto, 'admin-1', mockEm),
+    ).rejects.toThrow('Cannot assign a user as their own sponsor');
   });
 });

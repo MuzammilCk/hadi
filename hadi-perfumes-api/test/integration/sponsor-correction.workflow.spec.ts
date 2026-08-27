@@ -5,7 +5,10 @@ import { ReferralModule } from '../../src/modules/referral/referral.module';
 import { INestApplication } from '@nestjs/common';
 import { DataSource, IsNull } from 'typeorm';
 import { SponsorshipLink } from '../../src/modules/referral/entities/sponsorship-link.entity';
-import { ReferralCode, ReferralCodeStatus } from '../../src/modules/referral/entities/referral-code.entity';
+import {
+  ReferralCode,
+  ReferralCodeStatus,
+} from '../../src/modules/referral/entities/referral-code.entity';
 import { User } from '../../src/modules/user/entities/user.entity';
 import { OnboardingAuditLog } from '../../src/modules/auth/entities/onboarding-audit-log.entity';
 
@@ -174,13 +177,27 @@ describe('Sponsor Correction Workflow (Integration)', () => {
     const userRepo = dataSource.getRepository(User);
     const linkRepo = dataSource.getRepository(SponsorshipLink);
 
-    const userA = userRepo.create({ id: userAId, phone: '+4000000001', status: 'active', kyc_status: 'not_required' });
-    const userB = userRepo.create({ id: userBId, phone: '+4000000002', status: 'active', kyc_status: 'not_required' });
+    const userA = userRepo.create({
+      id: userAId,
+      phone: '+4000000001',
+      status: 'active',
+      kyc_status: 'not_required',
+    });
+    const userB = userRepo.create({
+      id: userBId,
+      phone: '+4000000002',
+      status: 'active',
+      kyc_status: 'not_required',
+    });
     await userRepo.save([userA, userB]);
 
     // userA's upline contains userB
     const codeRepo = dataSource.getRepository(ReferralCode);
-    const code = codeRepo.create({ code: 'CIRC1234', owner_id: userBId, status: ReferralCodeStatus.ACTIVE });
+    const code = codeRepo.create({
+      code: 'CIRC1234',
+      owner_id: userBId,
+      status: ReferralCodeStatus.ACTIVE,
+    });
     await codeRepo.save(code);
 
     const linkA = linkRepo.create({
@@ -201,7 +218,9 @@ describe('Sponsor Correction Workflow (Integration)', () => {
     await linkRepo.save(linkB);
 
     // Attempting to correct userA's sponsor to userB when userB's upline already contains userA
-    const bLink = await linkRepo.findOne({ where: { user_id: userBId, corrected_at: IsNull() } });
+    const bLink = await linkRepo.findOne({
+      where: { user_id: userBId, corrected_at: IsNull() },
+    });
     const bUpline: string[] = JSON.parse(bLink!.upline_path as any);
 
     // This is the check the controller does:

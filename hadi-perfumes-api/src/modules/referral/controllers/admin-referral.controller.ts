@@ -12,9 +12,13 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager, IsNull } from 'typeorm';
 import { SponsorshipLink } from '../entities/sponsorship-link.entity';
 import { OnboardingAuditLog } from '../../auth/entities/onboarding-audit-log.entity';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller('admin/referrals')
 export class AdminReferralController {
   constructor(
@@ -58,7 +62,9 @@ export class AdminReferralController {
     @Req() req: any,
   ) {
     if (!reason || reason.length < 10) {
-      throw new BadRequestException('Reason must be at least 10 characters long');
+      throw new BadRequestException(
+        'Reason must be at least 10 characters long',
+      );
     }
 
     if (!newSponsorId || newSponsorId === userId) {
@@ -109,6 +115,14 @@ export class AdminReferralController {
             : newUplinePath,
       });
       await em.save(SponsorshipLink, newLink);
+
+      // Fix B6: Sync users.sponsor_id to match the corrected sponsorship link.
+      // Without this, the denormalized sponsor_id on the user row drifts from
+      // the canonical SponsorshipLink, causing inconsistent reads downstream.
+      await em.query(
+        `UPDATE users SET sponsor_id = $1, updated_at = NOW() WHERE id = $2`,
+        [newSponsorId, userId],
+      );
 
       // Audit log — actor_id set from AdminGuard context
       const auditLog = em.create(OnboardingAuditLog, {

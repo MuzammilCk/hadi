@@ -47,9 +47,11 @@ export class RankAssignmentService {
     let qualifiedRule: RankRule | null = null;
     for (const rule of sortedRules) {
       const meetsPersonal =
-        context.personalVolume >= Number(rule.personal_sales_volume_requirement);
+        context.personalVolume >=
+        Number(rule.personal_sales_volume_requirement);
       const meetsDownline =
-        context.downlineVolume >= Number(rule.downline_sales_volume_requirement);
+        context.downlineVolume >=
+        Number(rule.downline_sales_volume_requirement);
       const meetsLegs =
         context.activeLegCount >= Number(rule.active_legs_requirement);
 
@@ -76,12 +78,16 @@ export class RankAssignmentService {
         const event = manager.create(QualificationEvent, {
           user_id: userId,
           event_type: 'rank_changed',
-          previous_state: process.env.NODE_ENV === 'test'
-            ? (JSON.stringify({ rank_rule_id: currentRank.rank_rule_id }) as any)
-            : { rank_rule_id: currentRank.rank_rule_id },
-          new_state: process.env.NODE_ENV === 'test'
-            ? (JSON.stringify({ rank_rule_id: null }) as any)
-            : { rank_rule_id: null },
+          previous_state:
+            process.env.NODE_ENV === 'test'
+              ? (JSON.stringify({
+                  rank_rule_id: currentRank.rank_rule_id,
+                }) as any)
+              : { rank_rule_id: currentRank.rank_rule_id },
+          new_state:
+            process.env.NODE_ENV === 'test'
+              ? (JSON.stringify({ rank_rule_id: null }) as any)
+              : { rank_rule_id: null },
           trigger_source: 'recalc_job',
           policy_version_id: policyVersionId,
           actor_id: actorId,
@@ -119,22 +125,24 @@ export class RankAssignmentService {
     const event = manager.create(QualificationEvent, {
       user_id: userId,
       event_type: 'rank_changed',
-      previous_state: process.env.NODE_ENV === 'test'
-        ? (JSON.stringify({
-            rank_rule_id: currentRank?.rank_rule_id ?? null,
-          }) as any)
-        : { rank_rule_id: currentRank?.rank_rule_id ?? null },
-      new_state: process.env.NODE_ENV === 'test'
-        ? (JSON.stringify({
-            rank_rule_id: qualifiedRule.id,
-            rank_name: qualifiedRule.rank_name,
-            rank_level: qualifiedRule.rank_level,
-          }) as any)
-        : {
-            rank_rule_id: qualifiedRule.id,
-            rank_name: qualifiedRule.rank_name,
-            rank_level: qualifiedRule.rank_level,
-          },
+      previous_state:
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify({
+              rank_rule_id: currentRank?.rank_rule_id ?? null,
+            }) as any)
+          : { rank_rule_id: currentRank?.rank_rule_id ?? null },
+      new_state:
+        process.env.NODE_ENV === 'test'
+          ? (JSON.stringify({
+              rank_rule_id: qualifiedRule.id,
+              rank_name: qualifiedRule.rank_name,
+              rank_level: qualifiedRule.rank_level,
+            }) as any)
+          : {
+              rank_rule_id: qualifiedRule.id,
+              rank_name: qualifiedRule.rank_name,
+              rank_level: qualifiedRule.rank_level,
+            },
       trigger_source: 'recalc_job',
       policy_version_id: policyVersionId,
       actor_id: actorId,

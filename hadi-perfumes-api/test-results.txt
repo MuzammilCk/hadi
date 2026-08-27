@@ -1,0 +1,492 @@
+
+> hadi-perfumes-api@0.0.1 test
+> cross-env NODE_ENV=test jest
+
+PASS test/integration/qualification-state.spec.ts
+PASS test/integration/commission-calculation.workflow.spec.ts
+FAIL test/integration/order-checkout.workflow.spec.ts
+  ÔùÅ Order Checkout Workflow (Integration) ÔÇ║ Test 1: initiateCheckout creates order + reservation
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/order-checkout.workflow.spec.ts:163:19)
+
+  ÔùÅ Order Checkout Workflow (Integration) ÔÇ║ Test 2: same idempotency_key returns same order
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/order-checkout.workflow.spec.ts:193:19)
+
+  ÔùÅ Order Checkout Workflow (Integration) ÔÇ║ Test 3: cancelOrder releases reservation
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/order-checkout.workflow.spec.ts:205:19)
+
+  ÔùÅ Order Checkout Workflow (Integration) ÔÇ║ Test 4: webhook payment_intent.succeeded transitions to paid
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/order-checkout.workflow.spec.ts:228:19)
+
+FAIL test/integration/payment-capture.workflow.spec.ts
+  ÔùÅ Payment Capture Workflow (Integration) ÔÇ║ Test 1: duplicate webhook event ignored
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at createOrderAndPayment (test/integration/payment-capture.workflow.spec.ts:151:19)
+      at Object.<anonymous> (test/integration/payment-capture.workflow.spec.ts:161:32)
+
+  ÔùÅ Payment Capture Workflow (Integration) ÔÇ║ Test 2: payment failure releases reservation
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at createOrderAndPayment (test/integration/payment-capture.workflow.spec.ts:151:19)
+      at Object.<anonymous> (test/integration/payment-capture.workflow.spec.ts:201:32)
+
+  ÔùÅ Payment Capture Workflow (Integration) ÔÇ║ Test 3: paid order always has money_event_outbox row
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at createOrderAndPayment (test/integration/payment-capture.workflow.spec.ts:151:19)
+      at Object.<anonymous> (test/integration/payment-capture.workflow.spec.ts:225:32)
+
+  ÔùÅ Payment Capture Workflow (Integration) ÔÇ║ Test 4: cancelled order has no active reservations
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/payment-capture.workflow.spec.ts:262:19)
+
+PASS test/integration/sponsor-correction.workflow.spec.ts
+PASS test/unit/commission/commission-calculation.spec.ts
+[95m[Nest] 7560  - [39m04/04/2026, 3:11:08 pm [95m  DEBUG[39m [38;5;3m[CommissionCalculationService] [39m[95mOutbox f972d5ff-566e-4643-834f-a8ce26c878e7 already published ÔÇö skip[39m
+[95m[Nest] 7560  - [39m04/04/2026, 3:11:08 pm [95m  DEBUG[39m [38;5;3m[CommissionCalculationService] [39m[95mCommission already exists for order:78dc923b-3db2-4271-8686-1a7ffc0dbb77:level:1:user:a852bf6a-b9ca-42ef-aa7c-e49725273622 ÔÇö skipping[39m
+[95m[Nest] 7560  - [39m04/04/2026, 3:11:08 pm [95m  DEBUG[39m [38;5;3m[CommissionCalculationService] [39m[95mCommission already exists for order:78dc923b-3db2-4271-8686-1a7ffc0dbb77:level:2:user:17d2be9f-4a1b-4811-a639-6bf7bf33df5d ÔÇö skipping[39m
+PASS test/unit/qualification-engine.service.spec.ts
+PASS test/integration/network-graph-build.spec.ts
+FAIL test/integration/order-oversell-concurrency.spec.ts
+  ÔùÅ Order Oversell Concurrency (Integration) ÔÇ║ oversell is prevented ÔÇö stock never goes negative
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+      149 |     const failed = results.filter((r) => r.status === 'rejected');
+      150 |
+    > 151 |     expect(successful.length).toBe(1); // exactly 1 succeeds
+          |                               ^
+      152 |     expect(failed.length).toBe(2); // rest are rejected due to business logic (stock 0)
+      153 |
+      154 |     // Verify stock never went negative
+
+      at Object.<anonymous> (test/integration/order-oversell-concurrency.spec.ts:151:31)
+
+PASS test/integration/payout-flow.workflow.spec.ts
+PASS test/integration/circular-sponsorship.prevention.spec.ts
+PASS test/integration/referral-redemption.workflow.spec.ts
+PASS test/integration/rank-assignment-workflow.spec.ts
+PASS test/unit/network-graph.service.spec.ts
+PASS test/unit/payout/payout.spec.ts
+PASS test/unit/network-invariants.spec.ts
+PASS test/integration/admin-policy.workflow.spec.ts
+PASS test/unit/commission/clawback.spec.ts
+PASS test/integration/clawback.workflow.spec.ts
+[33m[Nest] 7560  - [39m04/04/2026, 3:11:10 pm [33m   WARN[39m [38;5;3m[ClawbackJob] [39m[33mCommission event 6edaa38d-d411-4ef5-ae25-335ab2d4fc71 past clawback window ÔÇö skipping[39m
+PASS test/unit/signup-flow.service.spec.ts
+PASS test/integration/otp-flow.workflow.spec.ts (6.495 s)
+PASS test/unit/order/payment-webhook-dedup.spec.ts
+PASS test/unit/listing/listing.service.spec.ts
+PASS test/unit/referral-validation.service.spec.ts
+FAIL test/integration/ledger-release.workflow.spec.ts
+  ÔùÅ Ledger Release Workflow (Integration) ÔÇ║ getPendingBalance reflects pending commission entries
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 100
+    Received:    0
+
+      125 |     const pending = await ledgerService.getPendingBalance(beneficiaryId);
+      126 |     // The original COMMISSION_PENDING entry (100) is still there
+    > 127 |     expect(pending).toBeGreaterThanOrEqual(100);
+          |                     ^
+      128 |   });
+      129 | });
+      130 |
+
+      at Object.<anonymous> (test/integration/ledger-release.workflow.spec.ts:127:21)
+
+PASS test/unit/rank-assignment.service.spec.ts
+PASS test/unit/order/order-state-machine.spec.ts
+PASS test/unit/ledger/ledger.spec.ts
+FAIL test/unit/inventory/inventory.service.spec.ts
+  ÔùÅ InventoryService ÔÇ║ reserveStock ÔÇ║ should block reservation and throw InsufficientStockException if atomic update fails
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: StringContaining "UPDATE inventory_items", [5, 5, "inv1", 5]
+    Received
+           1
+              "UPDATE inventory_items SET available_qty = available_qty - ?, reserved_qty = reserved_qty + ?, updated_at = datetime('now') WHERE id = ? AND available_qty >= ?",
+              Array [
+                5,
+            -   5,
+                "inv1",
+            -   5,
+              ],
+           2: "SELECT changes() as changed"
+
+    Number of calls: 2
+
+      66 |       ).rejects.toThrow(InsufficientStockException);
+      67 |
+    > 68 |       expect(mockEntityManager.query).toHaveBeenCalledWith(
+         |                                       ^
+      69 |         expect.stringContaining('UPDATE inventory_items'),
+      70 |         [5, 5, 'inv1', 5]
+      71 |       );
+
+      at Object.<anonymous> (test/unit/inventory/inventory.service.spec.ts:68:39)
+
+  ÔùÅ InventoryService ÔÇ║ reserveStock ÔÇ║ should complete reservation and log event if stock is available
+
+    InventoryItemNotFoundException: Inventory item not found
+
+      160 |
+      161 |       const result = await em.findOne(InventoryItem, { where: { id: item.id } });
+    > 162 |       if (!result) throw new InventoryItemNotFoundException();
+          |                          ^
+      163 |
+      164 |       // Check if item went completely out of stock by this reservation
+      165 |       if (result.available_qty === 0 || Number(result.available_qty) === 0) {
+
+      at src/modules/inventory/services/inventory.service.ts:162:26
+      at Object.<anonymous> (test/unit/inventory/inventory.service.spec.ts:95:19)
+
+  ÔùÅ InventoryService ÔÇ║ releaseReservation ÔÇ║ should update stock, restore listing active status, and log RELEASED event
+
+    InventoryItemNotFoundException: Inventory item not found
+
+      250 |
+      251 |       const result = await em.findOne(InventoryItem, { where: { id: res.inventory_item_id } });
+    > 252 |       if (!result) throw new InventoryItemNotFoundException();
+          |                          ^
+      253 |
+      254 |       // Restore active status if it was previously sold out
+      255 |       if (result.available_qty > 0) {
+
+      at src/modules/inventory/services/inventory.service.ts:252:26
+      at Object.<anonymous> (test/unit/inventory/inventory.service.spec.ts:145:7)
+
+PASS test/unit/network-regression.spec.ts
+PASS test/unit/order/order-total.spec.ts
+PASS test/unit/commission/commission-release.spec.ts
+PASS test/unit/otp.service.spec.ts
+PASS src/app.controller.spec.ts
+[32m[Nest] 5744  - [39m04/04/2026, 3:11:11 pm [32m    LOG[39m [38;5;3m[CommissionReleaseJob] [39m[32mCommissionReleaseJob: released=1, errors=0[39m
+[32m[Nest] 5744  - [39m04/04/2026, 3:11:11 pm [32m    LOG[39m [38;5;3m[CommissionReleaseJob] [39m[32mCommissionReleaseJob: released=0, errors=0[39m
+[32m[Nest] 5744  - [39m04/04/2026, 3:11:11 pm [32m    LOG[39m [38;5;3m[CommissionReleaseJob] [39m[32mCommissionReleaseJob: released=1, errors=0[39m
+[32m[Nest] 5744  - [39m04/04/2026, 3:11:11 pm [32m    LOG[39m [38;5;3m[CommissionReleaseJob] [39m[32mCommissionReleaseJob: released=1, errors=0[39m
+[32m[Nest] 5744  - [39m04/04/2026, 3:11:11 pm [32m    LOG[39m [38;5;3m[CommissionReleaseJob] [39m[32mCommissionReleaseJob: released=0, errors=0[39m
+PASS test/unit/order/checkout-idempotency.spec.ts
+PASS test/unit/policy-evaluation.service.spec.ts
+
+Summary of all failing tests
+FAIL test/integration/order-checkout.workflow.spec.ts
+  ÔùÅ Order Checkout Workflow (Integration) ÔÇ║ Test 1: initiateCheckout creates order + reservation
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/order-checkout.workflow.spec.ts:163:19)
+
+  ÔùÅ Order Checkout Workflow (Integration) ÔÇ║ Test 2: same idempotency_key returns same order
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/order-checkout.workflow.spec.ts:193:19)
+
+  ÔùÅ Order Checkout Workflow (Integration) ÔÇ║ Test 3: cancelOrder releases reservation
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/order-checkout.workflow.spec.ts:205:19)
+
+  ÔùÅ Order Checkout Workflow (Integration) ÔÇ║ Test 4: webhook payment_intent.succeeded transitions to paid
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/order-checkout.workflow.spec.ts:228:19)
+
+FAIL test/integration/payment-capture.workflow.spec.ts
+  ÔùÅ Payment Capture Workflow (Integration) ÔÇ║ Test 1: duplicate webhook event ignored
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at createOrderAndPayment (test/integration/payment-capture.workflow.spec.ts:151:19)
+      at Object.<anonymous> (test/integration/payment-capture.workflow.spec.ts:161:32)
+
+  ÔùÅ Payment Capture Workflow (Integration) ÔÇ║ Test 2: payment failure releases reservation
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at createOrderAndPayment (test/integration/payment-capture.workflow.spec.ts:151:19)
+      at Object.<anonymous> (test/integration/payment-capture.workflow.spec.ts:201:32)
+
+  ÔùÅ Payment Capture Workflow (Integration) ÔÇ║ Test 3: paid order always has money_event_outbox row
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at createOrderAndPayment (test/integration/payment-capture.workflow.spec.ts:151:19)
+      at Object.<anonymous> (test/integration/payment-capture.workflow.spec.ts:225:32)
+
+  ÔùÅ Payment Capture Workflow (Integration) ÔÇ║ Test 4: cancelled order has no active reservations
+
+    InsufficientInventoryForOrderException: Insufficient stock for listing Insufficient stock available
+
+      64 |           .catch(() => {});
+      65 |       }
+    > 66 |       throw new InsufficientInventoryForOrderException(
+         |             ^
+      67 |         (err as any).message || 'listing',
+      68 |       );
+      69 |     }
+
+      at CheckoutService.initiateCheckout (src/modules/order/services/checkout.service.ts:66:13)
+      at Object.<anonymous> (test/integration/payment-capture.workflow.spec.ts:262:19)
+
+FAIL test/integration/order-oversell-concurrency.spec.ts
+  ÔùÅ Order Oversell Concurrency (Integration) ÔÇ║ oversell is prevented ÔÇö stock never goes negative
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 0
+
+      149 |     const failed = results.filter((r) => r.status === 'rejected');
+      150 |
+    > 151 |     expect(successful.length).toBe(1); // exactly 1 succeeds
+          |                               ^
+      152 |     expect(failed.length).toBe(2); // rest are rejected due to business logic (stock 0)
+      153 |
+      154 |     // Verify stock never went negative
+
+      at Object.<anonymous> (test/integration/order-oversell-concurrency.spec.ts:151:31)
+
+FAIL test/integration/ledger-release.workflow.spec.ts
+  ÔùÅ Ledger Release Workflow (Integration) ÔÇ║ getPendingBalance reflects pending commission entries
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 100
+    Received:    0
+
+      125 |     const pending = await ledgerService.getPendingBalance(beneficiaryId);
+      126 |     // The original COMMISSION_PENDING entry (100) is still there
+    > 127 |     expect(pending).toBeGreaterThanOrEqual(100);
+          |                     ^
+      128 |   });
+      129 | });
+      130 |
+
+      at Object.<anonymous> (test/integration/ledger-release.workflow.spec.ts:127:21)
+
+FAIL test/unit/inventory/inventory.service.spec.ts
+  ÔùÅ InventoryService ÔÇ║ reserveStock ÔÇ║ should block reservation and throw InsufficientStockException if atomic update fails
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: StringContaining "UPDATE inventory_items", [5, 5, "inv1", 5]
+    Received
+           1
+              "UPDATE inventory_items SET available_qty = available_qty - ?, reserved_qty = reserved_qty + ?, updated_at = datetime('now') WHERE id = ? AND available_qty >= ?",
+              Array [
+                5,
+            -   5,
+                "inv1",
+            -   5,
+              ],
+           2: "SELECT changes() as changed"
+
+    Number of calls: 2
+
+      66 |       ).rejects.toThrow(InsufficientStockException);
+      67 |
+    > 68 |       expect(mockEntityManager.query).toHaveBeenCalledWith(
+         |                                       ^
+      69 |         expect.stringContaining('UPDATE inventory_items'),
+      70 |         [5, 5, 'inv1', 5]
+      71 |       );
+
+      at Object.<anonymous> (test/unit/inventory/inventory.service.spec.ts:68:39)
+
+  ÔùÅ InventoryService ÔÇ║ reserveStock ÔÇ║ should complete reservation and log event if stock is available
+
+    InventoryItemNotFoundException: Inventory item not found
+
+      160 |
+      161 |       const result = await em.findOne(InventoryItem, { where: { id: item.id } });
+    > 162 |       if (!result) throw new InventoryItemNotFoundException();
+          |                          ^
+      163 |
+      164 |       // Check if item went completely out of stock by this reservation
+      165 |       if (result.available_qty === 0 || Number(result.available_qty) === 0) {
+
+      at src/modules/inventory/services/inventory.service.ts:162:26
+      at Object.<anonymous> (test/unit/inventory/inventory.service.spec.ts:95:19)
+
+  ÔùÅ InventoryService ÔÇ║ releaseReservation ÔÇ║ should update stock, restore listing active status, and log RELEASED event
+
+    InventoryItemNotFoundException: Inventory item not found
+
+      250 |
+      251 |       const result = await em.findOne(InventoryItem, { where: { id: res.inventory_item_id } });
+    > 252 |       if (!result) throw new InventoryItemNotFoundException();
+          |                          ^
+      253 |
+      254 |       // Restore active status if it was previously sold out
+      255 |       if (result.available_qty > 0) {
+
+      at src/modules/inventory/services/inventory.service.ts:252:26
+      at Object.<anonymous> (test/unit/inventory/inventory.service.spec.ts:145:7)
+
+
+Test Suites: 5 failed, 31 passed, 36 total
+Tests:       13 failed, 236 passed, 249 total
+Snapshots:   0 total
+Time:        8.393 s, estimated 11 s
+Ran all test suites.

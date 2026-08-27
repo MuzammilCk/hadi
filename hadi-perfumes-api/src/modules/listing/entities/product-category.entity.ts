@@ -1,4 +1,13 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
 import { tstz } from '../../../common/utils/db-type.util';
 import { Listing } from './listing.entity';
 
@@ -35,6 +44,6 @@ export class ProductCategory {
   @UpdateDateColumn({ type: tstz() as any })
   updated_at: Date;
 
-  @OneToMany(() => Listing, listing => listing.category)
+  @OneToMany(() => Listing, (listing) => listing.category)
   listings: Listing[];
 }

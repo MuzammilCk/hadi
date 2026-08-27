@@ -112,3 +112,6 @@ out.txt
 # AI Agent caching & settings
 .agents/
 skills-lock.json
+*.csv
+stripe-*.md
+razorpay-*.csv

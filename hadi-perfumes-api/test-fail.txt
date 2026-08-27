@@ -1,0 +1,35 @@
+FAIL test/unit/inventory/inventory.service.spec.ts
+  InventoryService
+    reserveStock
+      ÔêÜ should block reservation and throw InsufficientStockException if atomic update fails (23 ms)
+      ÔêÜ should complete reservation and log event if stock is available (3 ms)
+    releaseReservation
+      ÔêÜ should ignore and return same reservation if not in reserved state (3 ms)
+      ├ù should update stock, restore listing active status, and log RELEASED event (8 ms)
+
+  ÔùÅ InventoryService ÔÇ║ releaseReservation ÔÇ║ should update stock, restore listing active status, and log RELEASED event
+
+    expect(jest.fn()).toHaveBeenNthCalledWith(n, ...expected)
+
+    n: 3
+    Expected: StringContaining "UPDATE listings SET status = ?", ["active", "list1", "sold_out"]
+    Received
+           2: "UPDATE listings SET status = ?, updated_at = datetime('now') WHERE id = ? AND status = ?", ["active", "list1", "sold_out"]
+
+    Number of calls: 2
+
+      158 |
+      159 |       // Check listing status update
+    > 160 |       expect(mockEntityManager.query).toHaveBeenNthCalledWith(3,
+          |                                       ^
+      161 |         expect.stringContaining('UPDATE listings SET status = ?'),
+      162 |         [ListingStatus.ACTIVE, 'list1', ListingStatus.SOLD_OUT]
+      163 |       );
+
+      at Object.<anonymous> (test/unit/inventory/inventory.service.spec.ts:160:39)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 3 passed, 4 total
+Snapshots:   0 total
+Time:        1.006 s, estimated 3 s
+Ran all test suites matching test/unit/inventory/inventory.service.spec.ts.

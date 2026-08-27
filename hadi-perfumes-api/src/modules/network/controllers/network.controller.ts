@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { NetworkGraphService } from '../services/network-graph.service';
 import { QualificationEngineService } from '../services/qualification-engine.service';
@@ -32,7 +26,8 @@ export class NetworkController {
       return {
         userId,
         depth: uplinePath.length,
-        sponsorId: uplinePath.length > 0 ? uplinePath[uplinePath.length - 1] : null,
+        sponsorId:
+          uplinePath.length > 0 ? uplinePath[uplinePath.length - 1] : null,
         uplinePath,
       };
     } catch (error) {
@@ -67,7 +62,7 @@ export class NetworkController {
     const paginatedData = allDownline.slice(start, start + limit);
 
     return {
-      data: paginatedData.map(node => ({
+      data: paginatedData.map((node) => ({
         userId: node.user_id,
         depth: node.depth,
         sponsorId: node.sponsor_id,
@@ -94,7 +89,8 @@ export class NetworkController {
     try {
       const uplinePath = await this.graphService.getUplinePath(userId);
       depth = uplinePath.length;
-      sponsorId = uplinePath.length > 0 ? uplinePath[uplinePath.length - 1] : null;
+      sponsorId =
+        uplinePath.length > 0 ? uplinePath[uplinePath.length - 1] : null;
 
       const recruits = await this.graphService.getDirectRecruits(userId);
       directCount = recruits.length;

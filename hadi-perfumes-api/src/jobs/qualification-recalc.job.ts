@@ -47,16 +47,34 @@ export class QualificationRecalcJob {
       if (targetUserId) {
         // 2. If targetUserId: rebuild just that user's node and evaluate qualification
         await this.graphService.buildNodeForUser(targetUserId);
+
+        // Load actual qualification context from persisted QualificationState (Fix #1).
+        // Using the existing getCurrentState helper avoids adding a new repo injection.
+        const existingState =
+          await this.qualEngine.getCurrentState(targetUserId);
+        const qualificationContext = existingState
+          ? {
+              personalVolume: Number(existingState.personal_volume ?? 0),
+              downlineVolume: Number(existingState.downline_volume ?? 0),
+              activeLegCount: Number(existingState.active_legs_count ?? 0),
+            }
+          : { personalVolume: 0, downlineVolume: 0, activeLegCount: 0 };
+
         await this.qualEngine.evaluateUser(
           targetUserId,
-          { personalVolume: 0, downlineVolume: 0, activeLegCount: 0 },
+          qualificationContext,
           policyVersionId,
         );
         job.nodes_processed = 1;
       } else {
         // 3. If no targetUserId: full rebuild + recalculate all
-        const rebuildResult = await this.graphService.rebuildAllNodes(actorId || null);
-        const qualResult = await this.qualEngine.recalculateAll(actorId || null, policyVersionId);
+        const rebuildResult = await this.graphService.rebuildAllNodes(
+          actorId || null,
+        );
+        const qualResult = await this.qualEngine.recalculateAll(
+          actorId || null,
+          policyVersionId,
+        );
         job.nodes_processed = rebuildResult.nodes_processed;
       }
 
@@ -69,7 +87,8 @@ export class QualificationRecalcJob {
     } catch (error) {
       // 5. On error: update job status 'failed'
       job.status = 'failed';
-      job.error_message = error instanceof Error ? error.message : String(error);
+      job.error_message =
+        error instanceof Error ? error.message : String(error);
       job.completed_at = new Date();
       await this.jobRepo.save(job);
       throw error;

@@ -2,7 +2,9 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 export class NetworkCycleException extends BadRequestException {
   constructor(userId: string) {
-    super(`Cycle detected: userId ${userId} already exists in the proposed upline path`);
+    super(
+      `Cycle detected: userId ${userId} already exists in the proposed upline path`,
+    );
   }
 }
 

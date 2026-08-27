@@ -10,7 +10,11 @@ import {
   IsInt,
   IsBoolean,
 } from 'class-validator';
-import { ListingCondition, AuthenticityStatus, ListingStatus } from '../entities/listing.entity';
+import {
+  ListingCondition,
+  AuthenticityStatus,
+  ListingStatus,
+} from '../entities/listing.entity';
 
 export class UpdateListingDto {
   @IsString()
@@ -39,6 +43,11 @@ export class UpdateListingDto {
   @Min(0)
   @IsOptional()
   quantity?: number;
+
+  @IsInt()
+  @Min(10)
+  @IsOptional()
+  intensity?: number;
 
   @IsEnum(ListingCondition)
   @IsOptional()

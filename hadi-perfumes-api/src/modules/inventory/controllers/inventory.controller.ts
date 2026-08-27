@@ -1,4 +1,12 @@
-import { Controller, Post, Delete, Param, Body, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { InventoryService } from '../services/inventory.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ReserveStockDto } from '../dto/reserve-stock.dto';
@@ -19,7 +27,11 @@ export class InventoryController {
     @Param('id') id: string,
     @Body('orderId') orderId: string,
   ) {
-    return this.inventoryService.confirmReservation(id, orderId, req.user.userId);
+    return this.inventoryService.confirmReservation(
+      id,
+      orderId,
+      req.user.userId,
+    );
   }
 
   @Delete('reserve/:id')

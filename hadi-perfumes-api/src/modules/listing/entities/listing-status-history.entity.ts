@@ -1,4 +1,11 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { enumType, tstz } from '../../../common/utils/db-type.util';
 import { User } from '../../user/entities/user.entity';
 import { Listing, ListingStatus } from './listing.entity';
@@ -16,7 +23,9 @@ export class ListingStatusHistory {
   @Column({ type: 'uuid' })
   listing_id: string;
 
-  @ManyToOne(() => Listing, listing => listing.status_history, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Listing, (listing) => listing.status_history, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'listing_id' })
   listing: Listing;
 

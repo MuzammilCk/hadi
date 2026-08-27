@@ -18,9 +18,11 @@ export class ProductCategoryService {
     return await this.categoryRepository.save(category);
   }
 
-  async listCategories(includeInactive: boolean = false): Promise<ProductCategory[]> {
+  async listCategories(
+    includeInactive: boolean = false,
+  ): Promise<ProductCategory[]> {
     const query = this.categoryRepository.createQueryBuilder('cat');
-    
+
     if (!includeInactive) {
       query.where('cat.is_active = :isActive', { isActive: true });
     }
@@ -36,7 +38,10 @@ export class ProductCategoryService {
     return category;
   }
 
-  async updateCategory(id: string, dto: UpdateCategoryDto): Promise<ProductCategory> {
+  async updateCategory(
+    id: string,
+    dto: UpdateCategoryDto,
+  ): Promise<ProductCategory> {
     const category = await this.getCategoryById(id);
     this.categoryRepository.merge(category, dto);
     return await this.categoryRepository.save(category);

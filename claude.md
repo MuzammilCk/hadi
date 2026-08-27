@@ -26,10 +26,33 @@ Important architecture truth:
 
 ## Before Every Task
 
-1. Read `context.md`.
-2. Read `diff.md`.
+1. Read `context.md` (project source of truth).
+2. Read `diff.md` (change history).
 3. Identify the target phase.
 4. Confirm no violation of hard constraints.
+5. **If working on a financial module** (commission, ledger, or payout), also read that module's `CLAUDE.md`, `context.md`, and `diff.md` — see the module documentation map below.
+
+---
+
+## Module-Level Documentation
+
+Three financial-critical modules have their own agent contracts, context files, and change logs.
+**You MUST read these before modifying any code in the corresponding module.**
+
+| Module | CLAUDE.md (Agent Contract) | context.md (Domain Context) | diff.md (Change Log) |
+|---|---|---|---|
+| **Commission** | `src/modules/commission/CLAUDE.md` | `src/modules/commission/context.md` | `src/modules/commission/diff.md` |
+| **Ledger** | `src/modules/ledger/CLAUDE.md` | `src/modules/ledger/context.md` | `src/modules/ledger/diff.md` |
+| **Payout** | `src/modules/payout/CLAUDE.md` | `src/modules/payout/context.md` | `src/modules/payout/diff.md` |
+
+All paths above are relative to `hadi-perfumes-api/`.
+
+**Reading order when working on a financial module:**
+1. Root `claude.md` (this file)
+2. Root `context.md`
+3. Root `diff.md`
+4. Target module's `CLAUDE.md` → `context.md` → `diff.md`
+5. Any cross-referenced module context files (e.g., ledger depends on commission context)
 
 ---
 
@@ -100,5 +123,21 @@ When starting a phase:
 
 ## Imports
 
+### Root-Level
 @context.md
 @diff.md
+
+### Module-Level — Commission
+@hadi-perfumes-api/src/modules/commission/CLAUDE.md
+@hadi-perfumes-api/src/modules/commission/context.md
+@hadi-perfumes-api/src/modules/commission/diff.md
+
+### Module-Level — Ledger
+@hadi-perfumes-api/src/modules/ledger/CLAUDE.md
+@hadi-perfumes-api/src/modules/ledger/context.md
+@hadi-perfumes-api/src/modules/ledger/diff.md
+
+### Module-Level — Payout
+@hadi-perfumes-api/src/modules/payout/CLAUDE.md
+@hadi-perfumes-api/src/modules/payout/context.md
+@hadi-perfumes-api/src/modules/payout/diff.md

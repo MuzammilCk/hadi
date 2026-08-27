@@ -11,7 +11,10 @@ import {
 } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
-import { AdminGuard } from '../../admin/guards/admin.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { UserRole } from '../../user/entities/user.entity';
 import { NetworkGraphService } from '../services/network-graph.service';
 import { QualificationEngineService } from '../services/qualification-engine.service';
 import { QualificationRecalcJob } from '../../../jobs/qualification-recalc.job';
@@ -31,7 +34,8 @@ import { NetworkNodeNotFoundException } from '../exceptions/network.exceptions';
  * These two corrections should be run together. Running only one will create drift
  * between sponsorship_links and network_nodes until the next graph rebuild.
  */
-@UseGuards(AdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller('admin/network')
 export class AdminNetworkController {
   constructor(
@@ -78,7 +82,9 @@ export class AdminNetworkController {
   @Post('corrections')
   async applyCorrection(@Body() dto: GraphCorrectionDto, @Req() req: any) {
     if (dto.userId === dto.newSponsorId) {
-      throw new BadRequestException('Cannot assign a user as their own sponsor');
+      throw new BadRequestException(
+        'Cannot assign a user as their own sponsor',
+      );
     }
 
     const actorId = req.adminActorId;
@@ -92,16 +98,9 @@ export class AdminNetworkController {
    * POST /admin/network/recalculate — trigger rebuild job.
    */
   @Post('recalculate')
-  async recalculate(
-    @Body() dto: RecalculateQualificationDto,
-    @Req() req: any,
-  ) {
+  async recalculate(@Body() dto: RecalculateQualificationDto, @Req() req: any) {
     const actorId = req.adminActorId;
-    return this.recalcJob.run(
-      dto.policyVersionId,
-      dto.targetUserId,
-      actorId,
-    );
+    return this.recalcJob.run(dto.policyVersionId, dto.targetUserId, actorId);
   }
 
   /**
@@ -163,6 +162,54 @@ export class AdminNetworkController {
   }
 
   // ===== DYNAMIC ROUTES — must come after all static routes =====
+
+  /**
+   * GET /admin/network/:userId/downline — paginated downline tree for any user.
+   * Reuses NetworkGraphService.getDownline() with admin-provided userId.
+   */
+  @Get(':userId/downline')
+  async getAdminDownline(
+    @Param('userId') userId: string,
+    @Query('maxDepth') maxDepth?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    // Verify the target user exists in the graph
+    const rootNode = await this.entityManager.findOne(NetworkNode, {
+      where: { user_id: userId },
+    });
+
+    if (!rootNode) {
+      throw new NetworkNodeNotFoundException(userId);
+    }
+
+    const depth = maxDepth ? parseInt(maxDepth, 10) : undefined;
+    const allDownline = await this.graphService.getDownline(userId, depth);
+
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = parseInt(limit || '50', 10);
+    const start = (pageNum - 1) * limitNum;
+    const paginatedData = allDownline.slice(start, start + limitNum);
+
+    return {
+      rootNode: {
+        userId: rootNode.user_id,
+        depth: rootNode.depth,
+        sponsorId: rootNode.sponsor_id,
+        directCount: rootNode.direct_count,
+        totalDownline: allDownline.length,
+      },
+      data: paginatedData.map((n) => ({
+        userId: n.user_id,
+        depth: n.depth,
+        sponsorId: n.sponsor_id,
+        directCount: n.direct_count,
+      })),
+      total: allDownline.length,
+      page: pageNum,
+      limit: limitNum,
+    };
+  }
 
   /**
    * GET /admin/network/:userId/node — NetworkNode for specific user.

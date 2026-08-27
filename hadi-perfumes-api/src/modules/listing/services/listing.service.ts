@@ -3,15 +3,26 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Listing, ListingStatus } from '../entities/listing.entity';
 import { ListingImage } from '../entities/listing-image.entity';
-import { ActorType, ListingStatusHistory } from '../entities/listing-status-history.entity';
-import { ListingModerationAction, ModerationAction } from '../entities/listing-moderation-action.entity';
+import {
+  ActorType,
+  ListingStatusHistory,
+} from '../entities/listing-status-history.entity';
+import {
+  ListingModerationAction,
+  ModerationAction,
+} from '../entities/listing-moderation-action.entity';
 import { CreateListingDto } from '../dto/create-listing.dto';
 import { UpdateListingDto } from '../dto/update-listing.dto';
 import { AddImageDto } from '../dto/add-image.dto';
 import { ModerationActionDto } from '../dto/moderation-action.dto';
 import { ListingSearchDto } from '../dto/listing-search.dto';
-import { ListingNotFoundException, ListingStateTransitionException, SkuAlreadyExistsException } from '../exceptions/listing.exceptions';
+import {
+  ListingNotFoundException,
+  ListingStateTransitionException,
+  SkuAlreadyExistsException,
+} from '../exceptions/listing.exceptions';
 import { InventoryItem } from '../../inventory/entities/inventory-item.entity';
+import { AuditService } from '../../audit/services/audit.service';
 
 @Injectable()
 export class ListingService {
@@ -21,12 +32,18 @@ export class ListingService {
     @InjectRepository(Listing)
     private readonly listingRepository: Repository<Listing>,
     private readonly dataSource: DataSource,
+    private readonly auditService: AuditService,
   ) {}
 
-  async createListing(adminId: string, dto: CreateListingDto): Promise<Listing> {
+  async createListing(
+    adminId: string,
+    dto: CreateListingDto,
+  ): Promise<Listing> {
     return this.dataSource.transaction(async (em: EntityManager) => {
       // 1. Check SKU Uniqueness
-      const existingSku = await em.findOne(Listing, { where: { sku: dto.sku } });
+      const existingSku = await em.findOne(Listing, {
+        where: { sku: dto.sku },
+      });
       if (existingSku) {
         throw new SkuAlreadyExistsException();
       }
@@ -38,6 +55,19 @@ export class ListingService {
         status: dto.status || ListingStatus.DRAFT,
       });
       const savedListing = await em.save(Listing, listing);
+
+      // 2.5 Associating Media Images
+      if (dto.media_keys && dto.media_keys.length > 0) {
+        for (let i = 0; i < dto.media_keys.length; i++) {
+          const img = em.create(ListingImage, {
+            listing_id: savedListing.id,
+            storage_key: dto.media_keys[i],
+            sort_order: i,
+            is_primary: i === 0,
+          });
+          await em.save(ListingImage, img);
+        }
+      }
 
       // 3. Create initial InventoryItem synchronously
       const invItem = em.create(InventoryItem, {
@@ -58,11 +88,24 @@ export class ListingService {
       });
       await em.save(ListingStatusHistory, history);
 
+      // Phase 9: Audit log
+      await this.auditService.log({
+        actor_id: adminId,
+        action: 'PRODUCT_CREATED',
+        entity_type: 'listing',
+        entity_id: savedListing.id,
+        after_snapshot: { title: savedListing.title, sku: savedListing.sku, price: savedListing.price, status: savedListing.status },
+      });
+
       return savedListing;
     });
   }
 
-  async updateListing(id: string, adminId: string, dto: UpdateListingDto): Promise<Listing> {
+  async updateListing(
+    id: string,
+    adminId: string,
+    dto: UpdateListingDto,
+  ): Promise<Listing> {
     return this.dataSource.transaction(async (em: EntityManager) => {
       const listing = await em.findOne(Listing, { where: { id } });
       if (!listing) {
@@ -71,13 +114,16 @@ export class ListingService {
 
       const updateDto = dto as any;
       if (updateDto.sku && updateDto.sku !== listing.sku) {
-        const existingSku = await em.findOne(Listing, { where: { sku: updateDto.sku } });
+        const existingSku = await em.findOne(Listing, {
+          where: { sku: updateDto.sku },
+        });
         if (existingSku) {
           throw new SkuAlreadyExistsException();
         }
       }
 
       const prevStatus = listing.status;
+      const prevPrice = listing.price;
       em.merge(Listing, listing, dto);
       const savedListing = await em.save(Listing, listing);
 
@@ -92,6 +138,20 @@ export class ListingService {
         });
         await em.save(ListingStatusHistory, history);
       }
+
+      // Phase 9: Audit log
+      const changes: Record<string, any> = {};
+      if (updateDto.price !== undefined) changes.price = { from: prevPrice, to: savedListing.price };
+      if (updateDto.title !== undefined) changes.title = savedListing.title;
+      if (updateDto.status !== undefined) changes.status = { from: prevStatus, to: savedListing.status };
+      await this.auditService.log({
+        actor_id: adminId,
+        action: updateDto.price !== undefined ? 'PRODUCT_PRICE_CHANGE' : 'PRODUCT_UPDATED',
+        entity_type: 'listing',
+        entity_id: savedListing.id,
+        before_snapshot: { price: listing.price, status: prevStatus },
+        after_snapshot: changes,
+      });
 
       return savedListing;
     });
@@ -111,9 +171,21 @@ export class ListingService {
     }
 
     const validTransitions: Record<ListingStatus, ListingStatus[]> = {
-      [ListingStatus.DRAFT]: [ListingStatus.PENDING_REVIEW, ListingStatus.ACTIVE, ListingStatus.REMOVED],
-      [ListingStatus.PENDING_REVIEW]: [ListingStatus.DRAFT, ListingStatus.ACTIVE, ListingStatus.REMOVED],
-      [ListingStatus.ACTIVE]: [ListingStatus.PAUSED, ListingStatus.SOLD_OUT, ListingStatus.REMOVED],
+      [ListingStatus.DRAFT]: [
+        ListingStatus.PENDING_REVIEW,
+        ListingStatus.ACTIVE,
+        ListingStatus.REMOVED,
+      ],
+      [ListingStatus.PENDING_REVIEW]: [
+        ListingStatus.DRAFT,
+        ListingStatus.ACTIVE,
+        ListingStatus.REMOVED,
+      ],
+      [ListingStatus.ACTIVE]: [
+        ListingStatus.PAUSED,
+        ListingStatus.SOLD_OUT,
+        ListingStatus.REMOVED,
+      ],
       [ListingStatus.PAUSED]: [ListingStatus.ACTIVE, ListingStatus.REMOVED],
       [ListingStatus.SOLD_OUT]: [ListingStatus.ACTIVE, ListingStatus.REMOVED],
       [ListingStatus.REMOVED]: [], // Terminal
@@ -121,7 +193,9 @@ export class ListingService {
 
     const allowed = validTransitions[listing.status as ListingStatus] || [];
     if (!allowed.includes(newStatus)) {
-      throw new ListingStateTransitionException(`Cannot transition from ${listing.status} to ${newStatus}`);
+      throw new ListingStateTransitionException(
+        `Cannot transition from ${listing.status} to ${newStatus}`,
+      );
     }
 
     const prevStatus = listing.status;
@@ -150,7 +224,12 @@ export class ListingService {
     return savedListing;
   }
 
-  async moderateListing(id: string, adminId: string, action: ModerationAction, dto: ModerationActionDto): Promise<Listing> {
+  async moderateListing(
+    id: string,
+    adminId: string,
+    action: ModerationAction,
+    dto: ModerationActionDto,
+  ): Promise<Listing> {
     return this.dataSource.transaction(async (em: EntityManager) => {
       let nextStatus: ListingStatus;
       switch (action) {
@@ -169,48 +248,89 @@ export class ListingService {
           nextStatus = ListingStatus.REMOVED;
           break;
         default:
-          throw new ListingStateTransitionException('Unknown moderation action');
+          throw new ListingStateTransitionException(
+            'Unknown moderation action',
+          );
       }
 
       return this._transitionStatus(id, adminId, action, nextStatus, dto, em);
     });
   }
 
-  async searchListings(filters: ListingSearchDto, isAdmin: boolean = false): Promise<{ data: Listing[]; total: number; page: number; limit: number }> {
-    const query = this.listingRepository.createQueryBuilder('listing')
+  async searchListings(
+    filters: ListingSearchDto,
+    isAdmin: boolean = false,
+  ): Promise<{ data: Listing[]; total: number; page: number; limit: number }> {
+    const query = this.listingRepository
+      .createQueryBuilder('listing')
       .leftJoinAndSelect('listing.images', 'images')
       .leftJoinAndSelect('listing.category', 'category');
 
+    // Admin views include real inventory data for stock display
+    if (isAdmin) {
+      query.leftJoinAndSelect('listing.inventory_item', 'inventory_item');
+    }
+
     if (!isAdmin) {
       // Public view forces active items only
-      query.andWhere('listing.status = :activeStatus', { activeStatus: ListingStatus.ACTIVE });
+      query.andWhere('listing.status = :activeStatus', {
+        activeStatus: ListingStatus.ACTIVE,
+      });
     } else if (filters.status) {
       query.andWhere('listing.status = :status', { status: filters.status });
     }
 
-    if (filters.condition) query.andWhere('listing.condition = :condition', { condition: filters.condition });
-    if (filters.authenticity_status) query.andWhere('listing.authenticity_status = :auth', { auth: filters.authenticity_status });
-    if (filters.category_id) query.andWhere('listing.category_id = :catId', { catId: filters.category_id });
-    if (filters.seller_id) query.andWhere('listing.seller_id = :sellerId', { sellerId: filters.seller_id });
-    
-    if (filters.min_price !== undefined) query.andWhere('listing.price >= :minP', { minP: filters.min_price });
-    if (filters.max_price !== undefined) query.andWhere('listing.price <= :maxP', { maxP: filters.max_price });
+    if (filters.condition)
+      query.andWhere('listing.condition = :condition', {
+        condition: filters.condition,
+      });
+    if (filters.authenticity_status)
+      query.andWhere('listing.authenticity_status = :auth', {
+        auth: filters.authenticity_status,
+      });
+    if (filters.category_id)
+      query.andWhere('listing.category_id = :catId', {
+        catId: filters.category_id,
+      });
+    if (filters.seller_id)
+      query.andWhere('listing.seller_id = :sellerId', {
+        sellerId: filters.seller_id,
+      });
+
+    if (filters.min_price !== undefined)
+      query.andWhere('listing.price >= :minP', { minP: filters.min_price });
+    if (filters.max_price !== undefined)
+      query.andWhere('listing.price <= :maxP', { maxP: filters.max_price });
 
     if (filters.q) {
-      query.andWhere('(listing.title ILIKE :q OR listing.description ILIKE :q OR listing.sku ILIKE :q)', { q: `%${filters.q}%` });
+      query.andWhere(
+        '(listing.title ILIKE :q OR listing.description ILIKE :q OR listing.sku ILIKE :q)',
+        { q: `%${filters.q}%` },
+      );
     }
+
+    if (filters.intensity_min !== undefined)
+      query.andWhere('listing.intensity >= :intMin', { intMin: filters.intensity_min });
+    if (filters.intensity_max !== undefined)
+      query.andWhere('listing.intensity <= :intMax', { intMax: filters.intensity_max });
 
     const page = filters.page || 1;
     const limit = filters.limit || 20;
 
-    query.skip((page - 1) * limit).take(limit).orderBy('listing.created_at', 'DESC');
+    query
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('listing.created_at', 'DESC');
 
     const [data, total] = await query.getManyAndCount();
 
     return { data, total, page, limit };
   }
 
-  async getListingById(id: string, includeNonPublic: boolean = false): Promise<Listing> {
+  async getListingById(
+    id: string,
+    includeNonPublic: boolean = false,
+  ): Promise<Listing> {
     const listing = await this.listingRepository.findOne({
       where: { id },
       relations: ['images', 'category'],
@@ -227,10 +347,14 @@ export class ListingService {
     return listing;
   }
 
-  async addImage(listingId: string, adminId: string, dto: AddImageDto): Promise<ListingImage> {
+  async addImage(
+    listingId: string,
+    adminId: string,
+    dto: AddImageDto,
+  ): Promise<ListingImage> {
     // Validate existence first
     await this.getListingById(listingId, true);
-    
+
     return this.dataSource.transaction(async (em: EntityManager) => {
       const image = em.create(ListingImage, {
         listing_id: listingId,
@@ -252,10 +376,18 @@ export class ListingService {
     });
   }
 
-  async reorderImages(listingId: string, adminId: string, orderedIds: string[]): Promise<void> {
+  async reorderImages(
+    listingId: string,
+    adminId: string,
+    orderedIds: string[],
+  ): Promise<void> {
     await this.dataSource.transaction(async (em: EntityManager) => {
       for (let i = 0; i < orderedIds.length; i++) {
-        await em.update(ListingImage, { id: orderedIds[i], listing_id: listingId }, { sort_order: i });
+        await em.update(
+          ListingImage,
+          { id: orderedIds[i], listing_id: listingId },
+          { sort_order: i },
+        );
       }
     });
   }

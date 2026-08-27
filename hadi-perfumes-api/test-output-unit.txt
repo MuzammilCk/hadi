@@ -2,42 +2,36 @@
 > hadi-perfumes-api@0.0.1 test
 > cross-env NODE_ENV=test jest
 
-PASS test/unit/signup-flow.service.spec.ts
-PASS test/integration/sponsor-correction.workflow.spec.ts
-PASS test/integration/referral-redemption.workflow.spec.ts
-PASS test/integration/admin-policy.workflow.spec.ts
-PASS test/integration/circular-sponsorship.prevention.spec.ts
+PASS test/unit/inventory/inventory.service.spec.ts
 PASS test/integration/qualification-state.spec.ts
-PASS test/unit/referral-validation.service.spec.ts
-PASS test/unit/qualification-engine.service.spec.ts
-PASS test/unit/network-graph.service.spec.ts
-FAIL test/integration/network-graph-build.spec.ts
-  ÔùÅ NetworkGraphService (Integration) ÔÇ║ after a graph correction, descendants of the corrected user have their upline_path updated
-
-    expect(received).toContain(expected) // indexOf
-
-    Expected value: "442ca679-3a67-4e59-b3e2-4f8fcb1344a9"
-    Received array: ["bde5a17e-a714-40b7-ab0a-ef39079c15cd", "bcc393de-2164-4ce2-bfbc-db7e8e27da9b", "89de43eb-6fb1-4748-a849-cb11bd4858dd"]
-
-      240 |
-      241 |     // Child's path should now include newSponsor instead of oldSponsor
-    > 242 |     expect(childPath).toContain(newSponsor.id);
-          |                       ^
-      243 |     expect(childPath).toContain(user.id);
-      244 |   });
-      245 |
-
-      at Object.<anonymous> (test/integration/network-graph-build.spec.ts:242:23)
-
-PASS test/unit/rank-assignment.service.spec.ts
+PASS test/integration/order-checkout.workflow.spec.ts
+PASS test/integration/payment-capture.workflow.spec.ts
+PASS test/integration/circular-sponsorship.prevention.spec.ts
+PASS test/integration/network-graph-build.spec.ts (5.214 s)
+PASS test/integration/referral-redemption.workflow.spec.ts
+PASS test/integration/order-oversell-concurrency.spec.ts
 PASS test/integration/rank-assignment-workflow.spec.ts
+PASS test/unit/order/checkout-idempotency.spec.ts
+PASS test/integration/sponsor-correction.workflow.spec.ts
+PASS test/unit/qualification-engine.service.spec.ts
+PASS test/integration/admin-policy.workflow.spec.ts
+PASS test/unit/rank-assignment.service.spec.ts
+PASS test/unit/order/payment-webhook-dedup.spec.ts
+PASS test/unit/referral-validation.service.spec.ts
+PASS test/unit/signup-flow.service.spec.ts
+PASS test/unit/network-graph.service.spec.ts
 PASS src/app.controller.spec.ts
-PASS test/unit/otp.service.spec.ts
 PASS test/unit/policy-evaluation.service.spec.ts
-PASS test/integration/otp-flow.workflow.spec.ts
+PASS test/unit/otp.service.spec.ts
+PASS test/unit/network-regression.spec.ts
+PASS test/unit/network-invariants.spec.ts
+PASS test/unit/listing/listing.service.spec.ts
+PASS test/unit/order/order-total.spec.ts
+PASS test/unit/order/order-state-machine.spec.ts
+PASS test/integration/otp-flow.workflow.spec.ts (7.688 s)
 
-Test Suites: 1 failed, 15 passed, 16 total
-Tests:       1 failed, 100 passed, 101 total
+Test Suites: 27 passed, 27 total
+Tests:       183 passed, 183 total
 Snapshots:   0 total
-Time:        5.373 s, estimated 6 s
+Time:        8.963 s
 Ran all test suites.

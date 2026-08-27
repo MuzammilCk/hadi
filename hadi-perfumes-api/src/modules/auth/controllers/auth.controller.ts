@@ -13,6 +13,8 @@ import { SendOtpDto } from '../dto/send-otp.dto';
 import { VerifyOtpDto } from '../dto/verify-otp.dto';
 import { SignupDto } from '../dto/signup.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
+import { LoginDto } from '../dto/login.dto';
+import { GoogleLoginDto } from '../dto/google-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -35,6 +37,8 @@ export class AuthController {
     return this.signupFlowService.verifyOtp(dto.phone, dto.otp);
   }
 
+  // Fix L1: signup must be rate-limited — prevents credential stuffing via session tokens
+  @UseGuards(ThrottlerGuard)
   @Post('signup')
   async signup(@Body() dto: SignupDto, @Req() req: any) {
     const authHeader = req.headers.authorization;
@@ -60,6 +64,7 @@ export class AuthController {
       payload.phone,
       dto.full_name,
       dto.password,
+      dto.email,
       dto.referral_code,
       payload.attempt_id,
       ip,
@@ -67,6 +72,8 @@ export class AuthController {
     );
   }
 
+  // Fix L1: refresh must be rate-limited — prevents brute-force refresh token guessing
+  @UseGuards(ThrottlerGuard)
   @Post('refresh')
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.signupFlowService.refresh(dto.refresh_token);
@@ -75,5 +82,17 @@ export class AuthController {
   @Post('logout')
   async logout(@Body() dto: RefreshTokenDto) {
     return this.signupFlowService.logout(dto.refresh_token);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('login')
+  async login(@Body() dto: LoginDto) {
+    return this.signupFlowService.login(dto.identifier, dto.password);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('google')
+  async loginWithGoogle(@Body() dto: GoogleLoginDto) {
+    return this.signupFlowService.loginWithGoogle(dto.credential);
   }
 }

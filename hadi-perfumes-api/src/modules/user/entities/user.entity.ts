@@ -9,6 +9,13 @@ import {
 } from 'typeorm';
 import { tstz, inet, enumType } from '../../../common/utils/db-type.util';
 
+export enum UserRole {
+  CUSTOMER = 'customer',
+  ADMIN = 'admin',
+  INVENTORY_MANAGER = 'inventory_manager',
+  CONTENT_MANAGER = 'content_manager',
+}
+
 export enum UserStatus {
   PENDING_OTP = 'pending_otp',
   ACTIVE = 'active',
@@ -39,6 +46,13 @@ export class User {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   full_name: string;
+
+  @Column({
+    type: 'varchar',
+    length: 30,
+    default: UserRole.CUSTOMER,
+  })
+  role: UserRole | string;
 
   @Column({
     type: enumType() as any,
